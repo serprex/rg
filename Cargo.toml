@@ -1,0 +1,13 @@
+[package]
+name = "rg"
+version = "0.1.0"
+authors = ["serprex"]
+
+[dependencies]
+#gl = "*"
+#num = "*"
+#libc = "*"
+#glutin = "*"
+#freetype-rs = "*"
+ncurses = "*"
+#lazy_static = "*"
