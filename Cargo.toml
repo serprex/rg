@@ -7,6 +7,7 @@ authors = ["serprex"]
 #gl = "*"
 #num = "*"
 #libc = "*"
+rand = "*"
 #glutin = "*"
 #freetype-rs = "*"
 ncurses = "*"
