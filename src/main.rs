@@ -131,6 +131,15 @@ impl<'a> Room<'a> {
 			o.borrow_mut().tock();
 		}
 	}
+	pub fn new(p: Player) -> Room<'a> {
+		Room {
+			p: p,
+			o: Vec::new(),
+			w: 0,
+			h: 0,
+			t: 0,
+		}
+	}
 }
 
 trait RoomPhase {
@@ -237,11 +246,9 @@ fn main(){
 	raw();
 	noecho();
 	let mut room = Room {
-		p: Player { xy: (3, 3), ticks: 0 },
-		o: Vec::new(),
 		w: 60,
 		h: 40,
-		t: 0,
+		.. Room::new(Player { xy: (3, 3), ticks: 0 })
 	};
 	let rrg = GreedyRoomGen::default();
 	rrg.modify(&mut room);
