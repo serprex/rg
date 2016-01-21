@@ -136,30 +136,30 @@ impl<'a> Room<'a> {
 trait RoomGenerator{
 	fn generate(&self, i32, i32) -> Room;
 }
-struct RogueRoomGen{
+struct GreedyRoomGen{
 	pxy: (i32, i32),
 	rc: u32,
 }
-impl Default for RogueRoomGen {
+impl Default for GreedyRoomGen {
 	fn default() -> Self {
-		RogueRoomGen {
+		GreedyRoomGen {
 			pxy: (3, 3),
 			rc: 6,
 		}
 	}
 }
-impl RoomGenerator for RogueRoomGen {
+impl RoomGenerator for GreedyRoomGen {
 	fn generate(&self, w: i32, h: i32) -> Room {
 		let betw = Range::new(0, w-2);
 		let beth = Range::new(0, h-2);
 		let bet4 = Range::new(0, 4);
 		let mut rng = rand::thread_rng();
-		let mut rxy: Vec<(i32, i32, i32, i32)> = Vec::new();
+		let mut rxy: Vec<(i32, i32, i32, i32)> = vec![(self.pxy.0, self.pxy.1, self.pxy.0+2, self.pxy.1+2)];
+		let done = &mut [false, false, false, false];
 		while rxy.len() < (self.rc as usize) {
 			let rx = betw.ind_sample(&mut rng);
 			let ry = beth.ind_sample(&mut rng);
 			let candy = (rx, ry, rx+2, ry+2);
-			println!("\r{:?}\t{:?}", rxy, candy);
 			if !rxy.iter().any(|a| rectover(&candy, a))
 				{ rxy.push(candy) }
 		}
@@ -176,10 +176,11 @@ impl RoomGenerator for RogueRoomGen {
 				};
 				cangrow.push(newrect.0 >= 0 && newrect.1 >= 0 && newrect.2 < w && newrect.3 < h && rxy.iter().filter(|rect2| rectover(&newrect, rect2) ).take(2).count() == 1);
 			}
-			println!("\r{:?}\t{:?}", cangrow, rxy);
-			if cangrow.iter().all(|&x| !x) { break }
+			if cangrow.iter().all(|&x| !x) {
+				done[b4] = true;
+				if done.iter().all(|&x| x) { break }
+			}
 			for (&mut (ref mut x1, ref mut y1, ref mut x2, ref mut y2), &grow) in rxy.iter_mut().zip(&cangrow) {
-				println!("\r{},{},{},{},{}",x1,y1,x2,y2,grow);
 				if !grow { continue }
 				match b4 {
 					0 => *x1 -= 1,
@@ -188,7 +189,6 @@ impl RoomGenerator for RogueRoomGen {
 					3 => *y2 += 1,
 					_ => unreachable!(),
 				}
-				println!("\r{},{},{},{},{}",x1,y1,x2,y2,grow);
 			}
 		}
 		let mut ovec = Vec::<RefCell<Box<Obj>>>::new();
@@ -227,8 +227,8 @@ fn prscr<'a>(room: &'a Room){
 	let mut y = 0;
 	for ch in chs {
 		if ch == ' ' { continue }
-		mvaddch(y, room.w, ch as u64);
-		printw("  ");
+		mvaddch(y, room.w+1, ch as u64);
+		printw(" ");
 		printw(match ch {
 			'@' => "You",
 			'#' => "Wall",
@@ -242,8 +242,8 @@ fn main(){
 	initscr();
 	raw();
 	noecho();
-	let rrg = RogueRoomGen::default();
-	let mut room = rrg.generate(40, 40);
+	let rrg = GreedyRoomGen::default();
+	let mut room = rrg.generate(60, 40);
 	loop{
 		room.tock();
 		if room.p.ticks == 0 {
