@@ -146,13 +146,11 @@ trait RoomPhase {
 	fn modify(&self, &mut Room);
 }
 struct GreedyRoomGen{
-	pxy: (i32, i32),
 	rc: u32,
 }
 impl Default for GreedyRoomGen {
 	fn default() -> Self {
 		GreedyRoomGen {
-			pxy: (3, 3),
 			rc: 6,
 		}
 	}
@@ -165,7 +163,8 @@ impl RoomPhase for GreedyRoomGen {
 		let beth = Range::new(0, h-2);
 		let bet4 = Range::new(0, 4);
 		let mut rng = rand::thread_rng();
-		let mut rxy: Vec<(i32, i32, i32, i32)> = vec![(self.pxy.0, self.pxy.1, self.pxy.0+2, self.pxy.1+2)];
+		let pxy = room.p.xy;
+		let mut rxy: Vec<(i32, i32, i32, i32)> = vec![(pxy.0, pxy.1, pxy.0+2, pxy.1+2)];
 		let done = &mut [false, false, false, false];
 		while rxy.len() < (self.rc as usize) {
 			let rx = betw.ind_sample(&mut rng);
@@ -203,6 +202,7 @@ impl RoomPhase for GreedyRoomGen {
 			}
 		}
 		for xywh in rxy {
+			//room.o.reserve((xywh.2-xywh.0+xywh.3-xywh.1+2)*2);
 			for x in xywh.0..xywh.2+1 {
 				room.o.push(RefCell::new(Box::new(Wall { xy: (x,xywh.1) })));
 				room.o.push(RefCell::new(Box::new(Wall { xy: (x,xywh.3) })));
@@ -218,27 +218,25 @@ impl RoomPhase for GreedyRoomGen {
 fn prscr<'a>(room: &'a Room){
 	let mut chs = HashSet::new();
 	clear();
-	for y in 0..room.h{
-		for x in 0..room.w{
-			let ch = room.getchar(x, y);
-			addch(ch as u64);
-			chs.insert(ch);
-		}
-		addch('\n' as u64);
+	for o in room.o.iter() {
+		let ob = o.borrow();
+		let xy = ob.xy();
+		let ch = ob.ch();
+		mvaddch(xy.1, xy.0, ch as u64);
+		chs.insert(ch);
 	}
-	printw(&room.t.to_string());
+	mvaddch(room.p.xy().1, room.p.xy().0, '@' as u64);
 	let mut y = 0;
 	for ch in chs {
 		if ch == ' ' { continue }
 		mvaddch(y, room.w+1, ch as u64);
-		printw(" ");
-		printw(match ch {
-			'@' => "You",
+		mvprintw(y, room.w+3, match ch {
 			'#' => "Wall",
 			_ => "??",
 		});
 		y += 1
 	}
+	mvprintw(room.h+1, 0, &room.t.to_string());
 }
 
 fn main(){
@@ -262,8 +260,9 @@ fn main(){
 				room.p.step(d);
 				room.p.ticks = if isdiag(d) { 141 }
 					else { 100 };
-			}else {
+			} else {
 				match c {
+					'1'...'9' => room.p.ticks = ((c as i32)-('0' as i32))*10,
 					'\x1b' => break,
 					_ => (),
 				}
