@@ -133,8 +133,8 @@ impl<'a> Room<'a> {
 	}
 }
 
-trait RoomGenerator{
-	fn generate(&self, i32, i32) -> Room;
+trait RoomPhase {
+	fn modify(&self, &mut Room);
 }
 struct GreedyRoomGen{
 	pxy: (i32, i32),
@@ -148,8 +148,10 @@ impl Default for GreedyRoomGen {
 		}
 	}
 }
-impl RoomGenerator for GreedyRoomGen {
-	fn generate(&self, w: i32, h: i32) -> Room {
+impl RoomPhase for GreedyRoomGen {
+	fn modify(&self, room: &mut Room) {
+		let w = room.w;
+		let h = room.h;
 		let betw = Range::new(0, w-2);
 		let beth = Range::new(0, h-2);
 		let bet4 = Range::new(0, 4);
@@ -191,23 +193,15 @@ impl RoomGenerator for GreedyRoomGen {
 				}
 			}
 		}
-		let mut ovec = Vec::<RefCell<Box<Obj>>>::new();
 		for xywh in rxy {
 			for x in xywh.0..xywh.2+1 {
-				ovec.push(RefCell::new(Box::new(Wall { xy: (x,xywh.1) })));
-				ovec.push(RefCell::new(Box::new(Wall { xy: (x,xywh.3) })));
+				room.o.push(RefCell::new(Box::new(Wall { xy: (x,xywh.1) })));
+				room.o.push(RefCell::new(Box::new(Wall { xy: (x,xywh.3) })));
 			}
 			for y in xywh.1..xywh.3+1 {
-				ovec.push(RefCell::new(Box::new(Wall { xy: (xywh.0,y) })));
-				ovec.push(RefCell::new(Box::new(Wall { xy: (xywh.2,y) })));
+				room.o.push(RefCell::new(Box::new(Wall { xy: (xywh.0,y) })));
+				room.o.push(RefCell::new(Box::new(Wall { xy: (xywh.2,y) })));
 			}
-		}
-		Room {
-			p: Player { xy: self.pxy, ticks: 0 },
-			o: ovec,
-			w: w,
-			h: h,
-			t: 0,
 		}
 	}
 }
@@ -242,8 +236,15 @@ fn main(){
 	initscr();
 	raw();
 	noecho();
+	let mut room = Room {
+		p: Player { xy: (3, 3), ticks: 0 },
+		o: Vec::new(),
+		w: 60,
+		h: 40,
+		t: 0,
+	};
 	let rrg = GreedyRoomGen::default();
-	let mut room = rrg.generate(60, 40);
+	rrg.modify(&mut room);
 	loop{
 		room.tock();
 		if room.p.ticks == 0 {
