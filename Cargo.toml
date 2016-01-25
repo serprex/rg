@@ -4,11 +4,5 @@ version = "0.1.0"
 authors = ["serprex"]
 
 [dependencies]
-#gl = "*"
-#num = "*"
-#libc = "*"
-rand = "*"
-#glutin = "*"
-#freetype-rs = "*"
-ncurses = "*"
-#lazy_static = "*"
+rand = "0.3.13"
+ncurses = "5.80.0"
