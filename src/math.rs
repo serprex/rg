@@ -36,7 +36,7 @@ pub fn calcdist2(xy1: (i32, i32), xy2: (i32, i32)) -> i32{
 	let (x2, y2) = xy2;
 	(x1-x2)*(y1-y2) // TODO calc with diag limitation
 }
-pub fn rectover(r1: &(i32,i32,i32,i32), r2: &(i32,i32,i32,i32)) -> bool {
+pub fn rectover(r1: &(u16,u16,u16,u16), r2: &(u16,u16,u16,u16)) -> bool {
 	r1.0 <= r2.2 && r1.2 >= r2.0 && r1.1 <= r2.3 && r1.3 >= r2.1
 }
 //fn dir2rad(d: Dir) -> f64 {

@@ -2,19 +2,20 @@ use std::cell::RefCell;
 use math::*;
 
 pub trait Obj{
-	fn xy(&self) -> (i32, i32);
-	fn mv(&mut self, (i32, i32)) -> (i32, i32);
-	fn step(&mut self, d: Dir) -> (i32, i32){
+	fn xy(&self) -> (u16, u16);
+	fn mv(&mut self, (u16, u16)) -> (u16, u16);
+	fn step(&mut self, d: Dir) -> (u16, u16){
 		let (x, y) = self.xy();
 		self.mv(match d {
 			Dir::E => (x+1, y),
-			Dir::NE => (x+1, y-1),
-			Dir::N => (x, y-1),
-			Dir::NW => (x-1, y-1),
-			Dir::W => (x-1, y),
-			Dir::SW => (x-1, y+1),
+			Dir::NE if y>0 => (x+1, y-1),
+			Dir::N if y>0 => (x, y-1),
+			Dir::NW if x>0 && y>0 => (x-1, y-1),
+			Dir::W if x>0 => (x-1, y),
+			Dir::SW if x>0 => (x-1, y+1),
 			Dir::S => (x, y+1),
 			Dir::SE => (x+1, y+1),
+			_ => (x, y)
 		})
 	}
 	fn ch(&self) -> char;
@@ -29,41 +30,43 @@ pub trait Bio : Obj{
 	fn dmg(&self) -> bool;
 }
 pub struct Player{
-	pub xy: (i32, i32),
-	pub ticks: i32
+	pub xy: (u16, u16),
+	pub ticks: u32
 }
 impl Obj for Player{
-	fn xy(&self) -> (i32, i32){
+	fn xy(&self) -> (u16, u16){
 		self.xy
 	}
-	fn mv(&mut self, xy: (i32, i32)) -> (i32, i32) {
+	fn mv(&mut self, xy: (u16, u16)) -> (u16, u16) {
 		self.xy = xy;
 		xy
 	}
 	fn ch(&self) -> char{ '@' }
 	fn tock(&mut self) -> bool {
-		if self.ticks > 0 { self.ticks -= 1 }
-		self.ticks == 0
+		if self.ticks > 0 {
+			self.ticks -= 1;
+			false
+		}else { true }
 	}
 }
 pub struct Wall{
-	pub xy: (i32, i32)
+	pub xy: (u16, u16)
 }
 impl Wall{
-	fn new(xy: (i32, i32)) -> Self {
+	fn new(xy: (u16, u16)) -> Self {
 		Wall { xy: xy }
 	}
 }
 impl Obj for Wall{
-	fn xy(&self) -> (i32, i32){ self.xy }
-	fn mv(&mut self, xy: (i32, i32)) -> (i32, i32) { self.xy = xy; xy }
+	fn xy(&self) -> (u16, u16){ self.xy }
+	fn mv(&mut self, xy: (u16, u16)) -> (u16, u16) { self.xy = xy; xy }
 	fn ch(&self) -> char { '#' }
 }
 pub struct Room<'a>{
 	pub p: Player,
 	pub o: Vec<RefCell<Box<Obj + 'a>>>,
-	pub w: i32,
-	pub h: i32,
+	pub w: u16,
+	pub h: u16,
 	pub t: u64,
 }
 

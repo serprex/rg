@@ -25,7 +25,7 @@ impl RoomPhase for GreedyRoomGen {
 		let bet4 = Range::new(0, 4);
 		let mut rng = thread_rng();
 		let pxy = room.p.xy;
-		let mut rxy: Vec<(i32, i32, i32, i32)> = vec![(pxy.0-1, pxy.1-1, pxy.0+1, pxy.1+1)];
+		let mut rxy: Vec<(u16, u16, u16, u16)> = vec![(if pxy.0 > 0 { pxy.0-1 } else {0}, if pxy.1 > 0 { pxy.1-1 } else {0}, pxy.0+1, pxy.1+1)];
 		let done = &mut [false; 4];
 		let mut adjacent = Vec::with_capacity((self.rc*self.rc) as usize);
 		for _ in 0..self.rc*self.rc{
@@ -43,11 +43,14 @@ impl RoomPhase for GreedyRoomGen {
 			let b4 = bet4.ind_sample(&mut rng);
 			for (i, rect) in rxy.iter().enumerate() {
 				let newrect = match b4 {
-					0 => (rect.0-1, rect.1, rect.2, rect.3),
-					1 => (rect.0, rect.1-1, rect.2, rect.3),
+					0 if rect.0 > 0 => (rect.0-1, rect.1, rect.2, rect.3),
+					1 if rect.1 > 0 => (rect.0, rect.1-1, rect.2, rect.3),
 					2 => (rect.0, rect.1, rect.2+1, rect.3),
 					3 => (rect.0, rect.1, rect.2, rect.3+1),
-					_ => unreachable!(),
+					_ => {
+						cangrow.push(false);
+						continue
+					},
 				};
 				if !(newrect.0 >= 0 && newrect.1 >= 0 && newrect.2 < w && newrect.3 < h) {
 					cangrow.push(false);
@@ -78,7 +81,7 @@ impl RoomPhase for GreedyRoomGen {
 				}
 			}
 		}
-		let mut doors : HashSet<(i32, i32)> = HashSet::new();
+		let mut doors : HashSet<(u16, u16)> = HashSet::new();
 		let mut iszgrp : Vec<bool> = Vec::with_capacity(self.rc as usize);
 		let mut nzgrps : HashSet<u32> = HashSet::with_capacity((self.rc-1) as usize);
 		let mut zgrps : HashSet<u32> = HashSet::with_capacity(self.rc as usize);
@@ -98,26 +101,28 @@ impl RoomPhase for GreedyRoomGen {
 			let &aidx = rng.choose(&adjs.iter().cloned().collect::<Vec<_>>()).unwrap();
 			let r1 = rxy[iszi as usize];
 			let r2 = rxy[aidx as usize];
-			// TODO don't put doors in unreachable corners
-			if (r1.0-r2.2).abs() == 1 {
+			fn is1off(a: u16, b: u16) -> bool {
+				cmp::max(a, b) - cmp::min(a, b) == 1
+			}
+			if is1off(r1.0, r2.2) {
 				let mny = cmp::max(r1.1, r2.1);
 				let mxy = cmp::min(r1.3, r2.3);
 				let y = rng.gen_range(mny, mxy);
 				doors.insert((r1.0,y));
 				doors.insert((r2.2,y));
-			}else if (r1.2-r2.0).abs() == 1 {
+			}else if is1off(r1.2, r2.0) {
 				let mny = cmp::max(r1.1, r2.1);
 				let mxy = cmp::min(r1.3, r2.3);
 				let y = rng.gen_range(mny, mxy);
 				doors.insert((r1.2,y));
 				doors.insert((r2.0,y));
-			}else if (r1.1-r2.3).abs() == 1 {
+			}else if is1off(r1.1, r2.3) {
 				let mnx = cmp::max(r1.0, r2.0);
 				let mxx = cmp::min(r1.2, r2.2);
 				let x = rng.gen_range(mnx, mxx);
 				doors.insert((x,r1.1));
 				doors.insert((x,r2.3));
-			}else if (r1.3-r2.1).abs() == 1 {
+			}else if is1off(r1.3, r2.1) {
 				let mnx = cmp::max(r1.0, r2.0);
 				let mxx = cmp::min(r1.2, r2.2);
 				let x = rng.gen_range(mnx, mxx);

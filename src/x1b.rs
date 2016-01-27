@@ -57,19 +57,25 @@ impl Cursor {
 		self.attr.intersects(ta)
 	}
 	pub fn setattr(&mut self, ta: TextAttr){
+		let mut anyattrs = false;
 		let mapping = [
-			(TA_BOLD, "1m"),
-			(TA_LOW, "2m"),
-			(TA_UNDER, "4m"),
-			(TA_BLINK, "5m"),
-			(TA_REV, "7m"),
-			(TA_INVIS, "8m")];
+			(TA_BOLD, '1'),
+			(TA_LOW, '2'),
+			(TA_UNDER, '4'),
+			(TA_BLINK, '5'),
+			(TA_REV, '7'),
+			(TA_INVIS, '8')];
 		for &(attr, code) in mapping.iter() {
 			if ta.contains(attr) && !self.attr.contains(attr) {
-				self.esc(code)
+				self.buf.push(code);
+				self.buf.push(';');
+				anyattrs = true
 			}
 		}
-		self.attr.insert(ta)
+		if anyattrs {
+			self.attr.insert(ta);
+			unsafe { *(self.buf.as_mut_vec().last_mut().unwrap()) = 109 }
+		}
 	}
 	pub fn setbold(&mut self){
 		self.attr.insert(TA_BOLD);
@@ -94,6 +100,20 @@ impl Cursor {
 	pub fn setinvis(&mut self){
 		self.attr.insert(TA_INVIS);
 		self.esc("8m")
+	}
+	pub fn unsetbold(&mut self){
+		self.attr.remove(TA_BOLD);
+		self.esc("21m")
+	}
+	pub fn unsetrev(&mut self){
+		self.attr.remove(TA_REV);
+		self.esc("27m")
+	}
+	pub fn wrapon(&mut self){
+		self.buf.push_str("\x1b7h")
+	}
+	pub fn wrapoff(&mut self){
+		self.buf.push_str("\x1b7l")
 	}
 	pub fn up1(&mut self){
 		self.y -= 1;
@@ -177,16 +197,25 @@ impl Cursor {
 		self.escch('M')
 	}
 	pub fn dellns(&mut self, n: u16){
-		self.esc(&format!("{}", n))
+		self.esc(&format!("{}M", n))
 	}
 	pub fn delch(&mut self){
 		self.escch('S')
 	}
 	pub fn delchs(&mut self, n: u16){
-		self.esc(&format!("{}", n))
+		self.esc(&format!("{}S", n))
 	}
 	pub fn getattr(&self) -> TextAttr{
 		self.attr
+	}
+	pub fn showcur(&mut self){
+		self.esc("?23h")
+	}
+	pub fn hidecur(&mut self){
+		self.esc("?25l")
+	}
+	pub fn spame(&mut self){
+		self.buf.push_str("\x1b#8")
 	}
 	pub fn getxy(&self) -> (u16, u16){
 		(self.x, self.y)
@@ -209,17 +238,17 @@ impl Cursor {
 		self.y += lines as u16;
 		self.buf.push_str(s)
 	}
-	pub fn clear(&mut self) -> io::Result<usize> {
+	pub fn clear(&mut self) -> io::Result<()> {
 		self.buf.clear();
 		self.x = 0;
 		self.y = 0;
 		Cursor::dropclear()
 	}
-	pub fn dropclear() -> io::Result<usize> {
-		io::stdout().write(b"\x1bc")
+	pub fn dropclear() -> io::Result<()> {
+		io::stdout().write_all(b"\x1bc")
 	}
-	pub fn flush(&mut self) -> io::Result<usize> {
-		let ret = io::stdout().write(self.buf.as_bytes());
+	pub fn flush(&mut self) -> io::Result<()> {
+		let ret = io::stdout().write_all(self.buf.as_bytes());
 		self.buf.clear();
 		ret
 	}

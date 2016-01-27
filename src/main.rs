@@ -13,7 +13,7 @@ use obj::{Obj, RoomPhase};
 use std::collections::HashSet;
 use std::io::Read;
 
-fn prscr<'a>(curse: &'a mut x1b::Cursor, room: &'a obj::Room) -> std::io::Result<usize> {
+fn prscr<'a>(curse: &'a mut x1b::Cursor, room: &'a obj::Room) -> std::io::Result<()> {
 	let mut chs = HashSet::new();
 	curse.eraseall();
 	curse.resetxy();
@@ -48,17 +48,19 @@ pub struct NCurse{
 	curse: x1b::Cursor,
 }
 impl NCurse {
-	pub fn raw() -> std::io::Result<()> {
+	pub fn raw(fd: i32) -> std::io::Result<()> {
 		use termios::*;
-		let mut term = try!(Termios::from_fd(0));
+		let mut term = try!(Termios::from_fd(fd));
 		cfmakeraw(&mut term);
 		term.c_lflag &= !ECHO;
-		tcsetattr(0, TCSANOW, &term);
+		tcsetattr(fd, TCSANOW, &term);
 		Ok(())
 	}
 
 	pub fn rungame(&mut self){
-		NCurse::raw();
+		NCurse::raw(0);
+		self.curse.hidecur();
+
 		let stdin = std::io::stdin();
 		let sin = stdin.lock();
 		let mut sinchars = sin.bytes();
@@ -80,7 +82,7 @@ impl NCurse {
 						else { 100 };
 				} else {
 					match c {
-						'1'...'9' => room.p.ticks = ((c as i32)-('0' as i32))*10,
+						'1'...'9' => room.p.ticks = ((c as u32)-('0' as u32))*10,
 						'\x1b' => return,
 						_ => (),
 					}
