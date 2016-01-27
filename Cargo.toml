@@ -5,4 +5,5 @@ authors = ["serprex"]
 
 [dependencies]
 rand = "0.3.13"
-ncurses = "5.80.0"
+bitflags = "0.4.0"
+termios = "0.2.1"

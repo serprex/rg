@@ -7,7 +7,7 @@ use obj::*;
 use math::*;
 
 pub struct GreedyRoomGen{
-	rc: u32,
+	pub rc: u32,
 }
 impl Default for GreedyRoomGen {
 	fn default() -> Self {
