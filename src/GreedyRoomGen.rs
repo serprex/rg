@@ -1,5 +1,4 @@
 use std::cmp;
-use std::cell::RefCell;
 use std::collections::HashSet;
 use rand::*;
 use rand::distributions::{IndependentSample, Range};
@@ -24,7 +23,7 @@ impl RoomPhase for GreedyRoomGen {
 		let beth = Range::new(0, h-2);
 		let bet4 = Range::new(0, 4);
 		let mut rng = thread_rng();
-		let pxy = room.p.xy;
+		let pxy = room.o.get(&0).unwrap().xy();
 		let mut rxy: Vec<(u16, u16, u16, u16)> = vec![(if pxy.0 > 0 { pxy.0-1 } else {0}, if pxy.1 > 0 { pxy.1-1 } else {0}, pxy.0+1, pxy.1+1)];
 		let done = &mut [false; 4];
 		let mut adjacent = Vec::with_capacity((self.rc*self.rc) as usize);
@@ -52,7 +51,7 @@ impl RoomPhase for GreedyRoomGen {
 						continue
 					},
 				};
-				if !(newrect.0 >= 0 && newrect.1 >= 0 && newrect.2 < w && newrect.3 < h) {
+				if newrect.2 >= w || newrect.3 >= h {
 					cangrow.push(false);
 					continue
 				}
@@ -138,18 +137,18 @@ impl RoomPhase for GreedyRoomGen {
 			room.o.reserve(((xywh.2-xywh.0+xywh.3-xywh.1+2)*2) as usize);
 			for x in xywh.0..xywh.2+1 {
 				if !doors.contains(&(x,xywh.1)) {
-					room.o.push(RefCell::new(Box::new(Wall { xy: (x,xywh.1) })))
+					room.insert(Box::new(Wall { xy: (x,xywh.1) }));
 				}
 				if !doors.contains(&(x,xywh.3)) {
-					room.o.push(RefCell::new(Box::new(Wall { xy: (x,xywh.3) })))
+					room.insert(Box::new(Wall { xy: (x,xywh.3) }));
 				}
 			}
 			for y in xywh.1..xywh.3+1 {
 				if !doors.contains(&(xywh.0,y)) {
-					room.o.push(RefCell::new(Box::new(Wall { xy: (xywh.0,y) })));
+					room.insert(Box::new(Wall { xy: (xywh.0,y) }));
 				}
 				if !doors.contains(&(xywh.2,y)) {
-					room.o.push(RefCell::new(Box::new(Wall { xy: (xywh.2,y) })));
+					room.insert(Box::new(Wall { xy: (xywh.2,y) }));
 				}
 			}
 		}

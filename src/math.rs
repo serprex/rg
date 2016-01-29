@@ -1,4 +1,4 @@
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Dir { E, NE, N, NW, W, SW, S, SE }
 pub fn ch2dir(c: char) -> Option<Dir> {
 	Some(match c {
