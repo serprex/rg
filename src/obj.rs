@@ -96,6 +96,7 @@ impl Drop for Player {
 		}
 	}
 }
+
 pub struct Wall{
 	xy: (u16, u16)
 }
@@ -108,6 +109,16 @@ impl Obj for Wall{
 	fn xy(&self) -> (u16, u16){ self.xy }
 	fn mv(&mut self, xy: (u16, u16)) -> (u16, u16) { self.xy = xy; xy }
 	fn ch(&self) -> char { '#' }
+}
+
+pub struct Portal<T: RoomPhase> {
+	xy: (u16, u16),
+	rg: T,
+}
+impl<T: RoomPhase> Portal<T>{
+	pub fn new(xy: (u16, u16), rg: T) -> Self {
+		Portal{ xy: xy, rg: rg }
+	}
 }
 
 #[derive(Debug)]
@@ -133,7 +144,6 @@ impl<'a> Room<'a>{
 	fn prscr(&self) -> std::io::Result<()> {
 		let mut chs = HashSet::new();
 		let mut curse = self.curse.borrow_mut();
-		curse.clear(x1b::TCell::from_char(' '));
 		for (_, o) in self.o.iter() {
 			let xy = o.xy();
 			let ch = o.ch();
@@ -151,7 +161,7 @@ impl<'a> Room<'a>{
 			y += 1
 		}
 		curse.print(1, self.h+2, &self.t.to_string(), x1b::TextAttr::empty());
-		curse.refresh()
+		curse.perframe_refresh_then_clear(x1b::TCell::from_char(' '))
 	}
 
 	pub fn tock(&mut self) -> bool {
@@ -173,7 +183,7 @@ impl<'a> Room<'a>{
 						if let Some(o) = self.o.get(&src) {
 							xy = stepmath(o.xy(), dir);
 						}else { continue }
-						let canmove = self.o.iter().all(|(oid, o)| o.xy() != xy);
+						let canmove = self.o.iter().all(|(_, o)| o.xy() != xy);
 						if canmove {
 							let om = self.o.get_mut(&src).unwrap();
 							om.mv(xy);
