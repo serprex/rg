@@ -41,8 +41,6 @@ pub struct Player{
 }
 impl Player {
 	pub fn new(xy: (u16, u16)) -> Self{
-		let mut curse = x1b::Cursor::default();
-		curse.hidecur();
 		Player {
 			xy: xy,
 			ticks: 0,
@@ -99,10 +97,10 @@ impl Drop for Player {
 	}
 }
 pub struct Wall{
-	pub xy: (u16, u16)
+	xy: (u16, u16)
 }
 impl Wall{
-	fn new(xy: (u16, u16)) -> Self {
+	pub fn new(xy: (u16, u16)) -> Self {
 		Wall { xy: xy }
 	}
 }
@@ -128,33 +126,32 @@ pub struct Room<'a>{
 	pub ch: char,
 	pub w: u16,
 	pub h: u16,
+	curse: std::cell::RefCell<x1b::Curse>,
 }
 
 impl<'a> Room<'a>{
 	fn prscr(&self) -> std::io::Result<()> {
 		let mut chs = HashSet::new();
-		let mut curse = x1b::Cursor::default();
-		curse.eraseall();
+		let mut curse = self.curse.borrow_mut();
+		curse.clear(x1b::TCell::from_char(' '));
 		for (_, o) in self.o.iter() {
 			let xy = o.xy();
 			let ch = o.ch();
-			curse.mv(xy.0 as u16+1, xy.1 as u16+1);
-			curse.prchr(ch);
+			curse.setxy(xy.0, xy.1, x1b::TCell::from_char(ch));
 			chs.insert(ch);
 		}
-		curse.sety(1);
+		let mut y = 0;
 		for ch in chs {
-			curse.setx(self.w as u16+2);
-			curse.print(&format!("{} {}", ch, match ch {
+			curse.setxy(self.w+2, y, x1b::TCell::from_char(ch));
+			curse.printxy(self.w+4, y, match ch {
 				'#' => "Wall",
 				'@' => "Rogue",
 				_ => "??",
-			}));
-			curse.down1();
+			}, x1b::TextAttr::empty());
+			y += 1
 		}
-		curse.mv(1, self.h as u16+2);
-		curse.print(&self.t.to_string());
-		curse.flush()
+		curse.printxy(1, self.h+2, &self.t.to_string(), x1b::TextAttr::empty());
+		curse.refresh()
 	}
 
 	pub fn tock(&mut self) -> bool {
@@ -211,7 +208,7 @@ impl<'a> Room<'a>{
 		self.oi
 	}
 
-	pub fn new(p: Player) -> Room<'a> {
+	pub fn new(p: Player, w: u16, h: u16) -> Room<'a> {
 		let mut o: HashMap<u64, Box<Obj + 'a>> = HashMap::new();
 		o.insert(0, Box::new(p));
 		Room {
@@ -220,8 +217,9 @@ impl<'a> Room<'a>{
 			o: o,
 			a: Vec::new(),
 			ch: '\0',
-			w: 0,
-			h: 0,
+			w: w,
+			h: h,
+			curse: std::cell::RefCell::new(x1b::Curse::new(w, h)),
 		}
 	}
 }

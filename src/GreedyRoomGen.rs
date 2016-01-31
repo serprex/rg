@@ -137,18 +137,18 @@ impl RoomPhase for GreedyRoomGen {
 			room.o.reserve(((xywh.2-xywh.0+xywh.3-xywh.1+2)*2) as usize);
 			for x in xywh.0..xywh.2+1 {
 				if !doors.contains(&(x,xywh.1)) {
-					room.insert(Box::new(Wall { xy: (x,xywh.1) }));
+					room.insert(Box::new(Wall::new((x,xywh.1))));
 				}
 				if !doors.contains(&(x,xywh.3)) {
-					room.insert(Box::new(Wall { xy: (x,xywh.3) }));
+					room.insert(Box::new(Wall::new((x,xywh.3))));
 				}
 			}
 			for y in xywh.1..xywh.3+1 {
 				if !doors.contains(&(xywh.0,y)) {
-					room.insert(Box::new(Wall { xy: (xywh.0,y) }));
+					room.insert(Box::new(Wall::new((xywh.0,y))));
 				}
 				if !doors.contains(&(xywh.2,y)) {
-					room.insert(Box::new(Wall { xy: (xywh.2,y) }));
+					room.insert(Box::new(Wall::new((xywh.2,y))));
 				}
 			}
 		}
