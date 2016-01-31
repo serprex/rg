@@ -6,20 +6,6 @@ use std::borrow::Borrow;
 use math::*;
 use x1b;
 
-pub fn stepmath((x, y): (u16, u16), d: Dir) -> (u16, u16) {
-	match d {
-		Dir::E => (x+1, y),
-		Dir::NE if y>0 => (x+1, y-1),
-		Dir::N if y>0 => (x, y-1),
-		Dir::NW if x>0 && y>0 => (x-1, y-1),
-		Dir::W if x>0 => (x-1, y),
-		Dir::SW if x>0 => (x-1, y+1),
-		Dir::S => (x, y+1),
-		Dir::SE => (x+1, y+1),
-		_ => (x, y)
-	}
-}
-
 pub trait Obj{
 	fn xy(&self) -> (u16, u16);
 	fn mv(&mut self, (u16, u16)) -> (u16, u16);
@@ -181,7 +167,7 @@ impl<'a> Room<'a>{
 					&Action::Step(src, dir) => {
 						let xy: (u16, u16);
 						if let Some(o) = self.o.get(&src) {
-							xy = stepmath(o.xy(), dir);
+							xy = step(o.xy(), dir);
 						}else { continue }
 						let canmove = self.o.iter().all(|(_, o)| o.xy() != xy);
 						if canmove {

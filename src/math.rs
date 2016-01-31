@@ -13,7 +13,7 @@ pub fn ch2dir(c: char) -> Option<Dir> {
 		_ => return None,
 	})
 }
-pub fn dir2i32(d: Dir) -> i32 {
+pub fn dir2u8(d: Dir) -> u8 {
 	match d {
 		Dir::E => 0,
 		Dir::NE => 1,
@@ -39,6 +39,16 @@ pub fn calcdist2(xy1: (i32, i32), xy2: (i32, i32)) -> i32{
 pub fn rectover(r1: &(u16,u16,u16,u16), r2: &(u16,u16,u16,u16)) -> bool {
 	r1.0 <= r2.2 && r1.2 >= r2.0 && r1.1 <= r2.3 && r1.3 >= r2.1
 }
-//fn dir2rad(d: Dir) -> f64 {
-//	(dir2i32(d) as f64)*3.141592
-//}
+pub fn step((x, y): (u16, u16), d: Dir) -> (u16, u16) {
+	match d {
+		Dir::E => (x+1, y),
+		Dir::NE if y>0 => (x+1, y-1),
+		Dir::N if y>0 => (x, y-1),
+		Dir::NW if x>0 && y>0 => (x-1, y-1),
+		Dir::W if x>0 => (x-1, y),
+		Dir::SW if x>0 => (x-1, y+1),
+		Dir::S => (x, y+1),
+		Dir::SE => (x+1, y+1),
+		_ => (x, y)
+	}
+}
