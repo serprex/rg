@@ -137,20 +137,20 @@ impl<'a> Room<'a>{
 		for (_, o) in self.o.iter() {
 			let xy = o.xy();
 			let ch = o.ch();
-			curse.setxy(xy.0, xy.1, x1b::TCell::from_char(ch));
+			curse.set(xy.0, xy.1, x1b::TCell::from_char(ch));
 			chs.insert(ch);
 		}
 		let mut y = 0;
 		for ch in chs {
-			curse.setxy(self.w+2, y, x1b::TCell::from_char(ch));
-			curse.printxy(self.w+4, y, match ch {
+			curse.set(self.w+2, y, x1b::TCell::from_char(ch));
+			curse.printnows(self.w+4, y, match ch {
 				'#' => "Wall",
 				'@' => "Rogue",
 				_ => "??",
 			}, x1b::TextAttr::empty());
 			y += 1
 		}
-		curse.printxy(1, self.h+2, &self.t.to_string(), x1b::TextAttr::empty());
+		curse.print(1, self.h+2, &self.t.to_string(), x1b::TextAttr::empty());
 		curse.refresh()
 	}
 
