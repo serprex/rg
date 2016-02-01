@@ -4,6 +4,7 @@ use rand::*;
 use rand::distributions::{IndependentSample, Range};
 use obj::*;
 use math::*;
+use room::*;
 
 pub struct GreedyRoomGen{
 	pub rc: u32,
