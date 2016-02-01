@@ -2,7 +2,6 @@ use std;
 use std::io::Read;
 use std::collections::{HashSet, HashMap};
 use std::cell::Cell;
-use std::borrow::Borrow;
 use math::*;
 use x1b;
 
@@ -48,14 +47,14 @@ impl Obj for Player{
 	fn tock(&mut self, id: u64, c: char) -> Vec<(Action, Cell<u8>)> {
 		if self.ticks == 1 {
 			self.ticks = 0;
-			vec![(Action::Reqchar, Cell::new(0))]
+			vec![(Action::Reqchar(self.xy.0, self.xy.1), Cell::new(0))]
 		}else if self.ticks > 0 {
 			self.ticks -= 1;
 			Vec::new()
 		}else {
 			let mut retvec: Vec<(Action, Cell<u8>)> = Vec::new();
 			if c == '\0' {
-				retvec.push((Action::Reqchar, Cell::new(0)));
+				retvec.push((Action::Reqchar(self.xy.0, self.xy.1), Cell::new(0)));
 			}else {
 				retvec.push((Action::Clearchar, Cell::new(0)));
 				if let Some(d) = ch2dir(c) {
@@ -110,7 +109,7 @@ impl<T: RoomPhase> Portal<T>{
 #[derive(Debug)]
 pub enum Action {
 	Step(u64, Dir),
-	Reqchar,
+	Reqchar(u16, u16),
 	Clearchar,
 	ExitGame,
 }
@@ -127,14 +126,86 @@ pub struct Room<'a>{
 }
 
 impl<'a> Room<'a>{
-	fn prscr(&self) -> std::io::Result<()> {
+	fn prscr(&self, px: u16, py: u16) -> std::io::Result<()> {
 		let mut chs = HashSet::new();
 		let mut curse = self.curse.borrow_mut();
+		let mut walls = HashSet::new();
+		let mut hasdrawn = HashSet::new();
 		for (_, o) in self.o.iter() {
 			let xy = o.xy();
 			let ch = o.ch();
+			hasdrawn.insert(xy);
+			if ch == '#' {
+				walls.insert(xy);
+			}
 			curse.set(xy.0, xy.1, x1b::TCell::from_char(ch));
 			chs.insert(ch);
+		}
+		let mut scan = Vec::new();
+		for &d in [Dir::NW, Dir::N, Dir::NE, Dir::E, Dir::SE, Dir::S, Dir::SW, Dir::W].into_iter() {
+			let (x, y) = step((px, py), d);
+			scan.push(if (x != px || y != py) && x < self.w && y < self.h && !walls.contains(&(x,y)) {
+				if !hasdrawn.contains(&(x,y)) {
+					curse.set(x, y, x1b::TCell::from_char('.'));
+				}
+				true
+			} else { false });
+		}
+		fn findnxy(px: u16, py: u16, w: u16, h: u16, mut n: u16, r: u16) -> (u16, u16) {
+			fn retsome(x: i32, y: i32, w: u16, h: u16) -> (u16, u16) {
+				if x < 0 || y < 0 || x >= w as i32 || y >= h as i32 { (65535, 65535) }
+				else { (x as u16, y as u16) }
+			}
+			let mut ox = (px as i32)-(r as i32);
+			let mut oy = (py as i32)-(r as i32);
+			let l = r*2;
+			for i in 0..4 {
+				for _ in 0..l {
+					if n == 0 { return retsome(ox, oy, w, h) }
+					match i {
+						0 => ox += 1,
+						1 => oy += 1,
+						2 => ox -= 1,
+						3 => oy -= 1,
+						_ => unreachable!()
+					}
+					n -= 1;
+				}
+			}
+			retsome(ox, oy, w, h)
+		}
+		let mut n = 2;
+		loop {
+			let mut nextscan = Vec::new();
+			{
+			let scanfirst = scan.first().unwrap().clone();
+			let scanlast = scan.last().unwrap().clone();
+			let scanlastfirst = [scanlast, scanfirst];
+			let mut scandows = scan.windows(2);
+			let mut dow: &[bool] = &[];
+			for i in 0..8*n {
+				let d01 = if i%n != 1 {
+					dow = match scandows.next() {
+						Some(scandow) => scandow,
+						None => &scanlastfirst,
+					};
+					dow[0] && (i%n == 0 || dow[1])
+				} else { dow[0] && dow[1] };
+				nextscan.push(d01 && match findnxy(px, py, self.w, self.h, i, n) {
+					(65535, 65535) => false,
+					nxy => {
+						let visi = !walls.contains(&nxy);
+						if visi && !hasdrawn.contains(&nxy) {
+							curse.set(nxy.0, nxy.1, x1b::TCell::from_char('.'));
+						}
+						visi
+					},
+				});
+			}
+			}
+			if !nextscan.iter().any(|&x| x) { break }
+			scan = nextscan;
+			n += 1;
 		}
 		let mut y = 0;
 		for ch in chs {
@@ -176,9 +247,9 @@ impl<'a> Room<'a>{
 							om.delay(if isdiag(dir) { 141 } else { 100 })
 						}
 					},
-					&Action::Reqchar => {
+					&Action::Reqchar(x, y) => {
 						if self.ch == '\0' {
-							self.prscr();
+							self.prscr(x, y);
 							let stdin = std::io::stdin();
 							let sin = stdin.lock();
 							let mut sinchars = sin.bytes();
