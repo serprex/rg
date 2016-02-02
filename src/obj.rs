@@ -1,31 +1,40 @@
 use std::cell::Cell;
 use math::*;
-use room::{Action, RoomPhase};
-use x1b;
+use room::Action;
+
+pub struct Stats {
+	pub mxhp: u16,
+	pub hp: u16,
+	pub atk: u16,
+	pub dex: u16,
+}
 
 pub trait Obj{
 	fn xy(&self) -> (u16, u16);
+	fn z(&self) -> i16 { 0 }
 	fn mv(&mut self, (u16, u16)) -> (u16, u16);
 	fn ch(&self) -> char;
 	fn tock(&mut self, _: u64, _: char) -> Vec<(Action, Cell<u8>)> { Vec::new() }
 	fn delay(&mut self, _: u32) {}
-}
-pub trait Togo : Obj{
-	fn set(&self, bool) -> bool;
-	fn isset(&self) -> bool;
-	fn toggle(&self) -> bool { self.set(self.isset()) }
-}
-pub trait Bio : Obj{
-	fn dmg(&self) -> bool;
+	fn stats(&self) -> Option<&Stats> { None }
+	fn stats_mut(&mut self) -> Option<&mut Stats> { None }
+	fn slap(&mut self) {}
 }
 pub struct Player{
-	pub xy: (u16, u16),
-	pub ticks: u32,
+	xy: (u16, u16),
+	stats: Stats,
+	ticks: u32,
 }
 impl Player {
 	pub fn new(xy: (u16, u16)) -> Self{
 		Player {
 			xy: xy,
+			stats: Stats{
+				mxhp: 4,
+				hp: 2,
+				atk: 4,
+				dex: 4,
+			},
 			ticks: 0,
 		}
 	}
@@ -33,6 +42,9 @@ impl Player {
 impl Obj for Player{
 	fn xy(&self) -> (u16, u16){
 		self.xy
+	}
+	fn z(&self) -> i16 {
+		8192
 	}
 	fn mv(&mut self, xy: (u16, u16)) -> (u16, u16) {
 		self.xy = xy;
@@ -42,6 +54,8 @@ impl Obj for Player{
 	fn delay(&mut self, t: u32) {
 		self.ticks += t
 	}
+	fn stats(&self) -> Option<&Stats> { Some(&self.stats) }
+	fn stats_mut(&mut self) -> Option<&mut Stats> { Some(&mut self.stats) }
 	fn tock(&mut self, id: u64, c: char) -> Vec<(Action, Cell<u8>)> {
 		if self.ticks == 1 {
 			self.ticks = 0;
@@ -60,22 +74,16 @@ impl Obj for Player{
 				} else {
 					match c {
 						'1'...'9' => self.ticks += ((c as u32)-('0' as u32))*10,
+						',' => {
+							retvec.push((Action::Slap(id), Cell::new(8)));
+							self.ticks += 24;
+						}
 						'\x1b' => retvec.push((Action::ExitGame, Cell::new(0))),
 						_ => (),
 					}
 				}
 			}
 			retvec
-		}
-	}
-}
-impl Drop for Player {
-	fn drop(&mut self){
-		use termios::*;
-		x1b::Cursor::dropclear();
-		if let Ok(mut term) = Termios::from_fd(0) {
-			term.c_lflag |= ECHO;
-			tcsetattr(0, TCSAFLUSH, &term);
 		}
 	}
 }
@@ -94,12 +102,31 @@ impl Obj for Wall{
 	fn ch(&self) -> char { '#' }
 }
 
-pub struct Portal<T: RoomPhase> {
+pub struct Portal {
 	xy: (u16, u16),
-	rg: T,
+	on: bool,
 }
-impl<T: RoomPhase> Portal<T>{
-	pub fn new(xy: (u16, u16), rg: T) -> Self {
-		Portal{ xy: xy, rg: rg }
+impl Portal{
+	pub fn new(xy: (u16, u16)) -> Self {
+		Portal{ xy: xy, on: false }
 	}
+}
+impl Obj for Portal{
+	fn xy(&self) -> (u16, u16) { self.xy }
+	fn mv(&mut self, xy: (u16, u16)) -> (u16, u16) { self.xy = xy; xy }
+	fn ch(&self) -> char { '>' }
+	fn slap(&mut self) {
+		self.on = true;
+	}
+	fn tock(&mut self, id: u64, _: char) -> Vec<(Action, Cell<u8>)> {
+		if self.on {
+			vec![(Action::Remove(id), Cell::new(0)), (Action::NextRoom, Cell::new(0))]
+		} else { Vec::new() }
+	}
+}
+
+pub struct Rat {
+	xy: (u16, u16),
+	stats: Stats,
+	ticks: u32,
 }

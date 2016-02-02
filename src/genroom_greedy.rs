@@ -106,25 +106,25 @@ impl RoomPhase for GreedyRoomGen {
 			}
 			if is1off(r1.0, r2.2) {
 				let mny = cmp::max(r1.1, r2.1);
-				let mxy = cmp::min(r1.3, r2.3);
+				let mxy = cmp::min(r1.3, r2.3)+1;
 				let y = rng.gen_range(mny, mxy);
 				doors.insert((r1.0,y));
 				doors.insert((r2.2,y));
 			}else if is1off(r1.2, r2.0) {
 				let mny = cmp::max(r1.1, r2.1);
-				let mxy = cmp::min(r1.3, r2.3);
+				let mxy = cmp::min(r1.3, r2.3)+1;
 				let y = rng.gen_range(mny, mxy);
 				doors.insert((r1.2,y));
 				doors.insert((r2.0,y));
 			}else if is1off(r1.1, r2.3) {
 				let mnx = cmp::max(r1.0, r2.0);
-				let mxx = cmp::min(r1.2, r2.2);
+				let mxx = cmp::min(r1.2, r2.2)+1;
 				let x = rng.gen_range(mnx, mxx);
 				doors.insert((x,r1.1));
 				doors.insert((x,r2.3));
 			}else if is1off(r1.3, r2.1) {
 				let mnx = cmp::max(r1.0, r2.0);
-				let mxx = cmp::min(r1.2, r2.2);
+				let mxx = cmp::min(r1.2, r2.2)+1;
 				let x = rng.gen_range(mnx, mxx);
 				doors.insert((x,r1.3));
 				doors.insert((x,r2.1));
@@ -132,7 +132,13 @@ impl RoomPhase for GreedyRoomGen {
 			iszgrp[aidx as usize] = true;
 			zgrps.insert(aidx);
 			nzgrps.remove(&aidx);
-			if nzgrps.is_empty() { break }
+			if nzgrps.is_empty() {
+				let r = rxy[aidx as usize];
+				let x = rng.gen_range(r.0+1, r.2);
+				let y = rng.gen_range(r.1+1, r.3);
+				room.insert(Box::new(Portal::new((x,y))));
+				break
+			}
 		}
 		for xywh in rxy {
 			room.o.reserve(((xywh.2-xywh.0+xywh.3-xywh.1+2)*2) as usize);
