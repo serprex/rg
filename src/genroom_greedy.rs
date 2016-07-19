@@ -27,10 +27,7 @@ impl GreedyRoomGen {
 				  if pxy[1] > 0 { pxy[1]-1 } else {0},
 				  pxy[0]+1, pxy[1]+1)];
 		let done = &mut [false; 4];
-		let mut adjacent = Vec::with_capacity((self.rc*self.rc) as usize);
-		for _ in 0..self.rc*self.rc{
-			adjacent.push(false)
-		}
+		let mut adjacent = vec![false; (self.rc*self.rc) as usize];
 		while rxy.len() < self.rc as usize {
 			let rx = betw.ind_sample(&mut rng);
 			let ry = beth.ind_sample(&mut rng);
@@ -58,7 +55,7 @@ impl GreedyRoomGen {
 				}
 				let mut grow = true;
 				for (j, rect2) in rxy.iter().enumerate() {
-					if i != j && rectover(&newrect, rect2){
+					if i != j && rectoverinc(&newrect, rect2){
 						grow = false;
 						adjacent[i+j*(self.rc as usize)] = true;
 						adjacent[i*(self.rc as usize)+j] = true;
@@ -81,55 +78,46 @@ impl GreedyRoomGen {
 				}
 			}
 		}
-		let mut doors : HashSet<(u16, u16)> = HashSet::new();
-		let mut iszgrp : Vec<bool> = Vec::with_capacity(self.rc as usize);
-		let mut nzgrps : HashSet<u32> = HashSet::with_capacity((self.rc-1) as usize);
-		let mut zgrps : HashSet<u32> = HashSet::with_capacity(self.rc as usize);
+		let mut doors: HashSet<(u16, u16)> = HashSet::new();
+		let mut nzgrps: HashSet<u32> = (1..self.rc).into_iter().collect();
+		let mut zgrps: HashSet<u32> = HashSet::with_capacity(self.rc as usize);
 		zgrps.insert(0);
-		iszgrp.push(true);
-		for i in 1..self.rc {
-			nzgrps.insert(i);
-			iszgrp.push(false);
-		}
 		loop {
-			let &iszi = rng.choose(&zgrps.iter().cloned().collect::<Vec<_>>()).unwrap();
-			let mut adjs = Vec::new();
+			let nthzi = rng.gen_range(0, zgrps.len());
+			let &iszi = zgrps.iter().skip(nthzi).next().unwrap();
+			let mut adjs = Vec::with_capacity(self.rc as usize);
 			for i in 0..self.rc{
 				if adjacent[(i+iszi*self.rc) as usize] { adjs.push(i) }
 			}
 			if adjs.is_empty() { break }
-			let &aidx = rng.choose(&adjs.iter().cloned().collect::<Vec<_>>()).unwrap();
+			let &aidx = rng.choose(&adjs).unwrap();
 			let r1 = rxy[iszi as usize];
 			let r2 = rxy[aidx as usize];
-			fn is1off(a: u16, b: u16) -> bool {
-				cmp::max(a, b) - cmp::min(a, b) == 1
-			}
-			if is1off(r1.0, r2.2) {
-				let mny = cmp::max(r1.1, r2.1);
-				let mxy = cmp::min(r1.3, r2.3)+1;
-				let y = rng.gen_range(mny, mxy);
+			if r1.0 == r2.2 {
+				let mn = cmp::max(r1.1, r2.1)+1;
+				let mx = cmp::min(r1.3, r2.3);
+				if mn == mx { continue }
+				let y = rng.gen_range(mn, mx);
 				doors.insert((r1.0,y));
-				doors.insert((r2.2,y));
-			}else if is1off(r1.2, r2.0) {
-				let mny = cmp::max(r1.1, r2.1);
-				let mxy = cmp::min(r1.3, r2.3)+1;
-				let y = rng.gen_range(mny, mxy);
+			}else if r1.2 == r2.0 {
+				let mn = cmp::max(r1.1, r2.1)+1;
+				let mx = cmp::min(r1.3, r2.3);
+				if mn == mx { continue }
+				let y = rng.gen_range(mn, mx);
 				doors.insert((r1.2,y));
-				doors.insert((r2.0,y));
-			}else if is1off(r1.1, r2.3) {
-				let mnx = cmp::max(r1.0, r2.0);
-				let mxx = cmp::min(r1.2, r2.2)+1;
-				let x = rng.gen_range(mnx, mxx);
+			}else if r1.1 == r2.3 {
+				let mn = cmp::max(r1.0, r2.0)+1;
+				let mx = cmp::min(r1.2, r2.2);
+				if mn == mx { continue }
+				let x = rng.gen_range(mn, mx);
 				doors.insert((x,r1.1));
-				doors.insert((x,r2.3));
-			}else if is1off(r1.3, r2.1) {
-				let mnx = cmp::max(r1.0, r2.0);
-				let mxx = cmp::min(r1.2, r2.2)+1;
-				let x = rng.gen_range(mnx, mxx);
+			}else if r1.3 == r2.1 {
+				let mn = cmp::max(r1.0, r2.0)+1;
+				let mx = cmp::min(r1.2, r2.2);
+				if mn == mx { continue }
+				let x = rng.gen_range(mn, mx);
 				doors.insert((x,r1.3));
-				doors.insert((x,r2.1));
 			}else { unreachable!() }
-			iszgrp[aidx as usize] = true;
 			zgrps.insert(aidx);
 			nzgrps.remove(&aidx);
 			if nzgrps.is_empty() {
@@ -141,25 +129,20 @@ impl GreedyRoomGen {
 			}
 		}
 		for xywh in rxy {
-			//room.o.reserve(((xywh.2-xywh.0+xywh.3-xywh.1+2)*2) as usize);
 			for x in xywh.0..xywh.2+1 {
 				if !doors.contains(&(x,xywh.1)) {
 					room.create_now().with(WallComp([x as i16,xywh.1 as i16]));
-					//room.insert(Obj::new_wall((x,xywh.1)));
 				}
 				if !doors.contains(&(x,xywh.3)) {
 					room.create_now().with(WallComp([x as i16,xywh.3 as i16]));
-					//room.insert(Obj::new_wall((x,xywh.3)));
 				}
 			}
 			for y in xywh.1..xywh.3+1 {
 				if !doors.contains(&(xywh.0,y)) {
 					room.create_now().with(WallComp([xywh.0 as i16,y as i16]));
-					//room.insert(Obj::new_wall((xywh.0,y)));
 				}
 				if !doors.contains(&(xywh.2,y)) {
 					room.create_now().with(WallComp([xywh.2 as i16,y as i16]));
-					//room.insert(Obj::new_wall((xywh.2,y)));
 				}
 			}
 		}

@@ -39,6 +39,9 @@ pub fn calcdist2(xy1: (i32, i32), xy2: (i32, i32)) -> i32{
 pub fn rectover(r1: &(u16,u16,u16,u16), r2: &(u16,u16,u16,u16)) -> bool {
 	r1.0 <= r2.2 && r1.2 >= r2.0 && r1.1 <= r2.3 && r1.3 >= r2.1
 }
+pub fn rectoverinc(r1: &(u16,u16,u16,u16), r2: &(u16,u16,u16,u16)) -> bool {
+	r1.0 < r2.2 && r1.2 > r2.0 && r1.1 < r2.3 && r1.3 > r2.1
+}
 pub fn step((x, y): (u16, u16), d: Dir) -> (u16, u16) {
 	match d {
 		Dir::E => (x+1, y),

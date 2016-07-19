@@ -1,7 +1,6 @@
 extern crate rand;
 extern crate termios;
 extern crate x1b;
-#[macro_use] extern crate bitflags;
 extern crate specs;
 
 mod genroom_greedy;
@@ -9,7 +8,6 @@ mod math;
 
 use specs::*;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic;
 use std::io::{self, Read};
 
 /*
@@ -64,7 +62,6 @@ fn main(){
 			.with(RenderComp('@')).build();
 		let rrg = genroom_greedy::GreedyRoomGen::default();
 		rrg.modify(40, 40, [4, 4], &mut w);
-		w.create_now().with(WallComp([5, 5])).build();
 		Planner::<()>::new(w, 2)
 	};
 	let curse = Arc::new(Mutex::new(x1b::Curse::new(40, 40)));
@@ -101,8 +98,8 @@ fn main(){
 		});
 		planner.wait();
 		planner.run_custom(|arg|{
-			let (mut pos, newpos, walls, ents) = arg.fetch(|w|{
-				(w.write::<PosComp>(), w.read::<NewPosComp>(), w.read::<WallComp>(), w.entities())
+			let (mut pos, newpos, walls) = arg.fetch(|w|{
+				(w.write::<PosComp>(), w.read::<NewPosComp>(), w.read::<WallComp>())
 			});
 
 			'outer:
@@ -124,7 +121,7 @@ impl TermJuggler {
 		let mut term = Termios::from_fd(0).unwrap();
 		cfmakeraw(&mut term);
 		term.c_lflag &= !ECHO;
-		tcsetattr(0, TCSANOW, &term);
+		tcsetattr(0, TCSANOW, &term).expect("tcsetattr failed");
 		print!("\x1bc\x1b[?25l");
 		TermJuggler
 	}
@@ -133,10 +130,10 @@ impl TermJuggler {
 impl Drop for TermJuggler {
 	fn drop(&mut self){
 		use termios::*;
-		x1b::Cursor::dropclear();
+		x1b::Cursor::dropclear().ok();
 		if let Ok(mut term) = Termios::from_fd(0) {
 			term.c_lflag |= ECHO;
-			tcsetattr(0, TCSAFLUSH, &term);
+			tcsetattr(0, TCSAFLUSH, &term).ok();
 		}
 	}
 }
