@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["serprex"]
 
 [dependencies]
-rand = "0.3.13"
-bitflags = "0.4.0"
-termios = "0.2.1"
+rand = "0.3"
+termios = "0.2"
+specs = "0.7"
 x1b = { path = "../x1b", version = "*" }

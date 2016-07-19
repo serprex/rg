@@ -2,9 +2,9 @@ use std::cmp;
 use std::collections::HashSet;
 use rand::*;
 use rand::distributions::{IndependentSample, Range};
-use obj::*;
 use math::*;
-use room::*;
+use specs::World;
+use ::WallComp;
 
 pub struct GreedyRoomGen{
 	pub rc: u32,
@@ -16,16 +16,16 @@ impl Default for GreedyRoomGen {
 		}
 	}
 }
-impl RoomPhase for GreedyRoomGen {
-	fn modify(&self, room: &mut Room) {
-		let w = room.w;
-		let h = room.h;
+impl GreedyRoomGen {
+	pub fn modify(&self, w: u16, h: u16, pxy: [u16; 2], room: &mut World) {
 		let betw = Range::new(0, w-2);
 		let beth = Range::new(0, h-2);
 		let bet4 = Range::new(0, 4);
 		let mut rng = thread_rng();
-		let pxy = room.o.get(&0).unwrap().xy();
-		let mut rxy: Vec<(u16, u16, u16, u16)> = vec![(if pxy.0 > 0 { pxy.0-1 } else {0}, if pxy.1 > 0 { pxy.1-1 } else {0}, pxy.0+1, pxy.1+1)];
+		let mut rxy: Vec<(u16, u16, u16, u16)> =
+			vec![(if pxy[0] > 0 { pxy[0]-1 } else {0},
+				  if pxy[1] > 0 { pxy[1]-1 } else {0},
+				  pxy[0]+1, pxy[1]+1)];
 		let done = &mut [false; 4];
 		let mut adjacent = Vec::with_capacity((self.rc*self.rc) as usize);
 		for _ in 0..self.rc*self.rc{
@@ -133,29 +133,33 @@ impl RoomPhase for GreedyRoomGen {
 			zgrps.insert(aidx);
 			nzgrps.remove(&aidx);
 			if nzgrps.is_empty() {
-				let r = rxy[aidx as usize];
+				/*let r = rxy[aidx as usize];
 				let x = rng.gen_range(r.0+1, r.2);
 				let y = rng.gen_range(r.1+1, r.3);
-				room.insert(Box::new(Portal::new((x,y))));
+				room.insert(Obj::new_portal((x,y)));*/
 				break
 			}
 		}
 		for xywh in rxy {
-			room.o.reserve(((xywh.2-xywh.0+xywh.3-xywh.1+2)*2) as usize);
+			//room.o.reserve(((xywh.2-xywh.0+xywh.3-xywh.1+2)*2) as usize);
 			for x in xywh.0..xywh.2+1 {
 				if !doors.contains(&(x,xywh.1)) {
-					room.insert(Box::new(Wall::new((x,xywh.1))));
+					room.create_now().with(WallComp([x as i16,xywh.1 as i16]));
+					//room.insert(Obj::new_wall((x,xywh.1)));
 				}
 				if !doors.contains(&(x,xywh.3)) {
-					room.insert(Box::new(Wall::new((x,xywh.3))));
+					room.create_now().with(WallComp([x as i16,xywh.3 as i16]));
+					//room.insert(Obj::new_wall((x,xywh.3)));
 				}
 			}
 			for y in xywh.1..xywh.3+1 {
 				if !doors.contains(&(xywh.0,y)) {
-					room.insert(Box::new(Wall::new((xywh.0,y))));
+					room.create_now().with(WallComp([xywh.0 as i16,y as i16]));
+					//room.insert(Obj::new_wall((xywh.0,y)));
 				}
 				if !doors.contains(&(xywh.2,y)) {
-					room.insert(Box::new(Wall::new((xywh.2,y))));
+					room.create_now().with(WallComp([xywh.2 as i16,y as i16]));
+					//room.insert(Obj::new_wall((xywh.2,y)));
 				}
 			}
 		}
