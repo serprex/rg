@@ -9,41 +9,27 @@ mod math;
 use specs::*;
 use std::sync::{Arc, Mutex};
 use std::io::{self, Read};
+use std::collections::hash_map::*;
 
-/*
-macro_rules! impl_vec_storage {
-	($x: ident) => {{
-		impl Component for $x {
-			let Storage = VecStorage<Self>;
-		}
-	}}
-}*/
+macro_rules! impl_storage {
+	($storage: ident, $($comp: ident),*) => {
+		$(impl Component for $comp {
+			type Storage = $storage<Self>;
+		})*
+	}
+}
 struct PosComp([i16; 2]);
-impl Component for PosComp {
-	type Storage = VecStorage<Self>;
-}
 struct NewPosComp([i16; 2]);
-impl Component for NewPosComp {
-	type Storage = VecStorage<Self>;
-}
 struct RenderComp(char);
-impl Component for RenderComp {
-	type Storage = VecStorage<Self>;
-}
 struct MortalComp(i16);
-impl Component for MortalComp {
-	type Storage = VecStorage<Self>;
-}
 #[derive(Clone, Default)]
 struct PlayerComp;
-impl Component for PlayerComp {
-	type Storage = NullStorage<Self>;
-}
 #[derive(Clone, Default)]
-pub struct WallComp([i16; 2]);
-impl Component for WallComp {
-	type Storage = VecStorage<Self>;
-}
+struct AggroComp;
+#[derive(Clone, Default)]
+pub struct WallComp;
+impl_storage!(VecStorage, PosComp, NewPosComp, RenderComp, MortalComp);
+impl_storage!(NullStorage, PlayerComp, AggroComp, WallComp);
 
 fn main(){
 	let rt = TermJuggler::new();
@@ -55,11 +41,17 @@ fn main(){
 		w.register::<MortalComp>();
 		w.register::<PlayerComp>();
 		w.register::<WallComp>();
+		w.register::<AggroComp>();
 		w.create_now().with(PlayerComp)
 			.with(PosComp([4, 4]))
 			.with(NewPosComp([4, 4]))
 			.with(MortalComp(8))
 			.with(RenderComp('@')).build();
+		w.create_now().with(AggroComp)
+			.with(PosComp([6, 6]))
+			.with(NewPosComp([6, 6]))
+			.with(MortalComp(2))
+			.with(RenderComp('r')).build();
 		let rrg = genroom_greedy::GreedyRoomGen::default();
 		rrg.modify(40, 40, [4, 4], &mut w);
 		Planner::<()>::new(w, 2)
@@ -68,11 +60,6 @@ fn main(){
 	let cursefresh = curse.clone();
 	loop {
 		{
-			let curselop = curse.clone();
-			planner.run0w1r(move|b: &WallComp|{
-				let curse = curselop.clone();
-				curse.lock().unwrap().set(b.0[0] as u16, b.0[1] as u16, x1b::TCell::from_char('#'));
-			});
 			let curselop = curse.clone();
 			planner.run0w2r(move|c: &RenderComp, b: &PosComp|{
 				let curse = curselop.clone();
@@ -91,49 +78,49 @@ fn main(){
 			match ch {
 				'h' => a.0[0] -= 1,
 				'l' => a.0[0] += 1,
-				'j' => a.0[1] -= 1,
-				'k' => a.0[1] += 1,
+				'k' => a.0[1] -= 1,
+				'j' => a.0[1] += 1,
 				_ => (),
 			}
 		});
 		planner.wait();
 		planner.run_custom(|arg|{
-			let (mut pos, newpos, walls) = arg.fetch(|w|{
-				(w.write::<PosComp>(), w.read::<NewPosComp>(), w.read::<WallComp>())
+			let (mut pos, newpos) = arg.fetch(|w|{
+				(w.write::<PosComp>(), w.read::<NewPosComp>())
 			});
+			let mut collisions: HashMap<[i16; 2], u16> = HashMap::new();
+			for n in newpos.iter() {
+				let x = collisions.entry(n.0).or_insert(0);
+				*x += 1;
+			}
 
 			'outer:
 			for (p, n) in (&mut pos, &newpos).iter() {
-				for wp in walls.iter() {
-					if wp.0 == n.0 { break 'outer; }
+				if *collisions.get(&n.0).unwrap_or(&0) < 2 {
+					p.0 = n.0;
 				}
-				p.0 = n.0;
 			}
 		});
 		planner.wait();
 	}
-	rt.end();
+	std::mem::drop(rt);
 }
-struct TermJuggler;
+struct TermJuggler(termios::Termios);
 impl TermJuggler {
 	pub fn new() -> Self {
 		use termios::*;
 		let mut term = Termios::from_fd(0).unwrap();
+		let oldterm = term;
 		cfmakeraw(&mut term);
-		term.c_lflag &= !ECHO;
 		tcsetattr(0, TCSANOW, &term).expect("tcsetattr failed");
 		print!("\x1bc\x1b[?25l");
-		TermJuggler
+		TermJuggler(oldterm)
 	}
-	pub fn end(self) {}
 }
 impl Drop for TermJuggler {
 	fn drop(&mut self){
 		use termios::*;
 		x1b::Cursor::dropclear().ok();
-		if let Ok(mut term) = Termios::from_fd(0) {
-			term.c_lflag |= ECHO;
-			tcsetattr(0, TCSAFLUSH, &term).ok();
-		}
+		tcsetattr(0, TCSAFLUSH, &self.0).ok();
 	}
 }
