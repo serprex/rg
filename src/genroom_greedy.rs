@@ -4,7 +4,7 @@ use rand::*;
 use rand::distributions::{IndependentSample, Range};
 use math::*;
 use specs::World;
-use ::{WallComp, PosComp, Pos};
+use components::*;
 
 pub struct GreedyRoomGen(usize);
 impl Default for GreedyRoomGen {

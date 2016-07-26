@@ -5,50 +5,19 @@ extern crate specs;
 
 mod genroom_greedy;
 mod math;
+mod components;
 
-use specs::*;
 use std::sync::{Arc, Mutex};
 use std::io::{self, Read};
 use std::collections::hash_map::*;
+use specs::*;
+use components::*;
 
-macro_rules! impl_storage {
-	($storage: ident, $($comp: ident),*) => {
-		$(impl Component for $comp {
-			type Storage = $storage<Self>;
-		})*
-	}
-}
 macro_rules! w_register {
 	($w: expr, $($comp: ident),*) => {
 		$($w.register::<$comp>();)*
 	}
 }
-#[derive(Copy, Clone)]
-pub struct Pos {
-	pub xy: [i16; 2],
-	pub nx: [i16; 2],
-	pub ch: char,
-}
-impl Pos {
-	pub fn new(ch: char, xy: [i16; 2]) -> Pos {
-		Pos {
-			xy: xy,
-			nx: xy,
-			ch: ch,
-		}
-	}
-}
-
-pub struct PosComp(Pos);
-pub struct MortalComp(i16);
-#[derive(Clone, Default)]
-pub struct PlayerComp;
-#[derive(Clone, Default)]
-pub struct AggroComp;
-#[derive(Clone, Default)]
-pub struct WallComp;
-impl_storage!(VecStorage, PosComp, MortalComp);
-impl_storage!(NullStorage, PlayerComp, AggroComp, WallComp);
 
 fn main(){
 	let rt = TermJuggler::new();
@@ -107,8 +76,8 @@ fn main(){
 				*x += 1;
 			}
 
-			for &mut PosComp(mut n) in (&mut pos).iter() {
-				if *collisions.get(&n.nx).unwrap_or(&0) < 2 {
+			for &mut PosComp(ref mut n) in (&mut pos).iter() {
+				if n.xy != n.nx && *collisions.get(&n.nx).unwrap_or(&0) < 2 {
 					n.xy = n.nx;
 				}
 			}
