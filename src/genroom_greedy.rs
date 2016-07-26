@@ -4,7 +4,7 @@ use rand::*;
 use rand::distributions::{IndependentSample, Range};
 use math::*;
 use specs::World;
-use ::{WallComp, PosComp, NewPosComp, RenderComp};
+use ::{WallComp, PosComp, Pos};
 
 pub struct GreedyRoomGen(usize);
 impl Default for GreedyRoomGen {
@@ -126,9 +126,7 @@ impl GreedyRoomGen {
 				doors.insert(xy);
 				room.create_now()
 					.with(WallComp)
-					.with(PosComp(xy))
-					.with(NewPosComp(xy))
-					.with(RenderComp(ch))
+					.with(PosComp(Pos::new(ch, xy)))
 					.build();
 			}
 		}

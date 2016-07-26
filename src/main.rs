@@ -18,40 +18,52 @@ macro_rules! impl_storage {
 		})*
 	}
 }
-struct PosComp([i16; 2]);
-struct NewPosComp([i16; 2]);
-struct RenderComp(char);
-struct MortalComp(i16);
+macro_rules! w_register {
+	($w: expr, $($comp: ident),*) => {
+		$($w.register::<$comp>();)*
+	}
+}
+#[derive(Copy, Clone)]
+pub struct Pos {
+	pub xy: [i16; 2],
+	pub nx: [i16; 2],
+	pub ch: char,
+}
+impl Pos {
+	pub fn new(ch: char, xy: [i16; 2]) -> Pos {
+		Pos {
+			xy: xy,
+			nx: xy,
+			ch: ch,
+		}
+	}
+}
+
+pub struct PosComp(Pos);
+pub struct MortalComp(i16);
 #[derive(Clone, Default)]
-struct PlayerComp;
+pub struct PlayerComp;
 #[derive(Clone, Default)]
-struct AggroComp;
+pub struct AggroComp;
 #[derive(Clone, Default)]
 pub struct WallComp;
-impl_storage!(VecStorage, PosComp, NewPosComp, RenderComp, MortalComp);
+impl_storage!(VecStorage, PosComp, MortalComp);
 impl_storage!(NullStorage, PlayerComp, AggroComp, WallComp);
 
 fn main(){
 	let rt = TermJuggler::new();
 	let mut planner = {
 		let mut w = World::new();
-		w.register::<PosComp>();
-		w.register::<NewPosComp>();
-		w.register::<RenderComp>();
-		w.register::<MortalComp>();
-		w.register::<PlayerComp>();
-		w.register::<WallComp>();
-		w.register::<AggroComp>();
+		w_register!(w, PosComp, MortalComp, PlayerComp,
+			WallComp, AggroComp);
 		w.create_now().with(PlayerComp)
-			.with(PosComp([4, 4]))
-			.with(NewPosComp([4, 4]))
+			.with(PosComp(Pos::new('@', [4, 4])))
 			.with(MortalComp(8))
-			.with(RenderComp('@')).build();
+			.build();
 		w.create_now().with(AggroComp)
-			.with(PosComp([6, 6]))
-			.with(NewPosComp([6, 6]))
+			.with(PosComp(Pos::new('r', [6, 6])))
 			.with(MortalComp(2))
-			.with(RenderComp('r')).build();
+			.build();
 		let rrg = genroom_greedy::GreedyRoomGen::default();
 		rrg.modify(40, 40, [4, 4], &mut w);
 		Planner::<()>::new(w, 2)
@@ -61,9 +73,10 @@ fn main(){
 	loop {
 		{
 			let curselop = curse.clone();
-			planner.run0w2r(move|c: &RenderComp, b: &PosComp|{
-				let curse = curselop.clone();
-				curse.lock().unwrap().set(b.0[0] as u16, b.0[1] as u16, x1b::TCell::from_char(c.0));
+			planner.run0w1r(move|a: &PosComp|{
+				if a.0.xy[0] >= 0 && a.0.xy[1] >= 0 {
+					curselop.lock().unwrap().set(a.0.xy[0] as u16, a.0.xy[1] as u16, x1b::TCell::from_char(a.0.ch));
+				}
 			});
 		}
 		planner.wait();
@@ -73,31 +86,30 @@ fn main(){
 		let mut sinchars = sin.bytes();
 		let ch = sinchars.next().unwrap().unwrap() as char;
 		if ch == '\x1b' { break }
-		planner.run1w2r(move|a: &mut NewPosComp, b: &PosComp, _: &PlayerComp|{
-			a.0 = b.0;
+		planner.run1w1r(move|a: &mut PosComp, _: &PlayerComp|{
+			a.0.nx = a.0.xy;
 			match ch {
-				'h' => a.0[0] -= 1,
-				'l' => a.0[0] += 1,
-				'k' => a.0[1] -= 1,
-				'j' => a.0[1] += 1,
+				'h' => a.0.nx[0] -= 1,
+				'l' => a.0.nx[0] += 1,
+				'k' => a.0.nx[1] -= 1,
+				'j' => a.0.nx[1] += 1,
 				_ => (),
 			}
 		});
 		planner.wait();
 		planner.run_custom(|arg|{
-			let (mut pos, newpos) = arg.fetch(|w|{
-				(w.write::<PosComp>(), w.read::<NewPosComp>())
+			let mut pos = arg.fetch(|w|{
+				w.write::<PosComp>()
 			});
 			let mut collisions: HashMap<[i16; 2], u16> = HashMap::new();
-			for n in newpos.iter() {
-				let x = collisions.entry(n.0).or_insert(0);
+			for &PosComp(n) in pos.iter() {
+				let x = collisions.entry(n.nx).or_insert(0);
 				*x += 1;
 			}
 
-			'outer:
-			for (p, n) in (&mut pos, &newpos).iter() {
-				if *collisions.get(&n.0).unwrap_or(&0) < 2 {
-					p.0 = n.0;
+			for &mut PosComp(mut n) in (&mut pos).iter() {
+				if *collisions.get(&n.nx).unwrap_or(&0) < 2 {
+					n.xy = n.nx;
 				}
 			}
 		});
