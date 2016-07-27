@@ -10,6 +10,7 @@ mod components;
 use std::sync::{Arc, Mutex};
 use std::io::{self, Read};
 use std::collections::hash_map::*;
+use rand::*;
 use specs::*;
 use components::*;
 
@@ -23,10 +24,10 @@ fn main(){
 	let rt = TermJuggler::new();
 	let mut planner = {
 		let mut w = World::new();
-		w_register!(w, PosComp, MortalComp, PlayerComp,
+		w_register!(w, PosComp, MortalComp,
 			WallComp, AiComp);
 		w.create_now()
-			.with(PlayerComp)
+			.with(AiComp::Player)
 			.with(PosComp::new('@', [4, 4]))
 			.with(MortalComp(8))
 			.build();
@@ -40,7 +41,6 @@ fn main(){
 		Planner::<()>::new(w, 2)
 	};
 	let curse = Arc::new(Mutex::new(x1b::Curse::new(40, 40)));
-	let cursefresh = curse.clone();
 	loop {
 		{
 			let curselop = curse.clone();
@@ -51,20 +51,41 @@ fn main(){
 			});
 		}
 		planner.wait();
-		cursefresh.lock().unwrap().perframe_refresh_then_clear(x1b::TCell::from_char(' ')).unwrap();
+		curse.lock().unwrap().perframe_refresh_then_clear(x1b::TCell::from_char(' ')).unwrap();
 		let stdin = io::stdin();
 		let sin = stdin.lock();
 		let mut sinchars = sin.bytes();
 		let ch = sinchars.next().unwrap().unwrap() as char;
 		if ch == '\x1b' { break }
-		planner.run1w1r(move|a: &mut PosComp, _: &PlayerComp|{
-			a.nx = a.xy;
-			match ch {
-				'h' => a.nx[0] -= 1,
-				'l' => a.nx[0] += 1,
-				'k' => a.nx[1] -= 1,
-				'j' => a.nx[1] += 1,
-				_ => (),
+		planner.run_custom(move |arg|{
+			let (mut pos, mut ai) = arg.fetch(|w|{
+				(w.write::<PosComp>(), w.write::<AiComp>())
+			});
+			let mut rng = rand::thread_rng();
+			for (mut pos, mut ai) in (&mut pos, &mut ai).iter() {
+				match *ai {
+					AiComp::Player => {
+						pos.nx = pos.xy;
+						match ch {
+							'h' => pos.nx[0] -= 1,
+							'l' => pos.nx[0] += 1,
+							'k' => pos.nx[1] -= 1,
+							'j' => pos.nx[1] += 1,
+							_ => (),
+						}
+					},
+					AiComp::Random => {
+						pos.nx = pos.xy;
+						match rng.gen_range(0, 4) {
+							0 => pos.nx[0] -= 1,
+							1 => pos.nx[0] += 1,
+							2 => pos.nx[1] -= 1,
+							3 => pos.nx[1] += 1,
+							_ => (),
+						}
+					},
+					_ => (),
+				}
 			}
 		});
 		planner.wait();
@@ -81,8 +102,12 @@ fn main(){
 			}
 
 			for n in (&mut pos).iter() {
-				if n.xy != n.nx && !*collisions.get(&n.nx).unwrap_or(&false) {
-					n.xy = n.nx;
+				if n.xy != n.nx {
+					if !*collisions.get(&n.nx).unwrap_or(&false) {
+						n.xy = n.nx;
+					} else {
+						n.nx = n.xy;
+					}
 				}
 			}
 		});

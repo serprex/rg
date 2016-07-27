@@ -29,16 +29,13 @@ pub enum AiComp {
 	Random,
 	Aggro,
 	Scared,
+	Player,
 }
 
 #[derive(Copy, Clone)]
 pub struct MortalComp(pub i16);
 #[derive(Clone, Default)]
-pub struct PlayerComp;
-#[derive(Clone, Default)]
-pub struct AggroComp;
-#[derive(Clone, Default)]
 pub struct WallComp;
 
 impl_storage!(VecStorage, PosComp, MortalComp, AiComp);
-impl_storage!(NullStorage, PlayerComp, AggroComp, WallComp);
+impl_storage!(NullStorage, WallComp);
