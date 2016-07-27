@@ -126,7 +126,7 @@ impl GreedyRoomGen {
 				doors.insert(xy);
 				room.create_now()
 					.with(WallComp)
-					.with(PosComp(Pos::new(ch, xy)))
+					.with(PosComp::new(ch, xy))
 					.build();
 			}
 		}

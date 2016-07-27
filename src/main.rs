@@ -24,13 +24,15 @@ fn main(){
 	let mut planner = {
 		let mut w = World::new();
 		w_register!(w, PosComp, MortalComp, PlayerComp,
-			WallComp, AggroComp);
-		w.create_now().with(PlayerComp)
-			.with(PosComp(Pos::new('@', [4, 4])))
+			WallComp, AiComp);
+		w.create_now()
+			.with(PlayerComp)
+			.with(PosComp::new('@', [4, 4]))
 			.with(MortalComp(8))
 			.build();
-		w.create_now().with(AggroComp)
-			.with(PosComp(Pos::new('r', [6, 6])))
+		w.create_now()
+			.with(PosComp::new('r', [6, 6]))
+			.with(AiComp::Random)
 			.with(MortalComp(2))
 			.build();
 		let rrg = genroom_greedy::GreedyRoomGen::default();
@@ -43,8 +45,8 @@ fn main(){
 		{
 			let curselop = curse.clone();
 			planner.run0w1r(move|a: &PosComp|{
-				if a.0.xy[0] >= 0 && a.0.xy[1] >= 0 {
-					curselop.lock().unwrap().set(a.0.xy[0] as u16, a.0.xy[1] as u16, x1b::TCell::from_char(a.0.ch));
+				if a.xy[0] >= 0 && a.xy[1] >= 0 {
+					curselop.lock().unwrap().set(a.xy[0] as u16, a.xy[1] as u16, x1b::TCell::from_char(a.ch));
 				}
 			});
 		}
@@ -56,12 +58,12 @@ fn main(){
 		let ch = sinchars.next().unwrap().unwrap() as char;
 		if ch == '\x1b' { break }
 		planner.run1w1r(move|a: &mut PosComp, _: &PlayerComp|{
-			a.0.nx = a.0.xy;
+			a.nx = a.xy;
 			match ch {
-				'h' => a.0.nx[0] -= 1,
-				'l' => a.0.nx[0] += 1,
-				'k' => a.0.nx[1] -= 1,
-				'j' => a.0.nx[1] += 1,
+				'h' => a.nx[0] -= 1,
+				'l' => a.nx[0] += 1,
+				'k' => a.nx[1] -= 1,
+				'j' => a.nx[1] += 1,
 				_ => (),
 			}
 		});
@@ -70,14 +72,16 @@ fn main(){
 			let mut pos = arg.fetch(|w|{
 				w.write::<PosComp>()
 			});
-			let mut collisions: HashMap<[i16; 2], u16> = HashMap::new();
-			for &PosComp(n) in pos.iter() {
-				let x = collisions.entry(n.nx).or_insert(0);
-				*x += 1;
+			let mut collisions: HashMap<[i16; 2], bool> = HashMap::new();
+			for n in pos.iter() {
+				match collisions.entry(n.nx) {
+					Entry::Occupied(mut ent) => {ent.insert(true);},
+					Entry::Vacant(ent) => {ent.insert(false);},
+				}
 			}
 
-			for &mut PosComp(ref mut n) in (&mut pos).iter() {
-				if n.xy != n.nx && *collisions.get(&n.nx).unwrap_or(&0) < 2 {
+			for n in (&mut pos).iter() {
+				if n.xy != n.nx && !*collisions.get(&n.nx).unwrap_or(&false) {
 					n.xy = n.nx;
 				}
 			}

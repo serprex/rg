@@ -9,14 +9,14 @@ macro_rules! impl_storage {
 }
 
 #[derive(Copy, Clone)]
-pub struct Pos {
+pub struct PosComp {
 	pub xy: [i16; 2],
 	pub nx: [i16; 2],
 	pub ch: char,
 }
-impl Pos {
-	pub fn new(ch: char, xy: [i16; 2]) -> Pos {
-		Pos {
+impl PosComp {
+	pub fn new(ch: char, xy: [i16; 2]) -> PosComp {
+		PosComp {
 			xy: xy,
 			nx: xy,
 			ch: ch,
@@ -25,7 +25,12 @@ impl Pos {
 }
 
 #[derive(Copy, Clone)]
-pub struct PosComp(pub Pos);
+pub enum AiComp {
+	Random,
+	Aggro,
+	Scared,
+}
+
 #[derive(Copy, Clone)]
 pub struct MortalComp(pub i16);
 #[derive(Clone, Default)]
@@ -34,5 +39,6 @@ pub struct PlayerComp;
 pub struct AggroComp;
 #[derive(Clone, Default)]
 pub struct WallComp;
-impl_storage!(VecStorage, PosComp, MortalComp);
+
+impl_storage!(VecStorage, PosComp, MortalComp, AiComp);
 impl_storage!(NullStorage, PlayerComp, AggroComp, WallComp);
