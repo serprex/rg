@@ -10,6 +10,7 @@ mod components;
 use std::sync::{Arc, Mutex};
 use std::io::{self, Read};
 use std::collections::hash_map::*;
+use std::collections::HashSet;
 use rand::*;
 use specs::*;
 use components::*;
@@ -24,8 +25,7 @@ fn main(){
 	let rt = TermJuggler::new();
 	let mut planner = {
 		let mut w = World::new();
-		w_register!(w, PosComp, MortalComp,
-			WallComp, AiComp);
+		w_register!(w, PosComp, MortalComp, AiComp);
 		w.create_now()
 			.with(AiComp::Player)
 			.with(PosComp::new('@', [4, 4]))
@@ -61,11 +61,18 @@ fn main(){
 			let (mut pos, mut ai) = arg.fetch(|w|{
 				(w.write::<PosComp>(), w.write::<AiComp>())
 			});
+			let collisions: HashSet<[i16; 2]> = pos.iter().map(|pos| pos.xy).collect();
 			let mut rng = rand::thread_rng();
+			let mut pxy = [0, 0];
+			for (pos, ai) in (&mut pos, &mut ai).iter() {
+				match *ai {
+					AiComp::Player => pxy = pos.xy,
+					_ => (),
+				}
+			}
 			for (mut pos, mut ai) in (&mut pos, &mut ai).iter() {
 				match *ai {
 					AiComp::Player => {
-						pos.nx = pos.xy;
 						match ch {
 							'h' => pos.nx[0] -= 1,
 							'l' => pos.nx[0] += 1,
@@ -75,16 +82,71 @@ fn main(){
 						}
 					},
 					AiComp::Random => {
-						pos.nx = pos.xy;
-						match rng.gen_range(0, 4) {
-							0 => pos.nx[0] -= 1,
-							1 => pos.nx[0] += 1,
-							2 => pos.nx[1] -= 1,
-							3 => pos.nx[1] += 1,
-							_ => (),
+						let mut choices = [pos.xy; 6];
+						let mut chs = 2;
+						for choice in &[[pos.xy[0]-1, pos.xy[1]],
+						[pos.xy[0]+1, pos.xy[1]],
+						[pos.xy[0], pos.xy[1]-1],
+						[pos.xy[0], pos.xy[1]+1]] {
+							if !collisions.contains(choice) {
+								choices[chs] = *choice;
+								chs += 1;
+							}
+						}
+						pos.nx = *rng.choose(&choices[0..chs]).unwrap();
+						if (pos.nx[0] - pxy[0]).abs() < 5 && (pos.nx[1] - pxy[1]).abs() < 5 {
+							*ai = AiComp::Aggro
 						}
 					},
-					_ => (),
+					AiComp::Scared => {
+						let mut choices: [[i16; 2]; 4] = [[0, 0]; 4];
+						let mut chs = 0;
+						let dist = (pos.xy[0] - pxy[0]).abs() + (pos.xy[1] - pxy[1]).abs();
+						for choice in &[[pos.xy[0]-1, pos.xy[1]],
+						[pos.xy[0]+1, pos.xy[1]],
+						[pos.xy[0], pos.xy[1]-1],
+						[pos.xy[0], pos.xy[1]+1]] {
+							if (pos.xy[0] - pxy[0]).abs() + (pos.xy[1] - pxy[1]).abs() > dist && !collisions.contains(choice) {
+								choices[chs] = *choice;
+								chs += 1;
+							}
+						}
+						if chs == 0 {
+							*ai = AiComp::Aggro
+						} else {
+							pos.nx = *rng.choose(&choices[0..chs]).unwrap()
+						}
+					},
+					AiComp::Aggro => {
+						let mut xxyy = pos.xy;
+						let mut tries = 3;
+						loop {
+							let mut xy = xxyy;
+							let co = if tries == 1 || (tries == 3 && rng.gen()) { 0 } else { 1 };
+							xy[co] += if xy[co]<pxy[0] { 1 }
+								else if xy[co]>pxy[0] { -1 }
+								else { 0 };
+							if xy == xxyy || collisions.contains(&xy) {
+								tries -= 1;
+								if tries == 0 { break }
+							} else {
+								xxyy = xy;
+								if xy == pxy {
+									break
+								} else {
+									tries = 3
+								}
+							}
+						}
+						if xxyy == pxy {
+							let co = if pos.xy[0] != pxy[0] && rng.gen() { 0 } else { 1 };
+							pos.nx[co] += if pos.xy[co]<pxy[co] { 1 }
+								else if pos.xy[co]>pxy[co] { -1 }
+								else { 0 };
+						} else {
+							*ai = AiComp::Random
+						}
+					},
 				}
 			}
 		});

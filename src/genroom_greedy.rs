@@ -64,10 +64,8 @@ impl GreedyRoomGen {
 			for (ref mut xywh, &grow) in rxy.iter_mut().zip(&cangrow) {
 				if !grow { continue }
 				xywh[b4] += match b4 {
-					0 => -1,
-					1 => -1,
-					2 => 1,
-					3 => 1,
+					0|1 => -1,
+					2|3 => 1,
 					_ => unreachable!(),
 				}
 			}
@@ -125,18 +123,17 @@ impl GreedyRoomGen {
 			if !doors.contains(&xy) {
 				doors.insert(xy);
 				room.create_now()
-					.with(WallComp)
 					.with(PosComp::new(ch, xy))
 					.build();
 			}
 		}
 		for xywh in rxy {
-			for x in xywh[0]+1..xywh[2] {
+			for x in xywh[0]..xywh[2]+1 {
 				for &i in [1usize, 3].into_iter() {
 					add_wall(room, &mut doors, [x, xywh[i]], '\u{2550}')
 				}
 			}
-			for y in xywh[1]+1..xywh[3] {
+			for y in xywh[1]..xywh[3]+1 {
 				for &i in [0usize, 2].into_iter() {
 					add_wall(room, &mut doors, [xywh[i], y], '\u{2551}')
 				}

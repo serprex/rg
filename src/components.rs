@@ -1,4 +1,4 @@
-use specs::{Component, VecStorage, NullStorage};
+use specs::{Component, VecStorage};
 
 macro_rules! impl_storage {
 	($storage: ident, $($comp: ident),*) => {
@@ -34,8 +34,5 @@ pub enum AiComp {
 
 #[derive(Copy, Clone)]
 pub struct MortalComp(pub i16);
-#[derive(Clone, Default)]
-pub struct WallComp;
 
 impl_storage!(VecStorage, PosComp, MortalComp, AiComp);
-impl_storage!(NullStorage, WallComp);
