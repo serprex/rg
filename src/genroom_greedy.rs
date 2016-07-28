@@ -123,7 +123,7 @@ impl GreedyRoomGen {
 			if !doors.contains(&xy) {
 				doors.insert(xy);
 				room.create_now()
-					.with(PosComp::new(ch, xy))
+					.with(Pos::new(ch, xy))
 					.build();
 			}
 		}
