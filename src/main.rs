@@ -2,6 +2,7 @@ extern crate rand;
 extern crate termios;
 extern crate x1b;
 extern crate specs;
+extern crate fnv;
 
 mod genroom_greedy;
 mod math;
@@ -12,9 +13,11 @@ use std::io::{self, Read};
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use std::collections::hash_map::*;
 use std::collections::HashSet;
+use std::hash::BuildHasherDefault;
 use rand::*;
 use specs::*;
 use components::*;
+use fnv::FnvHasher;
 
 macro_rules! w_register {
 	($w: expr, $($comp: ident),*) => {
@@ -68,7 +71,7 @@ fn main(){
 			let (mut pos, mut ai) = arg.fetch(|w|{
 				(w.write::<Pos>(), w.write::<Ai>())
 			});
-			let collisions: HashSet<[i16; 2]> = pos.iter().map(|pos| pos.xy).collect();
+			let collisions: HashSet<[i16; 2], BuildHasherDefault<FnvHasher>> = pos.iter().map(|pos| pos.xy).collect();
 			let mut rng = rand::thread_rng();
 			let mut pxy = [0, 0];
 			for (pos, ai) in (&mut pos, &mut ai).iter() {

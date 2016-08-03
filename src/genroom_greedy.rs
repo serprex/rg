@@ -1,10 +1,12 @@
 use std::cmp;
 use std::collections::HashSet;
+use std::hash::BuildHasherDefault;
 use rand::*;
 use rand::distributions::{IndependentSample, Range};
 use math::*;
 use specs::World;
 use components::*;
+use fnv::FnvHasher;
 
 pub struct GreedyRoomGen(usize);
 impl Default for GreedyRoomGen {
@@ -70,9 +72,9 @@ impl GreedyRoomGen {
 				}
 			}
 		}
-		let mut doors: HashSet<[i16; 2]> = HashSet::new();
-		let mut nzgrps: HashSet<usize> = (1..rc).into_iter().collect();
-		let mut zgrps: HashSet<usize> = HashSet::with_capacity(rc);
+		let mut doors: HashSet<[i16; 2], BuildHasherDefault<FnvHasher>> = Default::default();
+		let mut nzgrps: HashSet<usize, BuildHasherDefault<FnvHasher>> = (1..rc).into_iter().collect();
+		let mut zgrps: HashSet<usize, BuildHasherDefault<FnvHasher>> = HashSet::with_capacity_and_hasher(rc, Default::default());
 		zgrps.insert(0);
 		loop {
 			let nthzi = rng.gen_range(0, zgrps.len());
@@ -119,7 +121,7 @@ impl GreedyRoomGen {
 				break
 			}
 		}
-		fn add_wall(room: &mut World, doors: &mut HashSet<[i16; 2]>, xy: [i16; 2], ch: char) {
+		fn add_wall(room: &mut World, doors: &mut HashSet<[i16; 2], BuildHasherDefault<FnvHasher>>, xy: [i16; 2], ch: char) {
 			if !doors.contains(&xy) {
 				doors.insert(xy);
 				room.create_now()
