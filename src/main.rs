@@ -39,7 +39,7 @@ fn getch() -> char {
 fn main(){
 	let mut planner = {
 		let mut w = World::new();
-		w_register!(w, Pos, Mortal, Ai);
+		w_register!(w, Pos, Mortal, Ai, Portal);
 		w.create_now()
 			.with(Ai::new(AiState::Player, 10))
 			.with(Pos::new('@', [4, 4]))
@@ -56,6 +56,7 @@ fn main(){
 	};
 	let curse = Arc::new(Mutex::new(x1b::Curse::new(40, 40)));
 	let _lock = TermJuggler::new();
+	let newworld: Arc<Mutex<Option<World>>> = Arc::new(Mutex::new(None));
 	while !EXITGAME.load(Ordering::Relaxed) {
 		{
 			let curselop = curse.clone();
@@ -68,9 +69,9 @@ fn main(){
 		planner.wait();
 		curse.lock().unwrap().perframe_refresh_then_clear(x1b::TCell::from_char(' ')).unwrap();
 		planner.run_custom(move |arg|{
-			let (mut pos, mut ai) = arg.fetch(|w|{
+			let (mut pos, mut ai) = arg.fetch(|w|
 				(w.write::<Pos>(), w.write::<Ai>())
-			});
+			);
 			let collisions: HashSet<[i16; 2], BuildHasherDefault<FnvHasher>> = pos.iter().map(|pos| pos.xy).collect();
 			let mut rng = rand::thread_rng();
 			let mut pxy = [0, 0];
@@ -106,7 +107,7 @@ fn main(){
 									chs += 1;
 								}
 							}
-							pos.nx = *rng.choose(&choices[0..chs]).unwrap();
+							pos.nx = *rng.choose(&choices[..chs]).unwrap();
 							if (pos.nx[0] - pxy[0]).abs() < 5 && (pos.nx[1] - pxy[1]).abs() < 5 {
 								ai.state = AiState::Aggro
 							}
@@ -127,7 +128,7 @@ fn main(){
 							if chs == 0 {
 								ai.state = AiState::Aggro
 							} else {
-								pos.nx = *rng.choose(&choices[0..chs]).unwrap()
+								pos.nx = *rng.choose(&choices[..chs]).unwrap()
 							}
 						},
 						AiState::Aggro => {
@@ -167,29 +168,56 @@ fn main(){
 			}
 		});
 		planner.wait();
-		planner.run_custom(|arg|{
-			let mut pos = arg.fetch(|w|{
-				w.write::<Pos>()
-			});
-			let mut collisions: HashMap<[i16; 2], bool> = HashMap::new();
-			for n in pos.iter() {
+		let newworldrc = newworld.clone();
+		planner.run_custom(move|arg|{
+			let (mut pos, portal, ai, ents) = arg.fetch(|w|
+				(w.write::<Pos>(), w.read::<Portal>(), w.read::<Ai>(), w.entities())
+			);
+			let mut collisions: HashMap<[i16; 2], Vec<Entity>, BuildHasherDefault<FnvHasher>> = Default::default();
+			for (n, e) in (&pos, &ents).iter() {
 				match collisions.entry(n.nx) {
-					Entry::Occupied(mut ent) => {ent.insert(true);},
-					Entry::Vacant(ent) => {ent.insert(false);},
+					Entry::Occupied(mut ent) => {ent.get_mut().push(e);},
+					Entry::Vacant(ent) => {ent.insert(vec![e]);},
 				}
 			}
 
-			for n in (&mut pos).iter() {
+			for (n, e) in (&mut pos, &ents).iter() {
 				if n.xy != n.nx {
-					if !*collisions.get(&n.nx).unwrap_or(&false) {
+					let col = collisions.get(&n.nx).unwrap();
+					if col.len() == 1 {
 						n.xy = n.nx;
 					} else {
+						for ce in col {
+							if *ce != e {
+								if let Some(aie) = ai.get(e) {
+									if aie.state == AiState::Player {
+										if let Some(_pore) = portal.get(*ce) {
+											let mut world = World::new();
+											w_register!(world, Pos, Mortal, Ai, Portal);
+											world.create_now()
+												.with(Ai::new(AiState::Player, 10))
+												.with(Pos::new('@', n.nx))
+												.with(Mortal(8))
+												.build();
+											let rrg = genroom_greedy::GreedyRoomGen::default();
+											rrg.modify(40, 40, [4, 4], &mut world);
+											let mut neww = newworldrc.lock().unwrap();
+											*neww = Some(world);
+										}
+									}
+								}
+							}
+						}
 						n.nx = n.xy;
 					}
 				}
 			}
 		});
 		planner.wait();
+		let newwo = newworld.lock().unwrap().take();
+		if newwo.is_some() {
+			*planner.mut_world() = newwo.unwrap();
+		}
 	}
 }
 struct TermJuggler(termios::Termios);

@@ -76,48 +76,37 @@ impl GreedyRoomGen {
 		let mut nzgrps: HashSet<usize, BuildHasherDefault<FnvHasher>> = (1..rc).into_iter().collect();
 		let mut zgrps: HashSet<usize, BuildHasherDefault<FnvHasher>> = HashSet::with_capacity_and_hasher(rc, Default::default());
 		zgrps.insert(0);
+		'doorloop:
 		loop {
 			let nthzi = rng.gen_range(0, zgrps.len());
 			let &iszi = zgrps.iter().skip(nthzi).next().unwrap();
 			let adjs = (0..rc).into_iter()
 				.filter(|i| adjacent[i+iszi*rc])
-				.collect::<Vec<usize>>();
+				.collect::<Vec<_>>();
 			if adjs.is_empty() { break }
 			let &aidx = rng.choose(&adjs).unwrap();
 			let r1 = rxy[iszi];
 			let r2 = rxy[aidx];
-			if r1[0] == r2[2] {
-				let mn = cmp::max(r1[1], r2[1])+1;
-				let mx = cmp::min(r1[3], r2[3]);
-				if mn == mx { continue }
-				let y = rng.gen_range(mn, mx);
-				doors.insert([r1[0],y]);
-			} else if r1[2] == r2[0] {
-				let mn = cmp::max(r1[1], r2[1])+1;
-				let mx = cmp::min(r1[3], r2[3]);
-				if mn == mx { continue }
-				let y = rng.gen_range(mn, mx);
-				doors.insert([r1[2],y]);
-			} else if r1[1] == r2[3] {
-				let mn = cmp::max(r1[0], r2[0])+1;
-				let mx = cmp::min(r1[2], r2[2]);
-				if mn == mx { continue }
-				let x = rng.gen_range(mn, mx);
-				doors.insert([x,r1[1]]);
-			} else if r1[3] == r2[1] {
-				let mn = cmp::max(r1[0], r2[0])+1;
-				let mx = cmp::min(r1[2], r2[2]);
-				if mn == mx { continue }
-				let x = rng.gen_range(mn, mx);
-				doors.insert([x,r1[3]]);
-			} else { println!("{:?} {:?}", r1, r2) ; unreachable!() }
+			for &(r1i, r2i, mxi, mni) in &[(0, 2, 1, 3), (2, 0, 1, 3), (1, 3, 0, 2), (3, 1, 0, 2)] {
+				if r1[r1i] == r2[r2i] {
+					let mn = cmp::max(r1[mxi], r2[mxi])+1;
+					let mx = cmp::min(r1[mni], r2[mni]);
+					if mn == mx { continue 'doorloop }
+					let mnx = rng.gen_range(mn, mx);
+					doors.insert(if mxi == 1 { [r1[r1i],mnx] } else { [mnx,r1[r1i]] });
+					break
+				}
+			}
 			zgrps.insert(aidx);
 			nzgrps.remove(&aidx);
 			if nzgrps.is_empty() {
-				/*let r = rxy[aidx];
+				let r = rxy[aidx];
 				let x = rng.gen_range(r[0]+1, r[2]);
 				let y = rng.gen_range(r[1]+1, r[3]);
-				room.insert(Obj::new_portal((x,y)));*/
+				room.create_now()
+					.with(Pos::new('\\', [x,y]))
+					.with(Portal)
+					.build();
 				break
 			}
 		}
