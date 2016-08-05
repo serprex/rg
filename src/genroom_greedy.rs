@@ -33,19 +33,22 @@ impl GreedyRoomGen {
 				{ rxy.push(candy) }
 		}
 		loop {
-			let mut cangrow: Vec<bool> = Vec::new();
+			let mut cangrow: Vec<bool> = Vec::with_capacity(rc);
 			let b4 = bet4.ind_sample(&mut rng);
 			for (i, rect) in rxy.iter().enumerate() {
 				let mut newrect = *rect;
-				newrect[b4] += match b4 {
-					0|1 => -1,
-					2|3 => 1,
-					_ => {
-						cangrow.push(false);
-						continue
+				let oob = match b4 {
+					0|1 => {
+						newrect[b4] -= 1;
+						newrect[b4] < 0
 					},
+					2|3 => {
+						newrect[b4] += 1;
+						newrect[b4] >= if b4 == 2 { w } else { h }
+					},
+					_ => unreachable!(),
 				};
-				if newrect[0] < 0 || newrect[1] < 0 || newrect[2] >= w || newrect[3] >= h {
+				if oob {
 					cangrow.push(false);
 					continue
 				}

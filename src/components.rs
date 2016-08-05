@@ -30,6 +30,8 @@ pub enum AiState {
 	Aggro,
 	Scared,
 	Player,
+	Melee(u8),
+	Missile(u8),
 }
 #[derive(Copy, Clone)]
 pub struct Ai {
