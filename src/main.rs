@@ -221,8 +221,8 @@ fn main(){
 		planner.wait();
 		let newworldrc = newworld.clone();
 		planner.run_custom(move|arg|{
-			let (mut pos, portal, ai, ents) = arg.fetch(|w|
-				(w.write::<Pos>(), w.read::<Portal>(), w.read::<Ai>(), w.entities())
+			let (mut pos, mut mort, portal, ai, ents) = arg.fetch(|w|
+				(w.write::<Pos>(), w.write::<Mortal>(), w.read::<Portal>(), w.read::<Ai>(), w.entities())
 			);
 			let mut collisions: HashMap<[i16; 2], Vec<Entity>, BuildHasherDefault<FnvHasher>> = Default::default();
 			for (n, e) in (&pos, &ents).iter() {
@@ -233,36 +233,49 @@ fn main(){
 			}
 
 			for (n, e) in (&mut pos, &ents).iter() {
-				if n.xy != n.nx {
-					let col = collisions.get(&n.nx).unwrap();
-					if col.len() == 1 {
-						n.xy = n.nx;
-					} else {
-						for ce in col {
-							if *ce != e {
-								if let Some(aie) = ai.get(e) {
-									if aie.state == AiState::Player {
-										if let Some(_pore) = portal.get(*ce) {
-											let mut world = World::new();
-											w_register!(world, Pos, Mortal, Ai, Portal);
-											world.create_now()
-												.with(Ai::new(AiState::Player, 10))
-												.with(Pos::new('@', n.nx))
-												.with(Mortal(8))
-												.build();
-											let rrg = genroom_greedy::GreedyRoomGen::default();
-											rrg.modify(40, 40, n.nx, &mut world);
-											let mut neww = newworldrc.lock().unwrap();
-											*neww = Some(world);
+				let col = collisions.get(&n.nx).unwrap();
+				if col.len() == 1 {
+					n.xy = n.nx;
+				} else {
+					for ce in col {
+						if *ce != e {
+							if let Some(aie) = ai.get(e) {
+								if aie.state == AiState::Player {
+									if let Some(_pore) = portal.get(*ce) {
+										let mut world = World::new();
+										w_register!(world, Pos, Mortal, Ai, Portal);
+										world.create_now()
+											.with(Ai::new(AiState::Player, 10))
+											.with(Pos::new('@', n.nx))
+											.with(Mortal(8))
+											.build();
+										let rrg = genroom_greedy::GreedyRoomGen::default();
+										rrg.modify(40, 40, n.nx, &mut world);
+										let mut neww = newworldrc.lock().unwrap();
+										*neww = Some(world);
+									}
+								} else if let AiState::Missile(_) = aie.state {
+									if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(*ce) {
+										if *mce == 0 {
+											arg.delete(*ce);
+										} else {
+											*mce -= 1
 										}
-									} else if let AiState::Missile(_) = aie.state {
-										arg.delete(e)
+									}
+									arg.delete(e)
+								} else if let AiState::Melee(_) = aie.state {
+									if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(*ce) {
+										if *mce == 0 {
+											arg.delete(*ce);
+										} else {
+											*mce -= 1
+										}
 									}
 								}
 							}
 						}
-						n.nx = n.xy;
 					}
+					n.nx = n.xy;
 				}
 			}
 		});
