@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use std::collections::hash_map::*;
 use std::collections::HashSet;
 use std::hash::BuildHasherDefault;
+use std::time::{Instant, Duration};
 use std::mem;
 use rand::*;
 use specs::*;
@@ -27,6 +28,10 @@ macro_rules! w_register {
 }
 
 static EXITGAME: AtomicBool = ATOMIC_BOOL_INIT;
+
+fn dur_as_f64(dur: Duration) -> f64 {
+	dur.as_secs() as f64 + dur.subsec_nanos() as f64 / 1e9
+}
 
 fn getch() -> char {
 	let stdin = io::stdin();
@@ -55,20 +60,31 @@ fn main(){
 		rrg.modify(40, 40, [4, 4], &mut w);
 		Planner::<()>::new(w, 2)
 	};
-	let curse = Arc::new(Mutex::new(x1b::Curse::new(40, 40)));
+	let curse = Arc::new(Mutex::new(x1b::Curse::new(80, 60)));
 	let _lock = TermJuggler::new();
 	let newworld: Arc<Mutex<Option<World>>> = Arc::new(Mutex::new(None));
+	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		{
 			let curselop = curse.clone();
-			planner.run0w1r(move|a: &Pos|{
-				if a.xy[0] >= 0 && a.xy[1] >= 0 {
-					curselop.lock().unwrap().set(a.xy[0] as u16, a.xy[1] as u16, x1b::TCell::from_char(a.ch));
+			planner.run_custom(move |arg|{
+				let mut curseloplock = curselop.lock().unwrap();
+				let pos = arg.fetch(|w| w.read::<Pos>());
+				for a in pos.iter() {
+					if a.xy[0] >= 0 && a.xy[1] >= 0 {
+						curseloplock.set(a.xy[0] as u16, a.xy[1] as u16, x1b::TCell::from_char(a.ch));
+					}
 				}
 			});
 		}
 		planner.wait();
-		curse.lock().unwrap().perframe_refresh_then_clear(x1b::TCell::from_char(' ')).unwrap();
+		{
+			let mut curselock = curse.lock().unwrap();
+			let newnow = Instant::now();
+			curselock.printnows(40, 0, &dur_as_f64(newnow - now).to_string(), x1b::TextAttr::empty());
+			now = newnow;
+			curselock.perframe_refresh_then_clear(x1b::TCell::from_char(' ')).unwrap();
+		}
 		planner.run_custom(move |arg|{
 			let (mut pos, mut ai, ents) = arg.fetch(|w|
 				(w.write::<Pos>(), w.write::<Ai>(), w.entities())
@@ -202,9 +218,10 @@ fn main(){
 							}
 						},
 						AiState::Melee(ref mut dur) => {
-							*dur -= 1;
 							if *dur == 0 {
 								arg.delete(ent)
+							} else {
+								*dur -= 1
 							}
 						},
 						//_ => (),
