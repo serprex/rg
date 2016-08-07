@@ -14,12 +14,17 @@ use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use std::collections::hash_map::*;
 use std::collections::HashSet;
 use std::hash::BuildHasherDefault;
+use std::thread;
 use std::time::{Instant, Duration};
 use std::mem;
 use rand::*;
 use specs::*;
-use components::*;
 use fnv::FnvHasher;
+
+use components::*;
+
+pub type FnvHashSet<T> = HashSet<T, BuildHasherDefault<FnvHasher>>;
+pub type FnvHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FnvHasher>>;
 
 macro_rules! w_register {
 	($w: expr, $($comp: ident),*) => {
@@ -42,19 +47,31 @@ fn getch() -> char {
 	ch
 }
 
+fn is_aggro(r1: Race, r2: Race) -> bool {
+	match (r1, r2) {
+		(Race::Wazzlefu, Race::Rat) => true,
+		(Race::Rat, Race::Wazzlefu) => true,
+		_ => false,
+	}
+}
+
 fn main(){
 	let mut planner = {
 		let mut w = World::new();
-		w_register!(w, Pos, Mortal, Ai, Portal);
+		w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race);
 		w.create_now()
 			.with(Ai::new(AiState::Player, 10))
 			.with(Pos::new('@', [4, 4]))
+			.with(NPos([4, 4]))
 			.with(Mortal(8))
+			.with(Race::Wazzlefu)
 			.build();
 		w.create_now()
 			.with(Pos::new('r', [6, 6]))
+			.with(NPos([6, 6]))
 			.with(Ai::new(AiState::Random, 15))
 			.with(Mortal(2))
+			.with(Race::Rat)
 			.build();
 		let rrg = genroom_greedy::GreedyRoomGen::default();
 		rrg.modify(40, 40, [4, 4], &mut w);
@@ -81,58 +98,59 @@ fn main(){
 		{
 			let mut curselock = curse.lock().unwrap();
 			let newnow = Instant::now();
-			curselock.printnows(40, 0, &dur_as_f64(newnow - now).to_string(), x1b::TextAttr::empty());
-			now = newnow;
+			let dur = newnow - now;
+			if dur < Duration::from_millis(16) {
+				let sleepdur = Duration::from_millis(16) - dur;
+				thread::sleep(sleepdur);
+				now = newnow + sleepdur;
+			} else {
+				now = newnow;
+			}
+			curselock.printnows(40, 0, &dur_as_f64(dur).to_string()[..6], x1b::TextAttr::empty());
 			curselock.perframe_refresh_then_clear(x1b::TCell::from_char(' ')).unwrap();
 		}
 		planner.run_custom(move |arg|{
-			let (mut pos, mut ai, ents) = arg.fetch(|w|
-				(w.write::<Pos>(), w.write::<Ai>(), w.entities())
+			let (mut cpos, mut cnpos, mut cai, mut crace, ents) = arg.fetch(|w|
+				(w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.entities())
 			);
-			let collisions: HashSet<[i16; 2], BuildHasherDefault<FnvHasher>> = pos.iter().map(|pos| pos.xy).collect();
+			let collisions: FnvHashSet<[i16; 2]> = cpos.iter().map(|pos| pos.xy).collect();
 			let mut rng = rand::thread_rng();
-			let mut pxy = [0, 0];
-			for (pos, ai) in (&mut pos, &mut ai).iter() {
-				match ai.state {
-					AiState::Player => pxy = pos.xy,
-					_ => (),
-				}
-			}
-			let mut newent: Vec<(Entity, Ai, Pos)> = Vec::new();
-			for (mut pos, mut ai, ent) in (&mut pos, &mut ai, &ents).iter() {
+			let mut newent: Vec<(Entity, Ai, Pos, Option<NPos>)> = Vec::new();
+			for (pos, mut npos, mut ai, &race, ent) in (&cpos, &mut cnpos, &mut cai, &crace, &ents).iter() {
+				npos.0 = pos.xy;
 				if ai.tick == 0 {
 					ai.tick = ai.speed;
 					match ai.state {
 						AiState::Player => 'playerinput: loop {
 							let ch = getch();
 							match ch {
-								'h' => pos.nx[0] -= 1,
-								'l' => pos.nx[0] += 1,
-								'k' => pos.nx[1] -= 1,
-								'j' => pos.nx[1] += 1,
+								'h' => npos.0[0] -= 1,
+								'l' => npos.0[0] += 1,
+								'k' => npos.0[1] -= 1,
+								'j' => npos.0[1] += 1,
 								'a' => {
 									let ach = getch();
 									let mut crmis = |d, xy| {
-										newent.push((arg.create(), Ai::new(AiState::Melee(d), 1), Pos::new('x', xy)));
+										newent.push((arg.create(), Ai::new(AiState::Melee(d), 1), Pos::new('x', xy), None));
 									};
 									match ach {
-										'h' => crmis(3, [pos.nx[0]-1, pos.nx[1]]),
-										'l' => crmis(3, [pos.nx[0]+1, pos.nx[1]]),
-										'k' => crmis(3, [pos.nx[0], pos.nx[1]-1]),
-										'j' => crmis(3, [pos.nx[0], pos.nx[1]+1]),
+										'h' => crmis(3, [pos.xy[0]-1, pos.xy[1]]),
+										'l' => crmis(3, [pos.xy[0]+1, pos.xy[1]]),
+										'k' => crmis(3, [pos.xy[0], pos.xy[1]-1]),
+										'j' => crmis(3, [pos.xy[0], pos.xy[1]+1]),
 										_ => continue 'playerinput
 									}
 								},
 								's' => {
 									let sch = getch();
 									let mut crmis = |d, xy| {
-										newent.push((arg.create(), Ai::new(AiState::Missile(d), 4), Pos::new('j', xy)));
+										newent.push((arg.create(), Ai::new(AiState::Missile(d), 4), Pos::new('j', xy), Some(NPos(xy))));
 									};
 									match sch {
-										'h' => crmis(0, [pos.nx[0]-1, pos.nx[1]]),
-										'l' => crmis(1, [pos.nx[0]+1, pos.nx[1]]),
-										'k' => crmis(2, [pos.nx[0], pos.nx[1]-1]),
-										'j' => crmis(3, [pos.nx[0], pos.nx[1]+1]),
+										'h' => crmis(Dir::H, [pos.xy[0]-1, pos.xy[1]]),
+										'l' => crmis(Dir::L, [pos.xy[0]+1, pos.xy[1]]),
+										'k' => crmis(Dir::K, [pos.xy[0], pos.xy[1]-1]),
+										'j' => crmis(Dir::J, [pos.xy[0], pos.xy[1]+1]),
 										_ => continue 'playerinput
 									}
 								},
@@ -154,67 +172,82 @@ fn main(){
 									chs += 1;
 								}
 							}
-							pos.nx = *rng.choose(&choices[..chs]).unwrap();
-							if (pos.nx[0] - pxy[0]).abs() < 5 && (pos.nx[1] - pxy[1]).abs() < 5 {
-								ai.state = AiState::Aggro
-							}
-						},
-						AiState::Scared => {
-							let mut choices: [[i16; 2]; 4] = unsafe { mem::uninitialized() };
-							let mut chs = 0;
-							let dist = (pos.xy[0] - pxy[0]).abs() + (pos.xy[1] - pxy[1]).abs();
-							for choice in &[[pos.xy[0]-1, pos.xy[1]],
-							[pos.xy[0]+1, pos.xy[1]],
-							[pos.xy[0], pos.xy[1]-1],
-							[pos.xy[0], pos.xy[1]+1]] {
-								if (pos.xy[0] - pxy[0]).abs() + (pos.xy[1] - pxy[1]).abs() > dist && !collisions.contains(choice) {
-									choices[chs] = *choice;
-									chs += 1;
+							npos.0 = *rng.choose(&choices[..chs]).unwrap();
+							for (pos2, &race2, e2) in (&cpos, &crace, &ents).iter() {
+								if is_aggro(race, race2) &&
+									(npos.0[0] - pos2.xy[0]).abs() < 5 &&
+									(npos.0[1] - pos2.xy[1]).abs() < 5 {
+									ai.state = AiState::Aggro(e2)
 								}
 							}
-							if chs == 0 {
-								ai.state = AiState::Aggro
-							} else {
-								pos.nx = *rng.choose(&choices[..chs]).unwrap()
-							}
 						},
-						AiState::Aggro => {
-							let mut xxyy = pos.xy;
-							let mut tries = 3;
-							loop {
-								let mut xy = xxyy;
-								let co = if tries == 1 || (tries == 3 && rng.gen()) { 0 } else { 1 };
-								xy[co] += if xy[co]<pxy[0] { 1 }
-									else if xy[co]>pxy[0] { -1 }
-									else { 0 };
-								if xy == xxyy || collisions.contains(&xy) {
-									tries -= 1;
-									if tries == 0 { break }
-								} else {
-									xxyy = xy;
-									if xy == pxy {
-										break
+						AiState::Scared(foe) => {
+							match cpos.get(foe) {
+								None => ai.state = AiState::Random,
+								Some(fxy) => {
+									let fxy = fxy.xy;
+									let mut choices: [[i16; 2]; 4] = unsafe { mem::uninitialized() };
+									let mut chs = 0;
+									let dist = (pos.xy[0] - fxy[0]).abs() + (pos.xy[1] - fxy[1]).abs();
+									for choice in &[[pos.xy[0]-1, pos.xy[1]],
+									[pos.xy[0]+1, pos.xy[1]],
+									[pos.xy[0], pos.xy[1]-1],
+									[pos.xy[0], pos.xy[1]+1]] {
+										if (pos.xy[0] - fxy[0]).abs() + (pos.xy[1] - fxy[1]).abs() > dist && !collisions.contains(choice) {
+											choices[chs] = *choice;
+											chs += 1;
+										}
+									}
+									if chs == 0 {
+										ai.state = AiState::Aggro(foe)
 									} else {
-										tries = 3
+										npos.0 = *rng.choose(&choices[..chs]).unwrap()
 									}
 								}
 							}
-							if xxyy == pxy {
-								let co = if pos.xy[0] != pxy[0] && rng.gen() { 0 } else { 1 };
-								pos.nx[co] += if pos.xy[co]<pxy[co] { 1 }
-									else if pos.xy[co]>pxy[co] { -1 }
-									else { 0 };
-							} else {
-								ai.state = AiState::Random
+						},
+						AiState::Aggro(foe) => {
+							match cpos.get(foe) {
+								None => ai.state = AiState::Random,
+								Some(fxy) => {
+									let fxy = fxy.xy;
+									let mut xxyy = pos.xy;
+									let mut tries = 3;
+									loop {
+										let mut xy = xxyy;
+										let co = if tries == 1 || (tries == 3 && rng.gen()) { 0 } else { 1 };
+										xy[co] += if xy[co]<fxy[0] { 1 }
+											else if xy[co]>fxy[0] { -1 }
+											else { 0 };
+										if xy == xxyy || collisions.contains(&xy) {
+											tries -= 1;
+											if tries == 0 { break }
+										} else {
+											xxyy = xy;
+											if xy == fxy {
+												break
+											} else {
+												tries = 3
+											}
+										}
+									}
+									if xxyy == fxy {
+										let co = if pos.xy[0] != fxy[0] && rng.gen() { 0 } else { 1 };
+										npos.0[co] += if pos.xy[co]<fxy[co] { 1 }
+											else if pos.xy[co]>fxy[co] { -1 }
+											else { 0 };
+									} else {
+										ai.state = AiState::Random
+									}
+								}
 							}
 						},
 						AiState::Missile(dir) => {
 							match dir {
-								0 => pos.nx[0] -= 1,
-								1 => pos.nx[0] += 1,
-								2 => pos.nx[1] -= 1,
-								3 => pos.nx[1] += 1,
-								_ => unreachable!(),
+								Dir::H => npos.0[0] -= 1,
+								Dir::L => npos.0[0] += 1,
+								Dir::K => npos.0[1] -= 1,
+								Dir::J => npos.0[1] += 1,
 							}
 						},
 						AiState::Melee(ref mut dur) => {
@@ -230,69 +263,85 @@ fn main(){
 					ai.tick -= 1
 				}
 			}
-			while let Some((ent, newai, newpos)) = newent.pop() {
-				ai.insert(ent, newai);
-				pos.insert(ent, newpos);
+			for (ent, newai, newpos, newnpos) in newent {
+				cai.insert(ent, newai);
+				cpos.insert(ent, newpos);
+				crace.insert(ent, Race::None);
+				if let Some(npos) = newnpos {
+					cnpos.insert(ent, npos);
+				}
 			}
 		});
 		planner.wait();
 		let newworldrc = newworld.clone();
 		planner.run_custom(move|arg|{
-			let (mut pos, mut mort, portal, ai, ents) = arg.fetch(|w|
-				(w.write::<Pos>(), w.write::<Mortal>(), w.read::<Portal>(), w.read::<Ai>(), w.entities())
+			let (mut pos, npos, mut mort, portal, ai, ents) = arg.fetch(|w|
+				(w.write::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.read::<Ai>(), w.entities())
 			);
-			let mut collisions: HashMap<[i16; 2], Vec<Entity>, BuildHasherDefault<FnvHasher>> = Default::default();
-			for (n, e) in (&pos, &ents).iter() {
-				match collisions.entry(n.nx) {
+			let mut collisions: FnvHashMap<[i16; 2], Vec<Entity>> = Default::default();
+			for (n, _, e) in (&pos, !&npos, &ents).iter() {
+				match collisions.entry(n.xy) {
 					Entry::Occupied(mut ent) => {ent.get_mut().push(e);},
 					Entry::Vacant(ent) => {ent.insert(vec![e]);},
 				}
 			}
 
-			for (n, e) in (&mut pos, &ents).iter() {
-				let col = collisions.get(&n.nx).unwrap();
+			for (n, e) in (&npos, &ents).iter() {
+				match collisions.entry(n.0) {
+					Entry::Occupied(mut ent) => {ent.get_mut().push(e);},
+					Entry::Vacant(ent) => {ent.insert(vec![e]);},
+				}
+			}
+
+			for (mut p, n, e) in (&mut pos, &npos, &ents).iter() {
+				let col = collisions.get(&n.0).unwrap();
 				if col.len() == 1 {
-					n.xy = n.nx;
+					p.xy = n.0;
 				} else {
 					for ce in col {
 						if *ce != e {
 							if let Some(aie) = ai.get(e) {
-								if aie.state == AiState::Player {
-									if let Some(_pore) = portal.get(*ce) {
-										let mut world = World::new();
-										w_register!(world, Pos, Mortal, Ai, Portal);
-										world.create_now()
-											.with(Ai::new(AiState::Player, 10))
-											.with(Pos::new('@', n.nx))
-											.with(Mortal(8))
-											.build();
-										let rrg = genroom_greedy::GreedyRoomGen::default();
-										rrg.modify(40, 40, n.nx, &mut world);
-										let mut neww = newworldrc.lock().unwrap();
-										*neww = Some(world);
-									}
-								} else if let AiState::Missile(_) = aie.state {
-									if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(*ce) {
-										if *mce == 0 {
-											arg.delete(*ce);
-										} else {
-											*mce -= 1
+								match aie.state {
+									AiState::Player => {
+										if let Some(_pore) = portal.get(*ce) {
+											let mut world = World::new();
+											w_register!(world, Pos, NPos, Mortal, Ai, Portal, Race);
+											world.create_now()
+												.with(Ai::new(AiState::Player, 10))
+												.with(Pos::new('@', n.0))
+												.with(NPos(n.0))
+												.with(Mortal(8))
+												.build();
+											let rrg = genroom_greedy::GreedyRoomGen::default();
+											rrg.modify(40, 40, n.0, &mut world);
+											let mut neww = newworldrc.lock().unwrap();
+											*neww = Some(world);
 										}
-									}
-									arg.delete(e)
-								} else if let AiState::Melee(_) = aie.state {
-									if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(*ce) {
-										if *mce == 0 {
-											arg.delete(*ce);
-										} else {
-											*mce -= 1
+									},
+									AiState::Missile(_) => {
+										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(*ce) {
+											if *mce == 0 {
+												arg.delete(*ce);
+											} else {
+												*mce -= 1;
+											}
 										}
-									}
+										arg.delete(e)
+									},
+									AiState::Melee(_) => {
+										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(*ce) {
+											if *mce == 0 {
+												arg.delete(*ce);
+											} else {
+												*mce -= 1;
+											}
+										}
+									},
+									_ => (),
 								}
 							}
 						}
 					}
-					n.nx = n.xy;
 				}
 			}
 		});
