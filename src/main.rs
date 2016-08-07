@@ -8,11 +8,12 @@ mod genroom_greedy;
 mod math;
 mod components;
 
-use std::sync::{Arc, Mutex};
-use std::io::{self, Read};
-use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use std::collections::hash_map::*;
 use std::collections::HashSet;
+use std::cmp::{self, Ord};
+use std::io::{self, Read};
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use std::hash::BuildHasherDefault;
 use std::thread;
 use std::time::{Instant, Duration};
@@ -36,6 +37,16 @@ static EXITGAME: AtomicBool = ATOMIC_BOOL_INIT;
 
 fn dur_as_f64(dur: Duration) -> f64 {
 	dur.as_secs() as f64 + dur.subsec_nanos() as f64 / 1e9
+}
+
+fn cmpi<T, U>(a: T, b: T, lt: U, eq: U, gt: U) -> U
+	where T: Ord
+{
+	match a.cmp(&b) {
+		cmp::Ordering::Less => lt,
+		cmp::Ordering::Equal => eq,
+		cmp::Ordering::Greater => gt,
+	}
 }
 
 fn getch() -> char {
@@ -174,7 +185,7 @@ fn main(){
 							}
 							npos.0 = *rng.choose(&choices[..chs]).unwrap();
 							for (pos2, &race2, e2) in (&cpos, &crace, &ents).iter() {
-								if is_aggro(race, race2) &&
+								if ent != e2 && is_aggro(race, race2) &&
 									(npos.0[0] - pos2.xy[0]).abs() < 5 &&
 									(npos.0[1] - pos2.xy[1]).abs() < 5 {
 									ai.state = AiState::Aggro(e2)
@@ -216,10 +227,8 @@ fn main(){
 									loop {
 										let mut xy = xxyy;
 										let co = if tries == 1 || (tries == 3 && rng.gen()) { 0 } else { 1 };
-										xy[co] += if xy[co]<fxy[0] { 1 }
-											else if xy[co]>fxy[0] { -1 }
-											else { 0 };
-										if xy == xxyy || collisions.contains(&xy) {
+										xy[co] += cmpi(xy[co], fxy[co], 1, 0, -1);
+										if xy == xxyy || (xy != fxy && collisions.contains(&xy)) {
 											tries -= 1;
 											if tries == 0 { break }
 										} else {
@@ -233,9 +242,7 @@ fn main(){
 									}
 									if xxyy == fxy {
 										let co = if pos.xy[0] != fxy[0] && rng.gen() { 0 } else { 1 };
-										npos.0[co] += if pos.xy[co]<fxy[co] { 1 }
-											else if pos.xy[co]>fxy[co] { -1 }
-											else { 0 };
+										npos.0[co] += cmpi(pos.xy[co], fxy[co], 1, 0, -1);
 									} else {
 										ai.state = AiState::Random
 									}
@@ -310,6 +317,7 @@ fn main(){
 												.with(Ai::new(AiState::Player, 10))
 												.with(Pos::new('@', n.0))
 												.with(NPos(n.0))
+												.with(Race::Wazzlefu)
 												.with(Mortal(8))
 												.build();
 											let rrg = genroom_greedy::GreedyRoomGen::default();
