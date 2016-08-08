@@ -11,13 +11,14 @@ mod components;
 use std::collections::hash_map::*;
 use std::collections::HashSet;
 use std::cmp::{self, Ord};
+use std::env;
+use std::hash::BuildHasherDefault;
 use std::io::{self, Read};
+use std::mem;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
-use std::hash::BuildHasherDefault;
 use std::thread;
 use std::time::{Instant, Duration};
-use std::mem;
 use rand::*;
 use specs::*;
 use fnv::FnvHasher;
@@ -53,7 +54,7 @@ fn getch() -> char {
 	let stdin = io::stdin();
 	let sin = stdin.lock();
 	let mut sinchars = sin.bytes();
-	let ch = sinchars.next().unwrap().unwrap() as char;
+	let ch = sinchars.next().map(|next| next.unwrap_or(0x1b) as char).unwrap_or('\x1b');
 	if ch == '\x1b' { EXITGAME.store(true, Ordering::Relaxed) }
 	ch
 }
@@ -89,8 +90,9 @@ fn main(){
 		Planner::<()>::new(w, 2)
 	};
 	let curse = Arc::new(Mutex::new(x1b::Curse::new(80, 60)));
-	let _lock = TermJuggler::new();
-	let newworld: Arc<Mutex<Option<World>>> = Arc::new(Mutex::new(None));
+	let _lock = if env::args().len() < 2
+		{ Some(TermJuggler::new()) } else { None };
+	let newworld: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
 	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		{
@@ -311,19 +313,7 @@ fn main(){
 								match aie.state {
 									AiState::Player => {
 										if let Some(_pore) = portal.get(*ce) {
-											let mut world = World::new();
-											w_register!(world, Pos, NPos, Mortal, Ai, Portal, Race);
-											world.create_now()
-												.with(Ai::new(AiState::Player, 10))
-												.with(Pos::new('@', n.0))
-												.with(NPos(n.0))
-												.with(Race::Wazzlefu)
-												.with(Mortal(8))
-												.build();
-											let rrg = genroom_greedy::GreedyRoomGen::default();
-											rrg.modify(40, 40, n.0, &mut world);
-											let mut neww = newworldrc.lock().unwrap();
-											*neww = Some(world);
+											*newworldrc.lock().unwrap() = true;
 										}
 									},
 									AiState::Missile(_) => {
@@ -354,9 +344,36 @@ fn main(){
 			}
 		});
 		planner.wait();
-		let newwo = newworld.lock().unwrap().take();
-		if newwo.is_some() {
-			*planner.mut_world() = newwo.unwrap();
+		let mut newwo = newworld.lock().unwrap();
+		if *newwo {
+			*newwo = false;
+			let mut rments = Vec::new();
+			{
+			let world = planner.mut_world();
+			let ents = world.entities();
+			let cai = world.read::<Ai>();
+			for ent in ents.iter() {
+				if let Some(ai) = cai.get(ent) {
+					if AiState::Player == ai.state {
+						continue
+					}
+				}
+				rments.push(ent);
+			}
+			}
+			let rments = Arc::new(Mutex::new(rments));
+			let rmentsrc = rments.clone();
+			planner.run_custom(move |arg|{
+				arg.fetch(|w| {
+					let rme = rmentsrc.lock().unwrap();
+					for &e in &*rme {
+						w.delete_later(e);
+					}
+				});
+			});
+			planner.wait();
+			let rrg = genroom_greedy::GreedyRoomGen::default();
+			rrg.modify(40, 40, [4, 4], planner.mut_world());
 		}
 	}
 }
