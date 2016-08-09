@@ -86,7 +86,7 @@ fn main(){
 			.with(Race::Rat)
 			.build();
 		let rrg = genroom_greedy::GreedyRoomGen::default();
-		rrg.modify(40, 40, [4, 4], &mut w);
+		rrg.modify(40, 40, &mut w);
 		Planner::<()>::new(w, 2)
 	};
 	let curse = Arc::new(Mutex::new(x1b::Curse::new(80, 60)));
@@ -373,7 +373,7 @@ fn main(){
 			});
 			planner.wait();
 			let rrg = genroom_greedy::GreedyRoomGen::default();
-			rrg.modify(40, 40, [4, 4], planner.mut_world());
+			rrg.modify(40, 40, planner.mut_world());
 		}
 	}
 }

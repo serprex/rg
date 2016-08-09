@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use rand::*;
 use rand::distributions::{IndependentSample, Range};
 use math::*;
-use specs::World;
+use specs::{World, Join};
 
 use components::*;
 use super::FnvHashSet;
@@ -19,14 +19,12 @@ impl GreedyRoomGen {
 		GreedyRoomGen(rc)
 	}
 
-	pub fn modify(&self, w: i16, h: i16, pxy: [i16; 2], room: &mut World) {
+	pub fn modify(&self, w: i16, h: i16, room: &mut World) {
 		let rc = self.0;
 		let betwh = Range::new(0, (w-2)*(h-2));
 		let bet4 = Range::new(0, 4);
 		let mut rng = thread_rng();
-		let mut rxy =
-			vec![[cmp::max(pxy[0]-1, 0),
-				cmp::max(pxy[1]-1, 0), pxy[0]+1, pxy[1]+1]];
+		let mut rxy = Vec::with_capacity(rc);
 		let done = &mut [false; 4];
 		let mut adjacent = vec![false; rc*rc];
 		while rxy.len() < rc {
@@ -124,6 +122,9 @@ impl GreedyRoomGen {
 					.with(Pos::new(ch, xy))
 					.build();
 			}
+		}
+		for pos in room.read::<Pos>().iter() {
+			doors.insert(pos.xy);
 		}
 		for xywh in rxy {
 			for x in xywh[0]..xywh[2]+1 {
