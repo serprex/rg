@@ -92,7 +92,7 @@ fn main(){
 	let curse = Arc::new(Mutex::new(x1b::Curse::new(80, 60)));
 	let _lock = if env::args().len() < 2
 		{ Some(TermJuggler::new()) } else { None };
-	let newworld: Arc<Mutex<bool>> = Arc::new(Mutex::new(false));
+	let newworld = Arc::new(ATOMIC_BOOL_INIT);
 	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		{
@@ -112,13 +112,13 @@ fn main(){
 			let mut curselock = curse.lock().unwrap();
 			let newnow = Instant::now();
 			let dur = newnow - now;
-			if dur < Duration::from_millis(16) {
+			now = if dur < Duration::from_millis(16) {
 				let sleepdur = Duration::from_millis(16) - dur;
 				thread::sleep(sleepdur);
-				now = newnow + sleepdur;
+				newnow + sleepdur
 			} else {
-				now = newnow;
-			}
+				newnow
+			};
 			curselock.printnows(40, 0, &dur_as_f64(dur).to_string()[..6], x1b::TextAttr::empty());
 			curselock.perframe_refresh_then_clear(x1b::TCell::from_char(' ')).unwrap();
 		}
@@ -313,7 +313,7 @@ fn main(){
 								match aie.state {
 									AiState::Player => {
 										if let Some(_pore) = portal.get(*ce) {
-											*newworldrc.lock().unwrap() = true;
+											newworldrc.store(true, Ordering::Relaxed);
 										}
 									},
 									AiState::Missile(_) => {
@@ -344,9 +344,9 @@ fn main(){
 			}
 		});
 		planner.wait();
-		let mut newwo = newworld.lock().unwrap();
-		if *newwo {
-			*newwo = false;
+		let newwo = newworld.load(Ordering::Relaxed);
+		if newwo {
+			newworld.store(false, Ordering::SeqCst);
 			let mut rments = Vec::new();
 			{
 			let world = planner.mut_world();
