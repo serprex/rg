@@ -1,12 +1,11 @@
 use std::cmp;
 use std::collections::HashSet;
-use rand::*;
+use rand::{self, Rng};
 use rand::distributions::{IndependentSample, Range};
-use math::*;
 use specs::{World, Join};
 
 use components::*;
-use super::FnvHashSet;
+use util::{rectover, rectoverinc, FnvHashSet};
 
 pub struct GreedyRoomGen(usize);
 impl Default for GreedyRoomGen {
@@ -23,7 +22,7 @@ impl GreedyRoomGen {
 		let rc = self.0;
 		let betwh = Range::new(0, (w-2)*(h-2));
 		let bet4 = Range::new(0, 4);
-		let mut rng = thread_rng();
+		let mut rng = rand::thread_rng();
 		let mut rxy = Vec::with_capacity(rc);
 		let done = &mut [false; 4];
 		let mut adjacent = vec![false; rc*rc];

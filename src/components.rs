@@ -73,3 +73,11 @@ pub struct Portal;
 impl_storage!(VecStorage, Pos, Mortal, Ai, Race);
 impl_storage!(HashMapStorage, NPos);
 impl_storage!(NullStorage, Portal);
+
+pub fn is_aggro(r1: Race, r2: Race) -> bool {
+	match (r1, r2) {
+		(Race::Wazzlefu, Race::Rat) => true,
+		(Race::Rat, Race::Wazzlefu) => true,
+		_ => false,
+	}
+}
