@@ -10,7 +10,6 @@ mod util;
 mod components;
 
 use std::collections::hash_map::Entry;
-use std::env;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{ATOMIC_BOOL_INIT, Ordering};
 use std::thread;
@@ -48,8 +47,7 @@ fn main(){
 		Planner::<()>::new(w, 2)
 	};
 	let curse = Arc::new(Mutex::new(x1b::Curse::new(80, 60)));
-	let _lock = if env::args().len() < 2
-		{ Some(TermJuggler::new()) } else { None };
+	let _lock = TermJuggler::new();
 	let newworld = Arc::new(ATOMIC_BOOL_INIT);
 	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
@@ -183,14 +181,17 @@ fn main(){
 }
 struct TermJuggler(termios::Termios);
 impl TermJuggler {
-	pub fn new() -> Self {
+	pub fn new() -> Option<Self> {
 		use termios::*;
-		let mut term = Termios::from_fd(0).unwrap();
-		let oldterm = term;
-		cfmakeraw(&mut term);
-		tcsetattr(0, TCSANOW, &term).expect("tcsetattr failed");
-		print!("\x1bc\x1b[?25l");
-		TermJuggler(oldterm)
+		if let Ok(ref mut term) = Termios::from_fd(0) {
+			let oldterm = *term;
+			cfmakeraw(term);
+			tcsetattr(0, TCSANOW, term).expect("tcsetattr failed");
+			print!("\x1bc\x1b[?25l");
+			Some(TermJuggler(oldterm))
+		} else {
+			None
+		}
 	}
 }
 impl Drop for TermJuggler {
