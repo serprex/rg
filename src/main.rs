@@ -74,13 +74,11 @@ fn main(){
 		w.create_now()
 			.with(Ai::new(AiState::Player, 10))
 			.with(Pos::new('@', [4, 4]))
-			.with(NPos([4, 4]))
 			.with(Mortal(8))
 			.with(Race::Wazzlefu)
 			.build();
 		w.create_now()
 			.with(Pos::new('r', [6, 6]))
-			.with(NPos([6, 6]))
 			.with(Ai::new(AiState::Random, 15))
 			.with(Mortal(2))
 			.with(Race::Rat)
@@ -128,10 +126,10 @@ fn main(){
 			);
 			let collisions: FnvHashSet<[i16; 2]> = cpos.iter().map(|pos| pos.xy).collect();
 			let mut rng = rand::thread_rng();
-			let mut newent: Vec<(Entity, Ai, Pos, Option<NPos>)> = Vec::new();
-			for (pos, mut npos, mut ai, &race, ent) in (&cpos, &mut cnpos, &mut cai, &crace, &ents).iter() {
-				npos.0 = pos.xy;
+			let mut newent: Vec<(Entity, Ai, Pos)> = Vec::new();
+			for (pos, mut ai, &race, ent) in (&cpos, &mut cai, &crace, &ents).iter() {
 				if ai.tick == 0 {
+					let mut npos = NPos(pos.xy);
 					ai.tick = ai.speed;
 					match ai.state {
 						AiState::Player => 'playerinput: loop {
@@ -144,7 +142,7 @@ fn main(){
 								'a' => {
 									let ach = getch();
 									let mut crmis = |d, xy| {
-										newent.push((arg.create(), Ai::new(AiState::Melee(d), 1), Pos::new('x', xy), None));
+										newent.push((arg.create(), Ai::new(AiState::Melee(d), 1), Pos::new('x', xy)));
 									};
 									match ach {
 										'h' => crmis(3, [pos.xy[0]-1, pos.xy[1]]),
@@ -157,7 +155,7 @@ fn main(){
 								's' => {
 									let sch = getch();
 									let mut crmis = |d, xy| {
-										newent.push((arg.create(), Ai::new(AiState::Missile(d), 4), Pos::new('j', xy), Some(NPos(xy))));
+										newent.push((arg.create(), Ai::new(AiState::Missile(d), 4), Pos::new('j', xy)));
 									};
 									match sch {
 										'h' => crmis(Dir::H, [pos.xy[0]-1, pos.xy[1]]),
@@ -268,17 +266,17 @@ fn main(){
 						},
 						//_ => (),
 					}
+					if npos.0 != pos.xy {
+						cnpos.insert(ent, npos);
+					}
 				} else {
 					ai.tick -= 1
 				}
 			}
-			for (ent, newai, newpos, newnpos) in newent {
+			for (ent, newai, newpos) in newent {
 				cai.insert(ent, newai);
 				cpos.insert(ent, newpos);
 				crace.insert(ent, Race::None);
-				if let Some(npos) = newnpos {
-					cnpos.insert(ent, npos);
-				}
 			}
 		});
 		planner.wait();
@@ -344,9 +342,13 @@ fn main(){
 			}
 		});
 		planner.wait();
+		planner.run_custom(|arg|{
+			let mut cnpos = arg.fetch(|w| w.write::<NPos>());
+			cnpos.clear();
+		});
 		let newwo = newworld.load(Ordering::Relaxed);
 		if newwo {
-			newworld.store(false, Ordering::SeqCst);
+			newworld.store(false, Ordering::Relaxed);
 			let mut rments = Vec::new();
 			{
 			let world = planner.mut_world();

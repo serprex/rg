@@ -1,4 +1,4 @@
-use specs::{Entity, Component, VecStorage, NullStorage};
+use specs::{Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
 macro_rules! impl_storage {
 	($storage: ident, $($comp: ident),*) => {
@@ -70,5 +70,6 @@ pub struct Mortal(pub i16);
 #[derive(Copy, Clone, Default)]
 pub struct Portal;
 
-impl_storage!(VecStorage, Pos, NPos, Mortal, Ai, Race);
+impl_storage!(VecStorage, Pos, Mortal, Ai, Race);
+impl_storage!(HashMapStorage, NPos);
 impl_storage!(NullStorage, Portal);
