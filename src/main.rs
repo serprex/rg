@@ -151,9 +151,7 @@ fn main(){
 			let mut cnpos = arg.fetch(|w| w.write::<NPos>());
 			cnpos.clear();
 		});
-		let newwo = newworld.load(Ordering::Relaxed);
-		if newwo {
-			newworld.store(false, Ordering::Relaxed);
+		if newworld.swap(false, Ordering::Relaxed) {
 			let rments = {
 				let world = planner.mut_world();
 				let ents = world.entities();

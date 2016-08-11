@@ -18,32 +18,25 @@ pub fn ailoop(arg: RunArg) {
 			match ai.state {
 				AiState::Player => 'playerinput: loop {
 					let ch = getch();
-					match ch {
-						'h' => npos.0[0] -= 1,
-						'l' => npos.0[0] += 1,
-						'k' => npos.0[1] -= 1,
-						'j' => npos.0[1] += 1,
-						'a' => {
+					match char_as_dir(ch) {
+						Ok(d) => xy_incr_dir(&mut npos.0, d),
+						Err('a') => {
 							let ach = getch();
-							let (dx, dy) = match ach {
-								'h' => (-1, 0),
-								'l' => (1, 0),
-								'k' => (0, -1),
-								'j' => (0, 1),
-								_ => continue 'playerinput
+							let bp = match char_as_dir(ach) {
+								Ok(d) => xy_plus_dir(pos.xy, d),
+								_ => continue 'playerinput,
 							};
-							newent.push((arg.create(), Ai::new(AiState::Melee(3), 1), Pos::new('x', [pos.xy[0]+dx, pos.xy[1]+dy])));
+							newent.push((arg.create(), Ai::new(AiState::Melee(3), 1), Pos::new('x', bp)));
 						},
-						's' => {
+						Err('s') => {
 							let sch = getch();
-							let (dir, dx, dy) = match sch {
-								'h' => (Dir::H, -1, 0),
-								'l' => (Dir::L, 1, 0),
-								'k' => (Dir::K, 0, -1),
-								'j' => (Dir::J, 0, 1),
-								_ => continue 'playerinput
+							let (dir, bp) = match char_as_dir(sch) {
+								Ok(d) => {
+									(d, xy_plus_dir(pos.xy, d))
+								},
+								_ => continue 'playerinput,
 							};
-							newent.push((arg.create(), Ai::new(AiState::Missile(dir), 4), Pos::new('j', [pos.xy[0]+dx, pos.xy[1]+dy])));
+							newent.push((arg.create(), Ai::new(AiState::Missile(dir), 4), Pos::new('j', bp)));
 						},
 						_ => (),
 					}
@@ -124,14 +117,9 @@ pub fn ailoop(arg: RunArg) {
 									}
 									if dnum > 0 {
 										let fdir = *rng.choose(&dirs[..dnum]).unwrap();
-										let (dx, dy) = match fdir {
-											Dir::L => (1, 0),
-											Dir::H => (-1, 0),
-											Dir::J => (0, 1),
-											Dir::K => (0, -1),
-										};
-										newent.push((arg.create(), Ai::new(AiState::Missile(fdir), 2), Pos::new('j', [pos.xy[0]+dx, pos.xy[1]+dy])));
-										let mut mdir = if dnum == 2 {
+										let bp = xy_plus_dir(pos.xy, fdir);
+										newent.push((arg.create(), Ai::new(AiState::Missile(fdir), 2), Pos::new('j', bp)));
+										let mdir = if dnum == 2 {
 											if dirs[0] == fdir { dirs[1] }
 											else { dirs[0] }
 										} else {
@@ -142,13 +130,7 @@ pub fn ailoop(arg: RunArg) {
 												Dir::K => Dir::J,
 											}
 										};
-										let (dx, dy) = match mdir {
-											Dir::L => (1, 0),
-											Dir::H => (-1, 0),
-											Dir::J => (0, 1),
-											Dir::K => (0, -1),
-										};
-										let nxy = [pos.xy[0]+dx, pos.xy[1]+dy];
+										let nxy = xy_plus_dir(pos.xy, mdir);
 										if collisions.contains(&nxy) {
 											ai.state = AiState::Scared(foe)
 										} else {
@@ -202,12 +184,7 @@ pub fn ailoop(arg: RunArg) {
 					}
 				},
 				AiState::Missile(dir) => {
-					match dir {
-						Dir::H => npos.0[0] -= 1,
-						Dir::L => npos.0[0] += 1,
-						Dir::K => npos.0[1] -= 1,
-						Dir::J => npos.0[1] += 1,
-					}
+					xy_incr_dir(&mut npos.0, dir);
 				},
 				AiState::Melee(ref mut dur) => {
 					if *dur == 0 {
