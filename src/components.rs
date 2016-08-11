@@ -30,7 +30,6 @@ pub enum Race {
 	Wazzlefu,
 	Raffbarf,
 	Leylapan,
-	Rat,
 	None,
 }
 
@@ -76,8 +75,8 @@ impl_storage!(NullStorage, Portal);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {
-		(Race::Wazzlefu, Race::Rat) => true,
-		(Race::Rat, Race::Wazzlefu) => true,
+		(Race::Wazzlefu, _) => true,
+		(_, Race::Wazzlefu) => true,
 		_ => false,
 	}
 }

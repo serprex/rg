@@ -38,9 +38,15 @@ fn main(){
 			.build();
 		w.create_now()
 			.with(Pos::new('r', [6, 6]))
-			.with(Ai::new(AiState::Random, 15))
+			.with(Ai::new(AiState::Random, 12))
+			.with(Mortal(4))
+			.with(Race::Raffbarf)
+			.build();
+		w.create_now()
+			.with(Pos::new('k', [20, 8]))
+			.with(Ai::new(AiState::Random, 4))
 			.with(Mortal(2))
-			.with(Race::Rat)
+			.with(Race::Leylapan)
 			.build();
 		let rrg = genroom_greedy::GreedyRoomGen::default();
 		rrg.modify(40, 40, &mut w);
@@ -86,15 +92,10 @@ fn main(){
 				(w.write::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.read::<Ai>(), w.entities())
 			);
 			let mut collisions: FnvHashMap<[i16; 2], Vec<Entity>> = Default::default();
-			for (n, _, e) in (&pos, !&npos, &ents).iter() {
-				match collisions.entry(n.xy) {
-					Entry::Occupied(mut ent) => {ent.get_mut().push(e);},
-					Entry::Vacant(ent) => {ent.insert(vec![e]);},
-				}
-			}
 
-			for (n, e) in (&npos, &ents).iter() {
-				match collisions.entry(n.0) {
+			for (p, e) in (&pos, &ents).iter() {
+				let xy = npos.get(e).map(|np| np.0).unwrap_or(p.xy);
+				match collisions.entry(xy) {
 					Entry::Occupied(mut ent) => {ent.get_mut().push(e);},
 					Entry::Vacant(ent) => {ent.insert(vec![e]);},
 				}
@@ -106,6 +107,7 @@ fn main(){
 					p.xy = n.0;
 				}
 			}
+
 			for (_, col) in collisions.into_iter().filter(|kv| kv.1.len() > 1) {
 				for &e in col.iter() {
 					for &ce in col.iter() {

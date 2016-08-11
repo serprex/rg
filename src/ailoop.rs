@@ -102,41 +102,100 @@ pub fn ailoop(arg: RunArg) {
 						None => ai.state = AiState::Random,
 						Some(fxy) => {
 							let fxy = fxy.xy;
-							let mut xxyy = pos.xy;
-							let mut attacking = false;
-							for &choice in &[[pos.xy[0]-1, pos.xy[1]],
-							[pos.xy[0]+1, pos.xy[1]],
-							[pos.xy[0], pos.xy[1]-1],
-							[pos.xy[0], pos.xy[1]+1]] {
-								if choice == fxy {
-									newent.push((arg.create(), Ai::new(AiState::Melee(2), 1), Pos::new('x', choice)));
-									attacking = true;
-									break
-								}
-							}
-							if !attacking {
-								let mut tries = 3;
-								loop {
-									let mut xy = xxyy;
-									let co = if tries == 1 || (tries == 3 && rng.gen()) { 0 } else { 1 };
-									xy[co] += cmpi(xy[co], fxy[co], 1, 0, -1);
-									if xy == xxyy || (xy != fxy && collisions.contains(&xy)) {
-										tries -= 1;
-										if tries == 0 { break }
-									} else {
-										xxyy = xy;
-										if xy == fxy {
-											break
+							match race {
+								Race::Leylapan => {
+									let mut dirs: [Dir; 2] = unsafe { mem::uninitialized() };
+									let mut dnum = 0;
+									if pos.xy[0] != fxy[0] {
+										dirs[0] = if pos.xy[0] < fxy[0] {
+											Dir::L
 										} else {
-											tries = 3
+											Dir::H
+										};
+										dnum = 1
+									}
+									if pos.xy[1] != fxy[1] {
+										dirs[dnum] = if pos.xy[1] < fxy[1] {
+											Dir::J
+										} else {
+											Dir::K
+										};
+										dnum += 1
+									}
+									if dnum > 0 {
+										let fdir = *rng.choose(&dirs[..dnum]).unwrap();
+										let (dx, dy) = match fdir {
+											Dir::L => (1, 0),
+											Dir::H => (-1, 0),
+											Dir::J => (0, 1),
+											Dir::K => (0, -1),
+										};
+										newent.push((arg.create(), Ai::new(AiState::Missile(fdir), 2), Pos::new('j', [pos.xy[0]+dx, pos.xy[1]+dy])));
+										let mut mdir = if dnum == 2 {
+											if dirs[0] == fdir { dirs[1] }
+											else { dirs[0] }
+										} else {
+											match fdir {
+												Dir::L => Dir::H,
+												Dir::H => Dir::L,
+												Dir::J => Dir::K,
+												Dir::K => Dir::J,
+											}
+										};
+										let (dx, dy) = match mdir {
+											Dir::L => (1, 0),
+											Dir::H => (-1, 0),
+											Dir::J => (0, 1),
+											Dir::K => (0, -1),
+										};
+										let nxy = [pos.xy[0]+dx, pos.xy[1]+dy];
+										if collisions.contains(&nxy) {
+											ai.state = AiState::Scared(foe)
+										} else {
+											npos.0 = nxy
+										}
+									} else {
+										ai.state = AiState::Scared(foe)
+									}
+								},
+								_ => {
+									let mut xxyy = pos.xy;
+									let mut attacking = false;
+									for &choice in &[[pos.xy[0]-1, pos.xy[1]],
+									[pos.xy[0]+1, pos.xy[1]],
+									[pos.xy[0], pos.xy[1]-1],
+									[pos.xy[0], pos.xy[1]+1]] {
+										if choice == fxy {
+											newent.push((arg.create(), Ai::new(AiState::Melee(2), 1), Pos::new('x', choice)));
+											attacking = true;
+											break
 										}
 									}
-								}
-								if xxyy == fxy {
-									let co = if pos.xy[0] != fxy[0] && rng.gen() { 0 } else { 1 };
-									npos.0[co] += cmpi(pos.xy[co], fxy[co], 1, 0, -1);
-								} else {
-									ai.state = AiState::Random
+									if !attacking {
+										let mut tries = 3;
+										loop {
+											let mut xy = xxyy;
+											let co = if tries == 1 || (tries == 3 && rng.gen()) { 0 } else { 1 };
+											xy[co] += cmpi(xy[co], fxy[co], 1, 0, -1);
+											if xy == xxyy || (xy != fxy && collisions.contains(&xy)) {
+												tries -= 1;
+												if tries == 0 { break }
+											} else {
+												xxyy = xy;
+												if xy == fxy {
+													break
+												} else {
+													tries = 3
+												}
+											}
+										}
+										if xxyy == fxy {
+											let co = if pos.xy[0] != fxy[0] && rng.gen() { 0 } else { 1 };
+											npos.0[co] += cmpi(pos.xy[co], fxy[co], 1, 0, -1);
+										} else {
+											ai.state = AiState::Random
+										}
+									}
 								}
 							}
 						}
