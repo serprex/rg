@@ -25,29 +25,25 @@ pub fn ailoop(arg: RunArg) {
 						'j' => npos.0[1] += 1,
 						'a' => {
 							let ach = getch();
-							let mut crmis = |d, xy| {
-								newent.push((arg.create(), Ai::new(AiState::Melee(d), 1), Pos::new('x', xy)));
-							};
-							match ach {
-								'h' => crmis(3, [pos.xy[0]-1, pos.xy[1]]),
-								'l' => crmis(3, [pos.xy[0]+1, pos.xy[1]]),
-								'k' => crmis(3, [pos.xy[0], pos.xy[1]-1]),
-								'j' => crmis(3, [pos.xy[0], pos.xy[1]+1]),
+							let (dx, dy) = match ach {
+								'h' => (-1, 0),
+								'l' => (1, 0),
+								'k' => (0, -1),
+								'j' => (0, 1),
 								_ => continue 'playerinput
-							}
+							};
+							newent.push((arg.create(), Ai::new(AiState::Melee(3), 1), Pos::new('x', [pos.xy[0]+dx, pos.xy[1]+dy])));
 						},
 						's' => {
 							let sch = getch();
-							let mut crmis = |d, xy| {
-								newent.push((arg.create(), Ai::new(AiState::Missile(d), 4), Pos::new('j', xy)));
-							};
-							match sch {
-								'h' => crmis(Dir::H, [pos.xy[0]-1, pos.xy[1]]),
-								'l' => crmis(Dir::L, [pos.xy[0]+1, pos.xy[1]]),
-								'k' => crmis(Dir::K, [pos.xy[0], pos.xy[1]-1]),
-								'j' => crmis(Dir::J, [pos.xy[0], pos.xy[1]+1]),
+							let (dir, dx, dy) = match sch {
+								'h' => (Dir::H, -1, 0),
+								'l' => (Dir::L, 1, 0),
+								'k' => (Dir::K, 0, -1),
+								'j' => (Dir::J, 0, 1),
 								_ => continue 'playerinput
-							}
+							};
+							newent.push((arg.create(), Ai::new(AiState::Missile(dir), 4), Pos::new('j', [pos.xy[0]+dx, pos.xy[1]+dy])));
 						},
 						_ => (),
 					}
@@ -107,28 +103,41 @@ pub fn ailoop(arg: RunArg) {
 						Some(fxy) => {
 							let fxy = fxy.xy;
 							let mut xxyy = pos.xy;
-							let mut tries = 3;
-							loop {
-								let mut xy = xxyy;
-								let co = if tries == 1 || (tries == 3 && rng.gen()) { 0 } else { 1 };
-								xy[co] += cmpi(xy[co], fxy[co], 1, 0, -1);
-								if xy == xxyy || (xy != fxy && collisions.contains(&xy)) {
-									tries -= 1;
-									if tries == 0 { break }
-								} else {
-									xxyy = xy;
-									if xy == fxy {
-										break
-									} else {
-										tries = 3
-									}
+							let mut attacking = false;
+							for &choice in &[[pos.xy[0]-1, pos.xy[1]],
+							[pos.xy[0]+1, pos.xy[1]],
+							[pos.xy[0], pos.xy[1]-1],
+							[pos.xy[0], pos.xy[1]+1]] {
+								if choice == fxy {
+									newent.push((arg.create(), Ai::new(AiState::Melee(2), 1), Pos::new('x', choice)));
+									attacking = true;
+									break
 								}
 							}
-							if xxyy == fxy {
-								let co = if pos.xy[0] != fxy[0] && rng.gen() { 0 } else { 1 };
-								npos.0[co] += cmpi(pos.xy[co], fxy[co], 1, 0, -1);
-							} else {
-								ai.state = AiState::Random
+							if !attacking {
+								let mut tries = 3;
+								loop {
+									let mut xy = xxyy;
+									let co = if tries == 1 || (tries == 3 && rng.gen()) { 0 } else { 1 };
+									xy[co] += cmpi(xy[co], fxy[co], 1, 0, -1);
+									if xy == xxyy || (xy != fxy && collisions.contains(&xy)) {
+										tries -= 1;
+										if tries == 0 { break }
+									} else {
+										xxyy = xy;
+										if xy == fxy {
+											break
+										} else {
+											tries = 3
+										}
+									}
+								}
+								if xxyy == fxy {
+									let co = if pos.xy[0] != fxy[0] && rng.gen() { 0 } else { 1 };
+									npos.0[co] += cmpi(pos.xy[co], fxy[co], 1, 0, -1);
+								} else {
+									ai.state = AiState::Random
+								}
 							}
 						}
 					}

@@ -100,24 +100,27 @@ fn main(){
 				}
 			}
 
-			for (mut p, n, e) in (&mut pos, &npos, &ents).iter() {
+			for (mut p, n) in (&mut pos, &npos).iter() {
 				let col = collisions.get(&n.0).unwrap();
 				if col.len() == 1 {
 					p.xy = n.0;
-				} else {
-					for ce in col {
-						if *ce != e {
+				}
+			}
+			for (_, col) in collisions.into_iter().filter(|kv| kv.1.len() > 1) {
+				for &e in col.iter() {
+					for &ce in col.iter() {
+						if ce != e {
 							if let Some(aie) = ai.get(e) {
 								match aie.state {
 									AiState::Player => {
-										if let Some(_pore) = portal.get(*ce) {
+										if let Some(_pore) = portal.get(ce) {
 											newworldrc.store(true, Ordering::Relaxed);
 										}
 									},
 									AiState::Missile(_) => {
-										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(*ce) {
+										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
 											if *mce == 0 {
-												arg.delete(*ce);
+												arg.delete(ce);
 											} else {
 												*mce -= 1;
 											}
@@ -125,9 +128,9 @@ fn main(){
 										arg.delete(e)
 									},
 									AiState::Melee(_) => {
-										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(*ce) {
+										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
 											if *mce == 0 {
-												arg.delete(*ce);
+												arg.delete(ce);
 											} else {
 												*mce -= 1;
 											}
@@ -149,21 +152,18 @@ fn main(){
 		let newwo = newworld.load(Ordering::Relaxed);
 		if newwo {
 			newworld.store(false, Ordering::Relaxed);
-			let mut rments = Vec::new();
-			{
-			let world = planner.mut_world();
-			let ents = world.entities();
-			let cai = world.read::<Ai>();
-			for ent in ents.iter() {
-				if let Some(ai) = cai.get(ent) {
-					if AiState::Player == ai.state {
-						continue
+			let rments = {
+				let world = planner.mut_world();
+				let ents = world.entities();
+				let cai = world.read::<Ai>();
+				Arc::new(Mutex::new(ents.iter().filter(|&ent|{
+					if let Some(ai) = cai.get(ent) {
+						AiState::Player != ai.state
+					} else {
+						true
 					}
-				}
-				rments.push(ent);
-			}
-			}
-			let rments = Arc::new(Mutex::new(rments));
+				}).collect::<Vec<_>>()))
+			};
 			let rmentsrc = rments.clone();
 			planner.run_custom(move |arg|{
 				arg.fetch(|w| {
