@@ -27,10 +27,11 @@ macro_rules! w_register {
 }
 
 fn main(){
+	let player;
 	let mut planner = {
 		let mut w = World::new();
 		w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race);
-		w.create_now()
+		player = w.create_now()
 			.with(Ai::new(AiState::Player, 10))
 			.with(Pos::new('@', [4, 4]))
 			.with(Mortal(8))
@@ -44,7 +45,7 @@ fn main(){
 			.build();
 		w.create_now()
 			.with(Pos::new('k', [20, 8]))
-			.with(Ai::new(AiState::Random, 4))
+			.with(Ai::new(AiState::Random, 8))
 			.with(Mortal(2))
 			.with(Race::Leylapan)
 			.build();
@@ -53,8 +54,8 @@ fn main(){
 		Planner::<()>::new(w, 2)
 	};
 	let curse = Arc::new(Mutex::new(x1b::Curse::new(80, 60)));
-	let _lock = TermJuggler::new();
 	let newworld = Arc::new(ATOMIC_BOOL_INIT);
+	let _lock = TermJuggler::new();
 	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		{
@@ -62,25 +63,30 @@ fn main(){
 			planner.run_custom(move |arg|{
 				let mut curseloplock = curselop.lock().unwrap();
 				let pos = arg.fetch(|w| w.read::<Pos>());
-				for a in pos.iter() {
-					if a.xy[0] >= 0 && a.xy[1] >= 0 {
-						curseloplock.set(a.xy[0] as u16, a.xy[1] as u16, x1b::TCell::from_char(a.ch));
+				if let Some(plpos) = pos.get(player) {
+					let pxy = plpos.xy;
+					for a in pos.iter() {
+						let x = a.xy[0] - pxy[0] + 6;
+						let y = a.xy[1] - pxy[1] + 6;
+						if x >= 0 && x <= 12 && y >= 0 && y <= 12 {
+							curseloplock.set(x as u16, y as u16, x1b::TCell::from_char(a.ch));
+						}
 					}
 				}
 			});
 		}
 		planner.wait();
+		let newnow = Instant::now();
+		let dur = newnow - now;
+		now = if dur < Duration::from_millis(16) {
+			let sleepdur = Duration::from_millis(16) - dur;
+			thread::sleep(sleepdur);
+			newnow + sleepdur
+		} else {
+			newnow
+		};
 		{
 			let mut curselock = curse.lock().unwrap();
-			let newnow = Instant::now();
-			let dur = newnow - now;
-			now = if dur < Duration::from_millis(16) {
-				let sleepdur = Duration::from_millis(16) - dur;
-				thread::sleep(sleepdur);
-				newnow + sleepdur
-			} else {
-				newnow
-			};
 			curselock.printnows(40, 0, &dur_as_f64(dur).to_string()[..6], x1b::TextAttr::empty());
 			curselock.perframe_refresh_then_clear(x1b::TCell::from_char(' ')).unwrap();
 		}
