@@ -63,7 +63,7 @@ pub fn dir_as_off(dir: Dir) -> [i16; 2] {
 	}
 }
 
-pub fn xy_incr_dir(xy: &mut [i16; 2], dir: Dir) {
+pub fn xy_incr_dir(xy: &mut [i16], dir: Dir) {
 	match dir {
 		Dir::H => xy[0] -= 1,
 		Dir::J => xy[1] += 1,
@@ -72,8 +72,12 @@ pub fn xy_incr_dir(xy: &mut [i16; 2], dir: Dir) {
 	}
 }
 
-pub fn xy_plus_dir(xy: [i16; 2], dir: Dir) -> [i16; 2] {
-	let mut nxy = xy;
-	xy_incr_dir(&mut nxy, dir);
-	nxy
+pub fn xy_plus_dir(mut xy: [i16; 2], dir: Dir) -> [i16; 2] {
+	xy_incr_dir(&mut xy, dir);
+	xy
+}
+
+pub fn xyz_plus_dir(mut xyz: [i16; 3], dir: Dir) -> [i16; 3] {
+	xy_incr_dir(&mut xyz, dir);
+	xyz
 }

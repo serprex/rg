@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use specs::{Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
 macro_rules! impl_storage {
@@ -10,11 +11,11 @@ macro_rules! impl_storage {
 
 #[derive(Copy, Clone)]
 pub struct Pos {
-	pub xy: [i16; 2],
+	pub xy: [i16; 3],
 	pub ch: char,
 }
 impl Pos {
-	pub fn new(ch: char, xy: [i16; 2]) -> Pos {
+	pub fn new(ch: char, xy: [i16; 3]) -> Pos {
 		Pos {
 			xy: xy,
 			ch: ch,
@@ -23,7 +24,7 @@ impl Pos {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct NPos(pub [i16; 2]);
+pub struct NPos(pub [i16; 3]);
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Race {
@@ -66,12 +67,39 @@ impl Ai {
 #[derive(Copy, Clone)]
 pub struct Mortal(pub i16);
 
-#[derive(Copy, Clone, Default)]
-pub struct Portal;
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Weight(pub i8);
+
+pub struct Armor;
+pub struct Weapon;
+pub struct Shield;
+pub struct Head;
+
+pub struct Def<T: 'static> {
+	pub val: i8,
+	phantom: &'static PhantomData<T>,
+}
+pub struct Atk<T: 'static> {
+	pub val: i8,
+	phantom: &'static PhantomData<T>,
+}
+pub struct Bow(pub u8, pub i8);
+pub enum Usable {
+	Mortal(i8),
+	CastBolt,
+	CastForce,
+	CastBlink,
+}
+
+#[derive(Clone)]
+pub struct Bag(pub Vec<Entity>);
+
+#[derive(Copy, Clone)]
+pub struct Portal(pub [i16; 3]);
 
 impl_storage!(VecStorage, Pos, Mortal, Ai, Race);
-impl_storage!(HashMapStorage, NPos);
-impl_storage!(NullStorage, Portal);
+impl_storage!(HashMapStorage, NPos, Portal);
+//impl_storage!(NullStorage, Pit);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {

@@ -8,7 +8,7 @@ pub fn ailoop(arg: RunArg) {
 	let (mut cpos, mut cnpos, mut cai, mut crace, ents) = arg.fetch(|w|
 		(w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.entities())
 	);
-	let collisions: FnvHashSet<[i16; 2]> = cpos.iter().map(|pos| pos.xy).collect();
+	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.xy).collect();
 	let mut rng = rand::thread_rng();
 	let mut newent: Vec<(Entity, Ai, Pos)> = Vec::new();
 	for (pos, mut ai, &race, ent) in (&cpos, &mut cai, &crace, &ents).iter() {
@@ -23,7 +23,7 @@ pub fn ailoop(arg: RunArg) {
 						Err('a') => {
 							let ach = getch();
 							let bp = match char_as_dir(ach) {
-								Ok(d) => xy_plus_dir(pos.xy, d),
+								Ok(d) => xyz_plus_dir(pos.xy, d),
 								_ => continue 'playerinput,
 							};
 							newent.push((arg.create(), Ai::new(AiState::Melee(3), 1), Pos::new('x', bp)));
@@ -32,7 +32,7 @@ pub fn ailoop(arg: RunArg) {
 							let sch = getch();
 							let (dir, bp) = match char_as_dir(sch) {
 								Ok(d) => {
-									(d, xy_plus_dir(pos.xy, d))
+									(d, xyz_plus_dir(pos.xy, d))
 								},
 								_ => continue 'playerinput,
 							};
@@ -43,14 +43,14 @@ pub fn ailoop(arg: RunArg) {
 					break
 				},
 				AiState::Random => {
-					let mut choices: [[i16; 2]; 6] = unsafe { mem::uninitialized() };
+					let mut choices: [[i16; 3]; 6] = unsafe { mem::uninitialized() };
 					choices[0] = pos.xy;
 					choices[1] = pos.xy;
 					let mut chs = 2;
-					for choice in &[[pos.xy[0]-1, pos.xy[1]],
-					[pos.xy[0]+1, pos.xy[1]],
-					[pos.xy[0], pos.xy[1]-1],
-					[pos.xy[0], pos.xy[1]+1]] {
+					for choice in &[[pos.xy[0]-1, pos.xy[1], pos.xy[2]],
+					[pos.xy[0]+1, pos.xy[1], pos.xy[2]],
+					[pos.xy[0], pos.xy[1]-1, pos.xy[2]],
+					[pos.xy[0], pos.xy[1]+1, pos.xy[2]]] {
 						if !collisions.contains(choice) {
 							choices[chs] = *choice;
 							chs += 1;
@@ -70,13 +70,13 @@ pub fn ailoop(arg: RunArg) {
 						None => ai.state = AiState::Random,
 						Some(fxy) => {
 							let fxy = fxy.xy;
-							let mut choices: [[i16; 2]; 4] = unsafe { mem::uninitialized() };
+							let mut choices: [[i16; 3]; 4] = unsafe { mem::uninitialized() };
 							let mut chs = 0;
 							let dist = (pos.xy[0] - fxy[0]).abs() + (pos.xy[1] - fxy[1]).abs();
-							for choice in &[[pos.xy[0]-1, pos.xy[1]],
-							[pos.xy[0]+1, pos.xy[1]],
-							[pos.xy[0], pos.xy[1]-1],
-							[pos.xy[0], pos.xy[1]+1]] {
+							for choice in &[[pos.xy[0]-1, pos.xy[1], pos.xy[2]],
+							[pos.xy[0]+1, pos.xy[1], pos.xy[2]],
+							[pos.xy[0], pos.xy[1]-1, pos.xy[2]],
+							[pos.xy[0], pos.xy[1]+1, pos.xy[2]]] {
 								if (pos.xy[0] - fxy[0]).abs() + (pos.xy[1] - fxy[1]).abs() > dist && !collisions.contains(choice) {
 									choices[chs] = *choice;
 									chs += 1;
@@ -117,7 +117,7 @@ pub fn ailoop(arg: RunArg) {
 									}
 									if dnum > 0 {
 										let fdir = *rng.choose(&dirs[..dnum]).unwrap();
-										let bp = xy_plus_dir(pos.xy, fdir);
+										let bp = xyz_plus_dir(pos.xy, fdir);
 										newent.push((arg.create(), Ai::new(AiState::Missile(fdir), 2), Pos::new('j', bp)));
 										let mdir = if dnum == 2 {
 											if dirs[0] == fdir { dirs[1] }
@@ -130,7 +130,7 @@ pub fn ailoop(arg: RunArg) {
 												Dir::K => Dir::J,
 											}
 										};
-										let nxy = xy_plus_dir(pos.xy, mdir);
+										let nxy = xyz_plus_dir(pos.xy, mdir);
 										if collisions.contains(&nxy) {
 											ai.state = AiState::Scared(foe)
 										} else {
@@ -143,10 +143,10 @@ pub fn ailoop(arg: RunArg) {
 								_ => {
 									let mut xxyy = pos.xy;
 									let mut attacking = false;
-									for &choice in &[[pos.xy[0]-1, pos.xy[1]],
-									[pos.xy[0]+1, pos.xy[1]],
-									[pos.xy[0], pos.xy[1]-1],
-									[pos.xy[0], pos.xy[1]+1]] {
+									for &choice in &[[pos.xy[0]-1, pos.xy[1], pos.xy[2]],
+									[pos.xy[0]+1, pos.xy[1], pos.xy[2]],
+									[pos.xy[0], pos.xy[1]-1, pos.xy[2]],
+									[pos.xy[0], pos.xy[1]+1, pos.xy[2]]] {
 										if choice == fxy {
 											newent.push((arg.create(), Ai::new(AiState::Melee(2), 1), Pos::new('x', choice)));
 											attacking = true;

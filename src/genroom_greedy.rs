@@ -18,7 +18,7 @@ impl GreedyRoomGen {
 		GreedyRoomGen(rc)
 	}
 
-	pub fn modify(&self, w: i16, h: i16, room: &mut World) {
+	pub fn modify(&self, xyz: [i16; 3], w: i16, h: i16, room: &mut World) {
 		let rc = self.0;
 		let betwh = Range::new(0, (w-2)*(h-2));
 		let bet4 = Range::new(0, 4);
@@ -108,32 +108,34 @@ impl GreedyRoomGen {
 				let x = rng.gen_range(r[0]+1, r[2]);
 				let y = rng.gen_range(r[1]+1, r[3]);
 				room.create_now()
-					.with(Pos::new('\\', [x,y]))
-					.with(Portal)
+					.with(Pos::new('\\', [xyz[0]+x,xyz[1]+y,xyz[2]]))
+					.with(Portal([xyz[0]+x,xyz[1],xyz[2]+1]))
 					.build();
 				break
 			}
 		}
-		fn add_wall(room: &mut World, doors: &mut FnvHashSet<[i16; 2]>, xy: [i16; 2], ch: char) {
+		for pos in room.read::<Pos>().iter() {
+			if pos.xy[2] == xyz[2] {
+				doors.insert([pos.xy[0], pos.xy[1]]);
+			}
+		}
+		let mut add_wall = |xy: [i16; 2], ch: char| {
 			if !doors.contains(&xy) {
 				doors.insert(xy);
 				room.create_now()
-					.with(Pos::new(ch, xy))
+					.with(Pos::new(ch, [xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]]))
 					.build();
 			}
-		}
-		for pos in room.read::<Pos>().iter() {
-			doors.insert(pos.xy);
-		}
+		};
 		for xywh in rxy {
 			for x in xywh[0]..xywh[2]+1 {
 				for &i in [1usize, 3].into_iter() {
-					add_wall(room, &mut doors, [x, xywh[i]], '\u{2550}')
+					add_wall([x, xywh[i]], '\u{2550}')
 				}
 			}
 			for y in xywh[1]..xywh[3]+1 {
 				for &i in [0usize, 2].into_iter() {
-					add_wall(room, &mut doors, [xywh[i], y], '\u{2551}')
+					add_wall([xywh[i], y], '\u{2551}')
 				}
 			}
 		}
