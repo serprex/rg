@@ -54,7 +54,7 @@ fn main(){
 		rrg.modify([-10, -10, 1], 60, 60, &mut w);
 		Planner::<()>::new(w, 2)
 	};
-	let curse = Arc::new(Mutex::new(x1b::Curse::new(80, 60)));
+	let curse = Arc::new(Mutex::new(x1b::Curse::<()>::new(80, 60)));
 	let _lock = TermJuggler::new();
 	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
@@ -69,7 +69,7 @@ fn main(){
 						let x = a.xy[0] - pxy[0] + 6;
 						let y = a.xy[1] - pxy[1] + 6;
 						if a.xy[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
-							curseloplock.set(x as u16, y as u16, x1b::TCell::from_char(a.ch));
+							curseloplock.set(x as u16, y as u16, x1b::Char::<_>::from_char(a.ch));
 						}
 					}
 				}
@@ -87,8 +87,8 @@ fn main(){
 		};
 		{
 			let mut curselock = curse.lock().unwrap();
-			curselock.printnows(40, 0, &dur_as_f64(dur).to_string()[..6], x1b::TextAttr::empty());
-			curselock.perframe_refresh_then_clear(x1b::TCell::from_char(' ')).unwrap();
+			curselock.printnows(40, 0, &dur_as_f64(dur).to_string()[..6], x1b::TextAttr::empty(), (), ());
+			curselock.perframe_refresh_then_clear(x1b::Char::<_>::from_char(' ')).unwrap();
 		}
 		planner.run_custom(ailoop);
 		planner.wait();
@@ -175,7 +175,7 @@ impl TermJuggler {
 impl Drop for TermJuggler {
 	fn drop(&mut self){
 		use termios::*;
-		x1b::Cursor::dropclear().ok();
+		x1b::Cursor::<()>::dropclear().ok();
 		tcsetattr(0, TCSAFLUSH, &self.0).ok();
 	}
 }
