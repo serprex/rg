@@ -5,11 +5,13 @@ use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use std::time::Duration;
 use std::io::{self, Read};
 use fnv::FnvHasher;
+use x1b;
 
 use components::Dir;
 
 pub type FnvHashSet<T> = HashSet<T, BuildHasherDefault<FnvHasher>>;
 pub type FnvHashMap<K, V> = HashMap<K, V, BuildHasherDefault<FnvHasher>>;
+pub type Char = x1b::Char<()>;
 
 pub fn rectover(r1: [i16; 4], r2: [i16; 4]) -> bool {
 	r1[0] <= r2[2] && r1[2] >= r2[0] && r1[1] <= r2[3] && r1[3] >= r2[1]

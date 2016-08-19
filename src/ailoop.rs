@@ -5,12 +5,13 @@ use super::components::*;
 use super::util::*;
 
 pub fn ailoop(arg: RunArg) {
-	let (mut cpos, mut cnpos, mut cai, mut crace, ents) = arg.fetch(|w|
-		(w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.entities())
+	let (mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, ents) = arg.fetch(|w|
+		(w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.entities())
 	);
 	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.xy).collect();
 	let mut rng = rand::thread_rng();
-	let mut newent: Vec<(Entity, Ai, Pos)> = Vec::new();
+	let mut newent: Vec<(Entity, Chr, Ai, Pos)> = Vec::new();
+	let mut grab: Vec<(Entity, [i16; 3])> = Vec::new();
 	for (pos, mut ai, &race, ent) in (&cpos, &mut cai, &crace, &ents).iter() {
 		if ai.tick == 0 {
 			let mut npos = NPos(pos.xy);
@@ -20,13 +21,20 @@ pub fn ailoop(arg: RunArg) {
 					let ch = getch();
 					match char_as_dir(ch) {
 						Ok(d) => xy_incr_dir(&mut npos.0, d),
+						Err('p') => {
+							let ach = getch();
+							match char_as_dir(ach) {
+								Ok(d) => grab.push((ent, xyz_plus_dir(pos.xy, d))),
+								_ => continue 'playerinput,
+							}
+						},
 						Err('a') => {
 							let ach = getch();
 							let bp = match char_as_dir(ach) {
 								Ok(d) => xyz_plus_dir(pos.xy, d),
 								_ => continue 'playerinput,
 							};
-							newent.push((arg.create(), Ai::new(AiState::Melee(3), 1), Pos::new('x', bp)));
+							newent.push((arg.create(), Chr(Char::from_char('x')), Ai::new(AiState::Melee(3), 1), Pos::new(bp)));
 						},
 						Err('s') => {
 							let sch = getch();
@@ -36,7 +44,7 @@ pub fn ailoop(arg: RunArg) {
 								},
 								_ => continue 'playerinput,
 							};
-							newent.push((arg.create(), Ai::new(AiState::Missile(dir), 4), Pos::new('j', bp)));
+							newent.push((arg.create(), Chr(Char::from_char('j')), Ai::new(AiState::Missile(dir), 4), Pos::new(bp)));
 						},
 						_ => (),
 					}
@@ -118,7 +126,7 @@ pub fn ailoop(arg: RunArg) {
 									if dnum > 0 {
 										let fdir = *rng.choose(&dirs[..dnum]).unwrap();
 										let bp = xyz_plus_dir(pos.xy, fdir);
-										newent.push((arg.create(), Ai::new(AiState::Missile(fdir), 2), Pos::new('j', bp)));
+										newent.push((arg.create(), Chr(Char::from_char('j')), Ai::new(AiState::Missile(fdir), 2), Pos::new(bp)));
 										let mdir = if dnum == 2 {
 											if dirs[0] == fdir { dirs[1] }
 											else { dirs[0] }
@@ -148,7 +156,7 @@ pub fn ailoop(arg: RunArg) {
 									[pos.xy[0], pos.xy[1]-1, pos.xy[2]],
 									[pos.xy[0], pos.xy[1]+1, pos.xy[2]]] {
 										if choice == fxy {
-											newent.push((arg.create(), Ai::new(AiState::Melee(2), 1), Pos::new('x', choice)));
+											newent.push((arg.create(), Chr(Char::from_char('x')), Ai::new(AiState::Melee(2), 1), Pos::new(choice)));
 											attacking = true;
 											break
 										}
@@ -202,7 +210,22 @@ pub fn ailoop(arg: RunArg) {
 			ai.tick -= 1
 		}
 	}
-	for (ent, newai, newpos) in newent {
+	let mut rments = Vec::new();
+	for (ent, xyz) in grab {
+		if let Some(ebag) = bag.get_mut(ent) {
+			for (pos, wei, ent) in (&cpos, &weight, &ents).iter() {
+				if pos.xy == xyz {
+					ebag.0.push(ent);
+					rments.push(ent);
+				}
+			}
+		}
+	}
+	for ent in rments {
+		cpos.remove(ent);
+	}
+	for (ent, newch, newai, newpos) in newent {
+		cch.insert(ent, newch);
 		cai.insert(ent, newai);
 		cpos.insert(ent, newpos);
 		crace.insert(ent, Race::None);

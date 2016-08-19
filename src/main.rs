@@ -11,7 +11,7 @@ mod components;
 
 use std::collections::hash_map::Entry;
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{ATOMIC_BOOL_INIT, Ordering};
+use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::{Instant, Duration};
 use specs::*;
@@ -21,7 +21,7 @@ use components::*;
 use util::*;
 
 macro_rules! w_register {
-	($w: expr, $($comp: ident),*) => {
+	($w: expr, $($comp: ty),*) => {
 		$($w.register::<$comp>();)*
 	}
 }
@@ -30,24 +30,43 @@ fn main(){
 	let player;
 	let mut planner = {
 		let mut w = World::new();
-		w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race);
+		w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight,
+			Bag, Armor, Weapon, Head, Shield,
+			Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
+			Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
+		let dagger = w.create_now()
+			.with(Chr(Char::from_char('@')))
+			.with(Weight(2))
+			.with(Atk::<Weapon>::new(1))
+			.build();
 		player = w.create_now()
 			.with(Ai::new(AiState::Player, 10))
-			.with(Pos::new('@', [4, 4, 0]))
+			.with(Bag(Vec::new()))
+			.with(Chr(Char::from_char('@')))
+			.with(Pos::new([4, 4, 0]))
 			.with(Mortal(8))
 			.with(Race::Wazzlefu)
+			.with(Weapon(dagger))
 			.build();
 		w.create_now()
-			.with(Pos::new('r', [6, 6, 0]))
+			.with(Chr(Char::from_char('r')))
+			.with(Pos::new([6, 6, 0]))
 			.with(Ai::new(AiState::Random, 12))
 			.with(Mortal(4))
 			.with(Race::Raffbarf)
 			.build();
 		w.create_now()
-			.with(Pos::new('k', [20, 8, 0]))
+			.with(Chr(Char::from_char('k')))
+			.with(Pos::new([20, 8, 0]))
 			.with(Ai::new(AiState::Random, 8))
 			.with(Mortal(2))
 			.with(Race::Leylapan)
+			.build();
+		w.create_now()
+			.with(Chr(Char::from_char('!')))
+			.with(Pos::new([8, 8, 0]))
+			.with(Atk::<Weapon>::new(2))
+			.with(Weight(5))
 			.build();
 		let rrg = genroom_greedy::GreedyRoomGen::default();
 		rrg.modify([0, 0, 0], 40, 40, &mut w);
@@ -62,14 +81,14 @@ fn main(){
 			let curselop = curse.clone();
 			planner.run_custom(move |arg|{
 				let mut curseloplock = curselop.lock().unwrap();
-				let pos = arg.fetch(|w| w.read::<Pos>());
+				let (pos, chr) = arg.fetch(|w| (w.read::<Pos>(), w.read::<Chr>()));
 				if let Some(plpos) = pos.get(player) {
 					let pxy = plpos.xy;
-					for a in pos.iter() {
+					for (a, ch) in (&pos, &chr).iter() {
 						let x = a.xy[0] - pxy[0] + 6;
 						let y = a.xy[1] - pxy[1] + 6;
 						if a.xy[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
-							curseloplock.set(x as u16, y as u16, x1b::Char::<_>::from_char(a.ch));
+							curseloplock.set(x as u16, y as u16, ch.0);
 						}
 					}
 				}
@@ -88,7 +107,7 @@ fn main(){
 		{
 			let mut curselock = curse.lock().unwrap();
 			curselock.printnows(40, 0, &dur_as_f64(dur).to_string()[..6], x1b::TextAttr::empty(), (), ());
-			curselock.perframe_refresh_then_clear(x1b::Char::<_>::from_char(' ')).unwrap();
+			curselock.perframe_refresh_then_clear(Char::from_char(' ')).unwrap();
 		}
 		planner.run_custom(ailoop);
 		planner.wait();

@@ -5,7 +5,7 @@ use rand::distributions::{IndependentSample, Range};
 use specs::{World, Join};
 
 use components::*;
-use util::{rectover, rectoverinc, FnvHashSet};
+use util::{rectover, rectoverinc, FnvHashSet, Char};
 
 pub struct GreedyRoomGen(usize);
 impl Default for GreedyRoomGen {
@@ -108,7 +108,8 @@ impl GreedyRoomGen {
 				let x = rng.gen_range(r[0]+1, r[2]);
 				let y = rng.gen_range(r[1]+1, r[3]);
 				room.create_now()
-					.with(Pos::new('\\', [xyz[0]+x,xyz[1]+y,xyz[2]]))
+					.with(Chr(Char::from_char('\\')))
+					.with(Pos::new([xyz[0]+x,xyz[1]+y,xyz[2]]))
 					.with(Portal([xyz[0]+x,xyz[1],xyz[2]+1]))
 					.build();
 				break
@@ -123,7 +124,8 @@ impl GreedyRoomGen {
 			if !doors.contains(&xy) {
 				doors.insert(xy);
 				room.create_now()
-					.with(Pos::new(ch, [xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]]))
+					.with(Chr(Char::from_char(ch)))
+					.with(Pos::new([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]]))
 					.build();
 			}
 		};
