@@ -28,6 +28,9 @@ pub fn ailoop(arg: RunArg) {
 								_ => continue 'playerinput,
 							}
 						},
+						Err('i') => {
+
+						},
 						Err('a') => {
 							let ach = getch();
 							let bp = match char_as_dir(ach) {
@@ -39,9 +42,7 @@ pub fn ailoop(arg: RunArg) {
 						Err('s') => {
 							let sch = getch();
 							let (dir, bp) = match char_as_dir(sch) {
-								Ok(d) => {
-									(d, xyz_plus_dir(pos.xy, d))
-								},
+								Ok(d) => (d, xyz_plus_dir(pos.xy, d)),
 								_ => continue 'playerinput,
 							};
 							newent.push((arg.create(), Chr(Char::from_char('j')), Ai::new(AiState::Missile(dir), 4), Pos::new(bp)));
