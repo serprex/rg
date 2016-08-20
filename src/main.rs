@@ -130,38 +130,41 @@ fn main(){
 				if col.len() == 1 {
 					p.xy = n.0;
 				}
-				else {
-					for &e in col.iter() {
-						for &ce in col.iter() {
-							if ce != e {
-								if let Some(aie) = ai.get(e) {
-									match aie.state {
-										AiState::Player => {
-											if let Some(porx) = portal.get(ce) {
-												p.xy = porx.0;
+			}
+
+			for (_xyz, col) in collisions.into_iter() {
+				if col.len() < 2 { continue }
+				for &e in col.iter() {
+					for &ce in col.iter() {
+						if ce != e {
+							if let Some(porx) = portal.get(e) {
+								if let Some(posxy) = pos.get_mut(e) {
+									// maybe require a non-None race to portal?
+									posxy.xy = porx.0
+								}
+							}
+							if let Some(aie) = ai.get(e) {
+								match aie.state {
+									AiState::Missile(_) => {
+										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
+											if *mce == 0 {
+												arg.delete(ce);
+											} else {
+												*mce -= 1;
 											}
-										},
-										AiState::Missile(_) => {
-											if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
-												if *mce == 0 {
-													arg.delete(ce);
-												} else {
-													*mce -= 1;
-												}
+										}
+										arg.delete(e)
+									},
+									AiState::Melee(_) => {
+										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
+											if *mce == 0 {
+												arg.delete(ce);
+											} else {
+												*mce -= 1;
 											}
-											arg.delete(e)
-										},
-										AiState::Melee(_) => {
-											if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
-												if *mce == 0 {
-													arg.delete(ce);
-												} else {
-													*mce -= 1;
-												}
-											}
-										},
-										_ => (),
-									}
+										}
+									},
+									_ => (),
 								}
 							}
 						}
