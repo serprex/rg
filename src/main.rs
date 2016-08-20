@@ -138,7 +138,7 @@ fn main(){
 					for &ce in col.iter() {
 						if ce != e {
 							if let Some(porx) = portal.get(e) {
-								if let Some(posxy) = pos.get_mut(e) {
+								if let Some(posxy) = pos.get_mut(ce) {
 									// maybe require a non-None race to portal?
 									posxy.xy = porx.0
 								}

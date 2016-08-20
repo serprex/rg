@@ -38,12 +38,16 @@ pub fn cmpi<T, U>(a: T, b: T, lt: U, eq: U, gt: U) -> U
 }
 
 pub fn getch() -> char {
-	let stdin = io::stdin();
-	let sin = stdin.lock();
-	let mut sinchars = sin.bytes();
-	let ch = sinchars.next().map(|next| next.unwrap_or(0x1b) as char).unwrap_or('\x1b');
-	if ch == '\x1b' { EXITGAME.store(true, Ordering::Relaxed) }
-	ch
+	if !EXITGAME.load(Ordering::Relaxed) {
+		let stdin = io::stdin();
+		let sin = stdin.lock();
+		let mut sinchars = sin.bytes();
+		match sinchars.next() {
+			Some(Ok(ch)) if ch != 0x1b => return ch as char,
+			_ => EXITGAME.store(true, Ordering::Relaxed)
+		}
+	}
+	'\x1b'
 }
 
 pub fn char_as_dir(ch: char) -> Result<Dir, char> {
