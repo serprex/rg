@@ -214,20 +214,24 @@ pub fn ailoop(arg: RunArg) {
 		}
 	}
 	let mut rminv = Vec::new();
-	for (&Inventory(inve), ent) in (&inventory, &ents).iter() {
-		// TODO not cpos
-		if let Some(_) = cpos.get(inve) {
-			let ich = getch();
-			if ich == 'i' {
-				rminv.push(ent);
+	for (&mut Inventory(inve, ref mut invp), ent) in (&mut inventory, &ents).iter() {
+		if let Some(&Bag(ref ebag)) = bag.get(inve) {
+			'invput: loop {
+				match getch() {
+					'i' => rminv.push(ent),
+					'j' => *invp = if *invp == ebag.len()-1 { 0 } else { *invp + 1 },
+					'k' => *invp = if *invp == 0 { ebag.len()-1 } else { *invp - 1 },
+					_ => continue 'invput,
+				};
+				break
 			}
 		} else {
 			rminv.push(ent);
 		}
 	}
 	for ent in rminv {
-		if let Some(&Inventory(inve)) = inventory.get(ent) {
-			stasis.remove(inve);
+		if let Some(inv) = inventory.get(ent) {
+			stasis.remove(inv.0);
 		}
 		inventory.remove(ent);
 	}
@@ -246,7 +250,7 @@ pub fn ailoop(arg: RunArg) {
 		cpos.remove(ent);
 	}
 	for (ent, inve) in newinv {
-		inventory.insert(ent, Inventory(inve));
+		inventory.insert(ent, Inventory(inve, 0));
 		stasis.insert(inve, AiStasis(ent));
 	}
 	for (ent, newch, newai, newpos) in newent {

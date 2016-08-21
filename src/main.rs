@@ -68,6 +68,12 @@ fn main(){
 			.with(Atk::<Weapon>::new(2))
 			.with(Weight(5))
 			.build();
+		w.create_now()
+			.with(Chr(Char::from_char('#')))
+			.with(Pos([8, 10, 0]))
+			.with(Def::<Armor>::new(2))
+			.with(Weight(5))
+			.build();
 		let rrg = genroom_greedy::GreedyRoomGen::default();
 		rrg.modify([0, 0, 0], 40, 40, &mut w);
 		rrg.modify([-10, -10, 1], 60, 60, &mut w);
@@ -91,13 +97,13 @@ fn main(){
 							curseloplock.set(x as u16, y as u16, ch);
 						}
 					}
-					for &Inventory(inve) in inventory.iter() {
+					for &Inventory(inve, invp) in inventory.iter() {
 						if let Some(&Bag(ref bag)) = cbag.get(inve) {
-							let mut i = 0;
-							for &item in bag.iter() {
+							for (idx, &item) in bag.iter().enumerate() {
 								let ch = chr.get(item).unwrap_or(&Chr(Char::from_char(' '))).0.gch();
-								curseloplock.printnows(40, 1, &format!("{:2} {}", i, ch), x1b::TextAttr::empty(), (), ());
-								i += 1;
+								curseloplock.printnows(40, 1 + idx as u16,
+									&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
+									x1b::TextAttr::empty(), (), ());
 							}
 						}
 					}

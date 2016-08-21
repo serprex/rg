@@ -110,7 +110,7 @@ pub struct Bag(pub Vec<Entity>);
 pub struct Portal(pub [i16; 3]);
 
 #[derive(Copy, Clone)]
-pub struct Inventory(pub Entity);
+pub struct Inventory(pub Entity, pub usize);
 
 impl_storage!(VecStorage, Pos, Mortal, Ai, Race);
 impl_storage!(HashMapStorage, NPos, Portal, Chr, Weight,
