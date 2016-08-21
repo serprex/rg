@@ -109,15 +109,15 @@ impl GreedyRoomGen {
 				let y = rng.gen_range(r[1]+1, r[3]);
 				room.create_now()
 					.with(Chr(Char::from_char('\\')))
-					.with(Pos::new([xyz[0]+x,xyz[1]+y,xyz[2]]))
+					.with(Pos([xyz[0]+x,xyz[1]+y,xyz[2]]))
 					.with(Portal([xyz[0]+x,xyz[1],xyz[2]+1]))
 					.build();
 				break
 			}
 		}
-		for pos in room.read::<Pos>().iter() {
-			if pos.xy[2] == xyz[2] {
-				doors.insert([pos.xy[0], pos.xy[1]]);
+		for &Pos(pos) in room.read::<Pos>().iter() {
+			if pos[2] == xyz[2] {
+				doors.insert([pos[0], pos[1]]);
 			}
 		}
 		let mut add_wall = |xy: [i16; 2], ch: char| {
@@ -125,7 +125,7 @@ impl GreedyRoomGen {
 				doors.insert(xy);
 				room.create_now()
 					.with(Chr(Char::from_char(ch)))
-					.with(Pos::new([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]]))
+					.with(Pos([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]]))
 					.build();
 			}
 		};

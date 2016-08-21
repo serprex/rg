@@ -8,45 +8,45 @@ pub fn ailoop(arg: RunArg) {
 	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, ents) = arg.fetch(|w|
 		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.entities())
 	);
-	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.xy).collect();
+	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.0).collect();
 	let mut rng = rand::thread_rng();
 	let mut newent: Vec<(Entity, Chr, Ai, Pos)> = Vec::new();
-	let mut newinv: Vec<(Entity, Inventory)> = Vec::new();
+	let mut newinv: Vec<(Entity, Entity)> = Vec::new();
 	let mut grab: Vec<(Entity, [i16; 3])> = Vec::new();
-	for (pos, mut ai, &race, _stasis, ent) in (&cpos, &mut cai, &crace, !&stasis, &ents).iter() {
+	for (&Pos(pos), mut ai, &race, _stasis, ent) in (&cpos, &mut cai, &crace, !&stasis, &ents).iter() {
 		if ai.tick == 0 {
-			let mut npos = NPos(pos.xy);
+			let mut npos = pos;
 			ai.tick = ai.speed;
 			match ai.state {
 				AiState::Player => 'playerinput: loop {
 					let ch = getch();
 					match char_as_dir(ch) {
-						Ok(d) => xy_incr_dir(&mut npos.0, d),
+						Ok(d) => xy_incr_dir(&mut npos, d),
 						Err('p') => {
 							let ach = getch();
 							match char_as_dir(ach) {
-								Ok(d) => grab.push((ent, xyz_plus_dir(pos.xy, d))),
+								Ok(d) => grab.push((ent, xyz_plus_dir(pos, d))),
 								_ => continue 'playerinput,
 							}
 						},
 						Err('i') => {
-							newinv.push((arg.create(), Inventory(ent)));
+							newinv.push((arg.create(), ent));
 						},
 						Err('a') => {
 							let ach = getch();
 							let bp = match char_as_dir(ach) {
-								Ok(d) => xyz_plus_dir(pos.xy, d),
+								Ok(d) => xyz_plus_dir(pos, d),
 								_ => continue 'playerinput,
 							};
-							newent.push((arg.create(), Chr(Char::from_char('x')), Ai::new(AiState::Melee(3), 1), Pos::new(bp)));
+							newent.push((arg.create(), Chr(Char::from_char('x')), Ai::new(AiState::Melee(3), 1), Pos(bp)));
 						},
 						Err('s') => {
 							let sch = getch();
 							let (dir, bp) = match char_as_dir(sch) {
-								Ok(d) => (d, xyz_plus_dir(pos.xy, d)),
+								Ok(d) => (d, xyz_plus_dir(pos, d)),
 								_ => continue 'playerinput,
 							};
-							newent.push((arg.create(), Chr(Char::from_char('j')), Ai::new(AiState::Missile(dir), 4), Pos::new(bp)));
+							newent.push((arg.create(), Chr(Char::from_char('j')), Ai::new(AiState::Missile(dir), 4), Pos(bp)));
 						},
 						_ => (),
 					}
@@ -54,23 +54,23 @@ pub fn ailoop(arg: RunArg) {
 				},
 				AiState::Random => {
 					let mut choices: [[i16; 3]; 6] = unsafe { mem::uninitialized() };
-					choices[0] = pos.xy;
-					choices[1] = pos.xy;
+					choices[0] = pos;
+					choices[1] = pos;
 					let mut chs = 2;
-					for choice in &[[pos.xy[0]-1, pos.xy[1], pos.xy[2]],
-					[pos.xy[0]+1, pos.xy[1], pos.xy[2]],
-					[pos.xy[0], pos.xy[1]-1, pos.xy[2]],
-					[pos.xy[0], pos.xy[1]+1, pos.xy[2]]] {
+					for choice in &[[pos[0]-1, pos[1], pos[2]],
+					[pos[0]+1, pos[1], pos[2]],
+					[pos[0], pos[1]-1, pos[2]],
+					[pos[0], pos[1]+1, pos[2]]] {
 						if !collisions.contains(choice) {
 							choices[chs] = *choice;
 							chs += 1;
 						}
 					}
-					npos.0 = *rng.choose(&choices[..chs]).unwrap();
-					for (pos2, &race2, e2) in (&cpos, &crace, &ents).iter() {
+					npos = *rng.choose(&choices[..chs]).unwrap();
+					for (&Pos(pos2), &race2, e2) in (&cpos, &crace, &ents).iter() {
 						if ent != e2 && is_aggro(race, race2) &&
-							(npos.0[0] - pos2.xy[0]).abs() < 5 &&
-							(npos.0[1] - pos2.xy[1]).abs() < 5 {
+							(npos[0] - pos2[0]).abs() < 5 &&
+							(npos[1] - pos2[1]).abs() < 5 {
 							ai.state = AiState::Aggro(e2)
 						}
 					}
@@ -79,15 +79,15 @@ pub fn ailoop(arg: RunArg) {
 					match cpos.get(foe) {
 						None => ai.state = AiState::Random,
 						Some(fxy) => {
-							let fxy = fxy.xy;
+							let fxy = fxy.0;
 							let mut choices: [[i16; 3]; 4] = unsafe { mem::uninitialized() };
 							let mut chs = 0;
-							let dist = (pos.xy[0] - fxy[0]).abs() + (pos.xy[1] - fxy[1]).abs();
-							for choice in &[[pos.xy[0]-1, pos.xy[1], pos.xy[2]],
-							[pos.xy[0]+1, pos.xy[1], pos.xy[2]],
-							[pos.xy[0], pos.xy[1]-1, pos.xy[2]],
-							[pos.xy[0], pos.xy[1]+1, pos.xy[2]]] {
-								if (pos.xy[0] - fxy[0]).abs() + (pos.xy[1] - fxy[1]).abs() > dist && !collisions.contains(choice) {
+							let dist = (pos[0] - fxy[0]).abs() + (pos[1] - fxy[1]).abs();
+							for choice in &[[pos[0]-1, pos[1], pos[2]],
+							[pos[0]+1, pos[1], pos[2]],
+							[pos[0], pos[1]-1, pos[2]],
+							[pos[0], pos[1]+1, pos[2]]] {
+								if (pos[0] - fxy[0]).abs() + (pos[1] - fxy[1]).abs() > dist && !collisions.contains(choice) {
 									choices[chs] = *choice;
 									chs += 1;
 								}
@@ -95,7 +95,7 @@ pub fn ailoop(arg: RunArg) {
 							if chs == 0 {
 								ai.state = AiState::Aggro(foe)
 							} else {
-								npos.0 = *rng.choose(&choices[..chs]).unwrap()
+								npos = *rng.choose(&choices[..chs]).unwrap()
 							}
 						}
 					}
@@ -104,21 +104,21 @@ pub fn ailoop(arg: RunArg) {
 					match cpos.get(foe) {
 						None => ai.state = AiState::Random,
 						Some(fxy) => {
-							let fxy = fxy.xy;
+							let fxy = fxy.0;
 							match race {
 								Race::Leylapan => {
 									let mut dirs: [Dir; 2] = unsafe { mem::uninitialized() };
 									let mut dnum = 0;
-									if pos.xy[0] != fxy[0] {
-										dirs[0] = if pos.xy[0] < fxy[0] {
+									if pos[0] != fxy[0] {
+										dirs[0] = if pos[0] < fxy[0] {
 											Dir::L
 										} else {
 											Dir::H
 										};
 										dnum = 1
 									}
-									if pos.xy[1] != fxy[1] {
-										dirs[dnum] = if pos.xy[1] < fxy[1] {
+									if pos[1] != fxy[1] {
+										dirs[dnum] = if pos[1] < fxy[1] {
 											Dir::J
 										} else {
 											Dir::K
@@ -127,8 +127,8 @@ pub fn ailoop(arg: RunArg) {
 									}
 									if dnum > 0 {
 										let fdir = *rng.choose(&dirs[..dnum]).unwrap();
-										let bp = xyz_plus_dir(pos.xy, fdir);
-										newent.push((arg.create(), Chr(Char::from_char('j')), Ai::new(AiState::Missile(fdir), 2), Pos::new(bp)));
+										let bp = xyz_plus_dir(pos, fdir);
+										newent.push((arg.create(), Chr(Char::from_char('j')), Ai::new(AiState::Missile(fdir), 2), Pos(bp)));
 										let mdir = if dnum == 2 {
 											if dirs[0] == fdir { dirs[1] }
 											else { dirs[0] }
@@ -140,25 +140,25 @@ pub fn ailoop(arg: RunArg) {
 												Dir::K => Dir::J,
 											}
 										};
-										let nxy = xyz_plus_dir(pos.xy, mdir);
+										let nxy = xyz_plus_dir(pos, mdir);
 										if collisions.contains(&nxy) {
 											ai.state = AiState::Scared(foe)
 										} else {
-											npos.0 = nxy
+											npos = nxy
 										}
 									} else {
 										ai.state = AiState::Scared(foe)
 									}
 								},
 								_ => {
-									let mut xxyy = pos.xy;
+									let mut xxyy = pos;
 									let mut attacking = false;
-									for &choice in &[[pos.xy[0]-1, pos.xy[1], pos.xy[2]],
-									[pos.xy[0]+1, pos.xy[1], pos.xy[2]],
-									[pos.xy[0], pos.xy[1]-1, pos.xy[2]],
-									[pos.xy[0], pos.xy[1]+1, pos.xy[2]]] {
+									for &choice in &[[pos[0]-1, pos[1], pos[2]],
+									[pos[0]+1, pos[1], pos[2]],
+									[pos[0], pos[1]-1, pos[2]],
+									[pos[0], pos[1]+1, pos[2]]] {
 										if choice == fxy {
-											newent.push((arg.create(), Chr(Char::from_char('x')), Ai::new(AiState::Melee(2), 1), Pos::new(choice)));
+											newent.push((arg.create(), Chr(Char::from_char('x')), Ai::new(AiState::Melee(2), 1), Pos(choice)));
 											attacking = true;
 											break
 										}
@@ -182,8 +182,8 @@ pub fn ailoop(arg: RunArg) {
 											}
 										}
 										if xxyy == fxy {
-											let co = if pos.xy[0] != fxy[0] && rng.gen() { 0 } else { 1 };
-											npos.0[co] += cmpi(pos.xy[co], fxy[co], 1, 0, -1);
+											let co = if pos[0] != fxy[0] && rng.gen() { 0 } else { 1 };
+											npos[co] += cmpi(pos[co], fxy[co], 1, 0, -1);
 										} else {
 											ai.state = AiState::Random
 										}
@@ -194,7 +194,7 @@ pub fn ailoop(arg: RunArg) {
 					}
 				},
 				AiState::Missile(dir) => {
-					xy_incr_dir(&mut npos.0, dir);
+					xy_incr_dir(&mut npos, dir);
 				},
 				AiState::Melee(ref mut dur) => {
 					if *dur == 0 {
@@ -205,17 +205,17 @@ pub fn ailoop(arg: RunArg) {
 				},
 				//_ => (),
 			}
-			if npos.0 != pos.xy {
-				cnpos.insert(ent, npos);
+			if npos != pos {
+				cnpos.insert(ent, NPos(npos));
 			}
 		} else {
 			ai.tick -= 1
 		}
 	}
 	let mut rminv = Vec::new();
-	for (inv, ent) in (&inventory, &ents).iter() {
+	for (&Inventory(inve), ent) in (&inventory, &ents).iter() {
 		// TODO not cpos
-		if let Some(_) = cpos.get(inv.0) {
+		if let Some(_) = cpos.get(inve) {
 			let ich = getch();
 			if ich == 'i' {
 				rminv.push(ent);
@@ -225,17 +225,17 @@ pub fn ailoop(arg: RunArg) {
 		}
 	}
 	for ent in rminv {
-		if let Some(inv) = inventory.get(ent) {
-			stasis.remove(inv.0);
+		if let Some(&Inventory(inve)) = inventory.get(ent) {
+			stasis.remove(inve);
 		}
 		inventory.remove(ent);
 	}
 	let mut rmpos = Vec::new();
 	for (ent, xyz) in grab {
-		if let Some(ebag) = bag.get_mut(ent) {
-			for (pos, wei, ent) in (&cpos, &weight, &ents).iter() {
-				if pos.xy == xyz {
-					ebag.0.push(ent);
+		if let Some(&mut Bag(ref mut ebag)) = bag.get_mut(ent) {
+			for (&Pos(pos), wei, ent) in (&cpos, &weight, &ents).iter() {
+				if pos == xyz {
+					ebag.push(ent);
 					rmpos.push(ent);
 				}
 			}
@@ -244,9 +244,9 @@ pub fn ailoop(arg: RunArg) {
 	for ent in rmpos {
 		cpos.remove(ent);
 	}
-	for (ent, inv) in newinv {
-		inventory.insert(ent, inv);
-		stasis.insert(inv.0, AiStasis(ent));
+	for (ent, inve) in newinv {
+		inventory.insert(ent, Inventory(inve));
+		stasis.insert(inve, AiStasis(ent));
 	}
 	for (ent, newch, newai, newpos) in newent {
 		cch.insert(ent, newch);

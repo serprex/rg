@@ -43,28 +43,28 @@ fn main(){
 			.with(Ai::new(AiState::Player, 10))
 			.with(Bag(Vec::new()))
 			.with(Chr(Char::from_char('@')))
-			.with(Pos::new([4, 4, 0]))
+			.with(Pos([4, 4, 0]))
 			.with(Mortal(8))
 			.with(Race::Wazzlefu)
 			.with(Weapon(dagger))
 			.build();
 		w.create_now()
 			.with(Chr(Char::from_char('r')))
-			.with(Pos::new([6, 6, 0]))
+			.with(Pos([6, 6, 0]))
 			.with(Ai::new(AiState::Random, 12))
 			.with(Mortal(4))
 			.with(Race::Raffbarf)
 			.build();
 		w.create_now()
 			.with(Chr(Char::from_char('k')))
-			.with(Pos::new([20, 8, 0]))
+			.with(Pos([20, 8, 0]))
 			.with(Ai::new(AiState::Random, 8))
 			.with(Mortal(2))
 			.with(Race::Leylapan)
 			.build();
 		w.create_now()
 			.with(Chr(Char::from_char('!')))
-			.with(Pos::new([8, 8, 0]))
+			.with(Pos([8, 8, 0]))
 			.with(Atk::<Weapon>::new(2))
 			.with(Weight(5))
 			.build();
@@ -81,20 +81,20 @@ fn main(){
 			let curselop = curse.clone();
 			planner.run_custom(move |arg|{
 				let (pos, chr, inventory, cbag) = arg.fetch(|w| (w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Bag>()));
-				if let Some(plpos) = pos.get(player) {
+				if let Some(&Pos(plpos)) = pos.get(player) {
 					let mut curseloplock = curselop.lock().unwrap();
-					let pxy = plpos.xy;
-					for (a, ch) in (&pos, &chr).iter() {
-						let x = a.xy[0] - pxy[0] + 6;
-						let y = a.xy[1] - pxy[1] + 6;
-						if a.xy[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
-							curseloplock.set(x as u16, y as u16, ch.0);
+					let pxy = plpos;
+					for (&Pos(a), &Chr(ch)) in (&pos, &chr).iter() {
+						let x = a[0] - pxy[0] + 6;
+						let y = a[1] - pxy[1] + 6;
+						if a[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
+							curseloplock.set(x as u16, y as u16, ch);
 						}
 					}
-					for inv in (&inventory).iter() {
-						if let Some(bag) = cbag.get(inv.0) {
+					for &Inventory(inve) in inventory.iter() {
+						if let Some(&Bag(ref bag)) = cbag.get(inve) {
 							let mut i = 0;
-							for &item in bag.0.iter() {
+							for &item in bag.iter() {
 								let ch = chr.get(item).unwrap_or(&Chr(Char::from_char(' '))).0.gch();
 								curseloplock.printnows(40, 1, &format!("{:2} {}", i, ch), x1b::TextAttr::empty(), (), ());
 								i += 1;
@@ -129,18 +129,18 @@ fn main(){
 			);
 			let mut collisions: FnvHashMap<[i16; 3], Vec<Entity>> = Default::default();
 
-			for (p, e) in (&pos, &ents).iter() {
-				let xy = npos.get(e).map(|np| np.0).unwrap_or(p.xy);
+			for (&Pos(p), e) in (&pos, &ents).iter() {
+				let xy = npos.get(e).map(|&NPos(np)| np).unwrap_or(p);
 				match collisions.entry(xy) {
 					Entry::Occupied(mut ent) => {ent.get_mut().push(e);},
 					Entry::Vacant(ent) => {ent.insert(vec![e]);},
 				}
 			}
 
-			for (mut p, n) in (&mut pos, &npos).iter() {
-				let col = collisions.get(&n.0).unwrap();
+			for (&mut Pos(ref mut p), &NPos(n)) in (&mut pos, &npos).iter() {
+				let col = collisions.get(&n).unwrap();
 				if col.len() == 1 {
-					p.xy = n.0;
+					*p = n;
 				}
 			}
 
@@ -149,10 +149,10 @@ fn main(){
 				for &e in col.iter() {
 					for &ce in col.iter() {
 						if ce != e {
-							if let Some(porx) = portal.get(e) {
-								if let Some(posxy) = pos.get_mut(ce) {
+							if let Some(&Portal(porx)) = portal.get(e) {
+								if let Some(&mut Pos(ref mut posxy)) = pos.get_mut(ce) {
 									// maybe require a non-None race to portal?
-									posxy.xy = porx.0
+									*posxy = porx
 								}
 							}
 							if let Some(aie) = ai.get(e) {

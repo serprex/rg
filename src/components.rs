@@ -10,20 +10,11 @@ macro_rules! impl_storage {
 	}
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone)]
 pub struct Chr(pub Char<()>);
 
-#[derive(Copy, Clone)]
-pub struct Pos {
-	pub xy: [i16; 3],
-}
-impl Pos {
-	pub fn new(xy: [i16; 3]) -> Pos {
-		Pos {
-			xy: xy,
-		}
-	}
-}
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct Pos(pub [i16; 3]);
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct NPos(pub [i16; 3]);
@@ -69,7 +60,7 @@ impl Ai {
 #[derive(Copy, Clone)]
 pub struct AiStasis(pub Entity);
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Mortal(pub i16);
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
