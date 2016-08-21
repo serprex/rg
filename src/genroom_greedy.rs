@@ -131,12 +131,12 @@ impl GreedyRoomGen {
 		};
 		for xywh in rxy {
 			for x in xywh[0]..xywh[2]+1 {
-				for &i in [1usize, 3].into_iter() {
+				for &i in &[1usize, 3] {
 					add_wall([x, xywh[i]], '\u{2550}')
 				}
 			}
 			for y in xywh[1]..xywh[3]+1 {
-				for &i in [0usize, 2].into_iter() {
+				for &i in &[0usize, 2] {
 					add_wall([xywh[i], y], '\u{2551}')
 				}
 			}

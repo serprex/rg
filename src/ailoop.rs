@@ -48,6 +48,7 @@ pub fn ailoop(arg: RunArg) {
 							};
 							newent.push((arg.create(), Chr(Char::from_char('j')), Ai::new(AiState::Missile(dir), 4), Pos(bp)));
 						},
+						Err(c) if c >= '0' && c <= '9' => ai.tick = c as u32 as u8 -  b'0',
 						_ => (),
 					}
 					break

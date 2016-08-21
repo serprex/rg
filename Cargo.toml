@@ -8,7 +8,8 @@ rand = "0.3"
 fnv = "1.0.3"
 termios = "0.2"
 specs = "0.7"
-x1b = { path = "../x1b", version = "*" }
+x1b = "0.3.0"
+# x1b = { path = "../x1b", version = "*" }
 
 [profile.dev]
 codegen-units = 2
