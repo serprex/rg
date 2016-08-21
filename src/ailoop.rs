@@ -8,17 +8,6 @@ pub fn ailoop(arg: RunArg) {
 	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, ents) = arg.fetch(|w|
 		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.entities())
 	);
-	{
-		let mut rmstasis = Vec::new();
-		for (&stas, ent) in (&stasis, &ents).iter() {
-			if !ents.iter().any(|e| e == stas.0) {
-				rmstasis.push(ent);
-			}
-		}
-		for ent in rmstasis {
-			stasis.remove(ent);
-		}
-	}
 	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.xy).collect();
 	let mut rng = rand::thread_rng();
 	let mut newent: Vec<(Entity, Chr, Ai, Pos)> = Vec::new();
@@ -223,22 +212,41 @@ pub fn ailoop(arg: RunArg) {
 			ai.tick -= 1
 		}
 	}
-	let mut rments = Vec::new();
+	let mut rminv = Vec::new();
+	for (inv, ent) in (&inventory, &ents).iter() {
+		// TODO not cpos
+		if let Some(_) = cpos.get(inv.0) {
+			let ich = getch();
+			if ich == 'i' {
+				rminv.push(ent);
+			}
+		} else {
+			rminv.push(ent);
+		}
+	}
+	for ent in rminv {
+		if let Some(inv) = inventory.get(ent) {
+			stasis.remove(inv.0);
+		}
+		inventory.remove(ent);
+	}
+	let mut rmpos = Vec::new();
 	for (ent, xyz) in grab {
 		if let Some(ebag) = bag.get_mut(ent) {
 			for (pos, wei, ent) in (&cpos, &weight, &ents).iter() {
 				if pos.xy == xyz {
 					ebag.0.push(ent);
-					rments.push(ent);
+					rmpos.push(ent);
 				}
 			}
 		}
 	}
-	for ent in rments {
+	for ent in rmpos {
 		cpos.remove(ent);
 	}
 	for (ent, inv) in newinv {
 		inventory.insert(ent, inv);
+		stasis.insert(inv.0, AiStasis(ent));
 	}
 	for (ent, newch, newai, newpos) in newent {
 		cch.insert(ent, newch);
