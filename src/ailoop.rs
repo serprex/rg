@@ -5,14 +5,26 @@ use super::components::*;
 use super::util::*;
 
 pub fn ailoop(arg: RunArg) {
-	let (mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, ents) = arg.fetch(|w|
-		(w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.entities())
+	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, ents) = arg.fetch(|w|
+		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.entities())
 	);
+	{
+		let mut rmstasis = Vec::new();
+		for (&stas, ent) in (&stasis, &ents).iter() {
+			if !ents.iter().any(|e| e == stas.0) {
+				rmstasis.push(ent);
+			}
+		}
+		for ent in rmstasis {
+			stasis.remove(ent);
+		}
+	}
 	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.xy).collect();
 	let mut rng = rand::thread_rng();
 	let mut newent: Vec<(Entity, Chr, Ai, Pos)> = Vec::new();
+	let mut newinv: Vec<(Entity, Inventory)> = Vec::new();
 	let mut grab: Vec<(Entity, [i16; 3])> = Vec::new();
-	for (pos, mut ai, &race, ent) in (&cpos, &mut cai, &crace, &ents).iter() {
+	for (pos, mut ai, &race, _stasis, ent) in (&cpos, &mut cai, &crace, !&stasis, &ents).iter() {
 		if ai.tick == 0 {
 			let mut npos = NPos(pos.xy);
 			ai.tick = ai.speed;
@@ -29,7 +41,7 @@ pub fn ailoop(arg: RunArg) {
 							}
 						},
 						Err('i') => {
-
+							newinv.push((arg.create(), Inventory(ent)));
 						},
 						Err('a') => {
 							let ach = getch();
@@ -224,6 +236,9 @@ pub fn ailoop(arg: RunArg) {
 	}
 	for ent in rments {
 		cpos.remove(ent);
+	}
+	for (ent, inv) in newinv {
+		inventory.insert(ent, inv);
 	}
 	for (ent, newch, newai, newpos) in newent {
 		cch.insert(ent, newch);

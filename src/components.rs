@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 use x1b::Char;
-use specs::{Entity, Component, VecStorage, HashMapStorage, NullStorage};
+use specs::{Entity, Component, VecStorage, HashMapStorage, NullStorage, RunArg};
 
 macro_rules! impl_storage {
 	($storage: ident, $($comp: ty),*) => {
@@ -67,6 +67,9 @@ impl Ai {
 }
 
 #[derive(Copy, Clone)]
+pub struct AiStasis(pub Entity);
+
+#[derive(Copy, Clone)]
 pub struct Mortal(pub i16);
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -115,9 +118,12 @@ pub struct Bag(pub Vec<Entity>);
 #[derive(Copy, Clone)]
 pub struct Portal(pub [i16; 3]);
 
+#[derive(Copy, Clone)]
+pub struct Inventory(pub Entity);
+
 impl_storage!(VecStorage, Pos, Mortal, Ai, Race);
 impl_storage!(HashMapStorage, NPos, Portal, Chr, Weight,
-	Armor, Weapon, Shield, Head, Bag,
+	Armor, Weapon, Shield, Head, Bag, AiStasis, Inventory,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 //impl_storage!(NullStorage, Pit);

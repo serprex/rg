@@ -31,7 +31,7 @@ fn main(){
 	let mut planner = {
 		let mut w = World::new();
 		w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight,
-			Bag, Armor, Weapon, Head, Shield,
+			Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory,
 			Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 			Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 		let dagger = w.create_now()
@@ -80,9 +80,9 @@ fn main(){
 		{
 			let curselop = curse.clone();
 			planner.run_custom(move |arg|{
-				let mut curseloplock = curselop.lock().unwrap();
-				let (pos, chr) = arg.fetch(|w| (w.read::<Pos>(), w.read::<Chr>()));
+				let (pos, chr, inventory, cbag) = arg.fetch(|w| (w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Bag>()));
 				if let Some(plpos) = pos.get(player) {
+					let mut curseloplock = curselop.lock().unwrap();
 					let pxy = plpos.xy;
 					for (a, ch) in (&pos, &chr).iter() {
 						let x = a.xy[0] - pxy[0] + 6;
@@ -91,6 +91,18 @@ fn main(){
 							curseloplock.set(x as u16, y as u16, ch.0);
 						}
 					}
+					for inv in (&inventory).iter() {
+						if let Some(bag) = cbag.get(inv.0) {
+							let mut i = 0;
+							for &item in bag.0.iter() {
+								let ch = chr.get(item).unwrap_or(&Chr(Char::from_char(' '))).0.gch();
+								curseloplock.printnows(40, 1, &format!("{:2} {}", i, ch), x1b::TextAttr::empty(), (), ());
+								i += 1;
+							}
+						}
+					}
+				} else {
+					EXITGAME.store(true, Ordering::Relaxed)
 				}
 			});
 		}
