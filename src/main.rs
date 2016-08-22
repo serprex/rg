@@ -26,6 +26,16 @@ macro_rules! w_register {
 	}
 }
 
+macro_rules! fetch {
+	(
+		$arg:expr;
+		$(let $rid:ident = $rty:ty;)*
+		$(let mut $wid:ident = $wty:ty;)*
+	) => {
+		let ($($rid,)*$(mut $wid,)*) = $arg.fetch(|w| ($(w.read::<$rty>(),)* $(w.write::<$wty>(),)*));
+	}
+}
+
 fn main(){
 	let player;
 	let mut planner = {
@@ -86,7 +96,13 @@ fn main(){
 		{
 			let curselop = curse.clone();
 			planner.run_custom(move |arg|{
-				let (pos, chr, inventory, weapons, cbag) = arg.fetch(|w| (w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>()));
+				fetch!{arg;
+					let pos = Pos;
+					let chr = Chr;
+					let inventory = Inventory;
+					let weapons = Weapon;
+					let cbag = Bag;
+				};
 				if let Some(&Pos(plpos)) = pos.get(player) {
 					let mut curseloplock = curselop.lock().unwrap();
 					let pxy = plpos;
