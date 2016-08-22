@@ -5,8 +5,8 @@ use super::components::*;
 use super::util::*;
 
 pub fn ailoop(arg: RunArg) {
-	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut weapons, ents) = arg.fetch(|w|
-		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.write::<Weapon>(), w.entities())
+	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut weapons, watk, ents) = arg.fetch(|w|
+		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.write::<Weapon>(), w.read::<Atk<Weapon>>(), w.entities())
 	);
 	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.0).collect();
 	let mut rng = rand::thread_rng();
@@ -33,12 +33,17 @@ pub fn ailoop(arg: RunArg) {
 							newinv.push((arg.create(), ent));
 						},
 						Err('a') => {
-							let ach = getch();
-							let bp = match char_as_dir(ach) {
-								Ok(d) => xyz_plus_dir(pos, d),
-								_ => continue 'playerinput,
-							};
-							newent.push((arg.create(), Chr(Char::from_char('x')), Ai::new(AiState::Melee(3), 1), Pos(bp)));
+							if let Some(&Weapon(went)) = weapons.get(ent) {
+								if let Some(&wch) = cch.get(went) {
+									let ach = getch();
+									let bp = match char_as_dir(ach) {
+										Ok(d) => xyz_plus_dir(pos, d),
+										_ => continue 'playerinput,
+									};
+									let wdur = watk.get(went).unwrap_or(&Atk::<Weapon>::new(0)).val;
+									newent.push((arg.create(), wch, Ai::new(AiState::Melee(wdur as u8), 1), Pos(bp)));
+								}
+							}
 						},
 						Err('s') => {
 							let sch = getch();
