@@ -5,8 +5,8 @@ use super::components::*;
 use super::util::*;
 
 pub fn ailoop(arg: RunArg) {
-	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, ents) = arg.fetch(|w|
-		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.entities())
+	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut weapons, ents) = arg.fetch(|w|
+		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.write::<Weapon>(), w.entities())
 	);
 	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.0).collect();
 	let mut rng = rand::thread_rng();
@@ -48,7 +48,7 @@ pub fn ailoop(arg: RunArg) {
 							};
 							newent.push((arg.create(), Chr(Char::from_char('j')), Ai::new(AiState::Missile(dir), 4), Pos(bp)));
 						},
-						Err(c) if c >= '0' && c <= '9' => ai.tick = c as u32 as u8 -  b'0',
+						Err(c) if c >= '0' && c <= '9' => ai.tick = c as u32 as u8 - b'0',
 						_ => (),
 					}
 					break
@@ -215,12 +215,22 @@ pub fn ailoop(arg: RunArg) {
 	}
 	let mut rminv = Vec::new();
 	for (&mut Inventory(inve, ref mut invp), ent) in (&mut inventory, &ents).iter() {
-		if let Some(&Bag(ref ebag)) = bag.get(inve) {
+		if let Some(&mut Bag(ref mut ebag)) = bag.get_mut(inve) {
 			'invput: loop {
 				match getch() {
 					'i' => rminv.push(ent),
 					'j' => *invp = if *invp == ebag.len()-1 { 0 } else { *invp + 1 },
 					'k' => *invp = if *invp == 0 { ebag.len()-1 } else { *invp - 1 },
+					'w' => {
+						match weapons.insert(inve, Weapon(ebag.remove(*invp))) {
+							InsertResult::Updated(Weapon(oldw)) => ebag.push(oldw),
+							_ => (),
+						}
+						if *invp == ebag.len() {
+							*invp = 0
+						}
+					},
+					'\x1b' => (),
 					_ => continue 'invput,
 				};
 				break

@@ -35,7 +35,7 @@ fn main(){
 			Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 			Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 		let dagger = w.create_now()
-			.with(Chr(Char::from_char('@')))
+			.with(Chr(Char::from_char('x')))
 			.with(Weight(2))
 			.with(Atk::<Weapon>::new(1))
 			.build();
@@ -86,7 +86,7 @@ fn main(){
 		{
 			let curselop = curse.clone();
 			planner.run_custom(move |arg|{
-				let (pos, chr, inventory, cbag) = arg.fetch(|w| (w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Bag>()));
+				let (pos, chr, inventory, weapons, cbag) = arg.fetch(|w| (w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>()));
 				if let Some(&Pos(plpos)) = pos.get(player) {
 					let mut curseloplock = curselop.lock().unwrap();
 					let pxy = plpos;
@@ -105,6 +105,11 @@ fn main(){
 									&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
 									x1b::TextAttr::empty(), (), ());
 							}
+						}
+						if let Some(&Weapon(item)) = weapons.get(inve) {
+							let ch = chr.get(item).unwrap_or(&Chr(Char::from_char(' '))).0.gch();
+							curseloplock.printnows(60, 1, &format!("Weapon: {}", ch),
+								x1b::TextAttr::empty(), (), ());
 						}
 					}
 				} else {
