@@ -45,7 +45,7 @@ fn main(){
 			Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 			Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 		w.create_now()
-			.with(Chr(Char::from_char('x')))
+			.with(Chr(Char::from('x')))
 			.with(Weight(3))
 			.with(Atk::<Weapon>::new(1, 1, -2))
 			.with(Pos([4, 8, 0]))
@@ -53,7 +53,7 @@ fn main(){
 		player = w.create_now()
 			.with(Ai::new(AiState::Player, 10))
 			.with(Bag(Vec::new()))
-			.with(Chr(Char::from_char('@')))
+			.with(Chr(Char::from('@')))
 			.with(Pos([4, 4, 0]))
 			.with(Mortal(8))
 			.with(Race::Wazzlefu)
@@ -61,7 +61,7 @@ fn main(){
 			.with(Weight(30))
 			.build();
 		w.create_now()
-			.with(Chr(Char::from_char('r')))
+			.with(Chr(Char::from('r')))
 			.with(Pos([6, 6, 0]))
 			.with(Ai::new(AiState::Random, 12))
 			.with(Mortal(4))
@@ -69,7 +69,7 @@ fn main(){
 			.with(Race::Raffbarf)
 			.build();
 		w.create_now()
-			.with(Chr(Char::from_char('k')))
+			.with(Chr(Char::from('k')))
 			.with(Pos([20, 8, 0]))
 			.with(Ai::new(AiState::Random, 8))
 			.with(Mortal(2))
@@ -77,13 +77,13 @@ fn main(){
 			.with(Race::Leylapan)
 			.build();
 		w.create_now()
-			.with(Chr(Char::from_char('!')))
+			.with(Chr(Char::from('!')))
 			.with(Pos([8, 8, 0]))
 			.with(Atk::<Weapon>::new(2, 3, 2))
 			.with(Weight(5))
 			.build();
 		w.create_now()
-			.with(Chr(Char::from_char('#')))
+			.with(Chr(Char::from('#')))
 			.with(Pos([8, 10, 0]))
 			.with(Def::<Armor>::new(2))
 			.with(Weight(5))
@@ -120,14 +120,14 @@ fn main(){
 					for &Inventory(inve, invp) in inventory.iter() {
 						if let Some(&Bag(ref bag)) = cbag.get(inve) {
 							for (idx, &item) in bag.iter().enumerate() {
-								let ch = chr.get(item).unwrap_or(&Chr(Char::from_char(' '))).0.gch();
+								let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
 								curseloplock.printnows(40, 1 + idx as u16,
 									&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
 									x1b::TextAttr::empty(), (), ());
 							}
 						}
 						if let Some(&Weapon(item)) = weapons.get(inve) {
-							let ch = chr.get(item).unwrap_or(&Chr(Char::from_char(' '))).0.gch();
+							let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
 							curseloplock.printnows(60, 1, &format!("Weapon: {}", ch),
 								x1b::TextAttr::empty(), (), ());
 						}
@@ -150,7 +150,7 @@ fn main(){
 		{
 			let mut curselock = curse.lock().unwrap();
 			curselock.printnows(40, 0, &dur_as_f64(dur).to_string()[..6], x1b::TextAttr::empty(), (), ());
-			curselock.perframe_refresh_then_clear(Char::from_char(' ')).unwrap();
+			curselock.perframe_refresh_then_clear(Char::from(' ')).unwrap();
 		}
 		planner.run_custom(ailoop);
 		planner.wait();

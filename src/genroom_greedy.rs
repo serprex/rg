@@ -108,7 +108,7 @@ impl GreedyRoomGen {
 				let x = rng.gen_range(r[0]+1, r[2]);
 				let y = rng.gen_range(r[1]+1, r[3]);
 				room.create_now()
-					.with(Chr(Char::from_char('\\')))
+					.with(Chr(Char::from('\\')))
 					.with(Pos([xyz[0]+x,xyz[1]+y,xyz[2]]))
 					.with(Portal([xyz[0]+x,xyz[1],xyz[2]+1]))
 					.build();
@@ -124,7 +124,7 @@ impl GreedyRoomGen {
 			if !doors.contains(&xy) {
 				doors.insert(xy);
 				room.create_now()
-					.with(Chr(Char::from_char(ch)))
+					.with(Chr(Char::from(ch)))
 					.with(Weight(9999))
 					.with(Pos([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]]))
 					.build();
