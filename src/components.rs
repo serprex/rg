@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 use x1b::Char;
-use specs::{Entity, Component, VecStorage, HashMapStorage, NullStorage, RunArg};
+use specs::{Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
 macro_rules! impl_storage {
 	($storage: ident, $($comp: ty),*) => {
@@ -38,7 +38,7 @@ pub enum AiState {
 	Aggro(Entity),
 	Scared(Entity),
 	Player,
-	Melee(u8),
+	Melee(u8, i16),
 	Missile(Dir),
 }
 #[derive(Copy, Clone)]
@@ -64,21 +64,37 @@ pub struct AiStasis(pub Entity);
 pub struct Mortal(pub i16);
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Weight(pub i8);
+pub struct Weight(pub i16);
 
+#[derive(Copy, Clone)]
+pub struct Strength(pub u16);
+
+#[derive(Copy, Clone)]
 pub struct Armor(pub Entity);
+
+#[derive(Copy, Clone)]
 pub struct Weapon(pub Entity);
+
+#[derive(Copy, Clone)]
 pub struct Shield(pub Entity);
+
+#[derive(Copy, Clone)]
 pub struct Head(pub Entity);
 
+#[derive(Copy, Clone)]
 pub struct Def<T> {
 	pub val: i8,
 	phantom: PhantomData<T>,
 }
+
+#[derive(Copy, Clone)]
 pub struct Atk<T> {
-	pub val: i8,
+	pub dmg: i16,
+	pub dur: u8,
+	pub spd: i8,
 	phantom: PhantomData<T>,
 }
+
 impl<T> Def<T> {
 	pub fn new(val: i8) -> Self {
 		Def::<T> {
@@ -87,15 +103,22 @@ impl<T> Def<T> {
 		}
 	}
 }
+
 impl<T> Atk<T> {
-	pub fn new(val: i8) -> Self {
+	pub fn new(dmg: i16, dur: u8, spd: i8) -> Self {
 		Atk::<T> {
-			val: val,
+			dmg: dmg,
+			dur: dur,
+			spd: spd,
 			phantom: PhantomData,
 		}
 	}
 }
+
+#[derive(Copy, Clone)]
 pub struct Bow(pub u8, pub i8);
+
+#[derive(Copy, Clone)]
 pub enum Usable {
 	Mortal(i8),
 	CastBolt,
@@ -112,12 +135,12 @@ pub struct Portal(pub [i16; 3]);
 #[derive(Copy, Clone)]
 pub struct Inventory(pub Entity, pub usize);
 
-impl_storage!(VecStorage, Pos, Mortal, Ai, Race);
-impl_storage!(HashMapStorage, NPos, Portal, Chr, Weight,
+impl_storage!(VecStorage, Pos, Mortal, Ai, Race, Chr);
+impl_storage!(HashMapStorage, NPos, Portal, Weight, Strength,
 	Armor, Weapon, Shield, Head, Bag, AiStasis, Inventory,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
-//impl_storage!(NullStorage, Pit);
+//impl_storage!(NullStorage,);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {

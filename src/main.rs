@@ -40,14 +40,15 @@ fn main(){
 	let player;
 	let mut planner = {
 		let mut w = World::new();
-		w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight,
+		w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
 			Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory,
 			Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 			Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
-		let dagger = w.create_now()
+		w.create_now()
 			.with(Chr(Char::from_char('x')))
-			.with(Weight(2))
-			.with(Atk::<Weapon>::new(1))
+			.with(Weight(3))
+			.with(Atk::<Weapon>::new(1, 1, -2))
+			.with(Pos([4, 8, 0]))
 			.build();
 		player = w.create_now()
 			.with(Ai::new(AiState::Player, 10))
@@ -56,13 +57,15 @@ fn main(){
 			.with(Pos([4, 4, 0]))
 			.with(Mortal(8))
 			.with(Race::Wazzlefu)
-			.with(Weapon(dagger))
+			.with(Strength(10))
+			.with(Weight(30))
 			.build();
 		w.create_now()
 			.with(Chr(Char::from_char('r')))
 			.with(Pos([6, 6, 0]))
 			.with(Ai::new(AiState::Random, 12))
 			.with(Mortal(4))
+			.with(Weight(10))
 			.with(Race::Raffbarf)
 			.build();
 		w.create_now()
@@ -70,12 +73,13 @@ fn main(){
 			.with(Pos([20, 8, 0]))
 			.with(Ai::new(AiState::Random, 8))
 			.with(Mortal(2))
+			.with(Weight(20))
 			.with(Race::Leylapan)
 			.build();
 		w.create_now()
 			.with(Chr(Char::from_char('!')))
 			.with(Pos([8, 8, 0]))
-			.with(Atk::<Weapon>::new(2))
+			.with(Atk::<Weapon>::new(2, 3, 2))
 			.with(Weight(5))
 			.build();
 		w.create_now()
@@ -151,8 +155,8 @@ fn main(){
 		planner.run_custom(ailoop);
 		planner.wait();
 		planner.run_custom(move|arg|{
-			let (mut pos, npos, mut mort, portal, ai, ents) = arg.fetch(|w|
-				(w.write::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.read::<Ai>(), w.entities())
+			let (mut pos, npos, mut mort, portal, mut ai, mut weight, ents) = arg.fetch(|w|
+				(w.write::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Weight>(), w.entities())
 			);
 			let mut collisions: FnvHashMap<[i16; 3], Vec<Entity>> = Default::default();
 
@@ -171,6 +175,7 @@ fn main(){
 				}
 			}
 
+			let mut rmai = Vec::new();
 			for (_xyz, col) in collisions.into_iter() {
 				if col.len() < 2 { continue }
 				for &e in col.iter() {
@@ -187,19 +192,24 @@ fn main(){
 									AiState::Missile(_) => {
 										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
 											if *mce == 0 {
-												arg.delete(ce);
+												weight.remove(ce);
+												rmai.push(ce);
 											} else {
 												*mce -= 1;
 											}
 										}
-										arg.delete(e)
+										if let Some(_) = weight.get(ce) {
+											arg.delete(e)
+										}
 									},
-									AiState::Melee(_) => {
+									AiState::Melee(_, dmg) => {
 										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
-											if *mce == 0 {
-												arg.delete(ce);
+											if *mce <= dmg {
+												*mce = 0;
+												weight.remove(ce);
+												rmai.push(ce);
 											} else {
-												*mce -= 1;
+												*mce -= dmg;
 											}
 										}
 									},
@@ -210,12 +220,12 @@ fn main(){
 					}
 				}
 			}
+			for e in rmai {
+				ai.remove(e);
+			}
 		});
 		planner.wait();
-		planner.run_custom(|arg|{
-			let mut cnpos = arg.fetch(|w| w.write::<NPos>());
-			cnpos.clear();
-		});
+		planner.run_custom(|arg| arg.fetch(|w| w.write::<NPos>().clear()));
 	}
 }
 struct TermJuggler(termios::Termios);

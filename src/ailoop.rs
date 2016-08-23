@@ -5,8 +5,8 @@ use super::components::*;
 use super::util::*;
 
 pub fn ailoop(arg: RunArg) {
-	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut weapons, watk, ents) = arg.fetch(|w|
-		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.write::<Weapon>(), w.read::<Atk<Weapon>>(), w.entities())
+	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut strength, mut weapons, watk, ents) = arg.fetch(|w|
+		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.write::<Strength>(), w.write::<Weapon>(), w.read::<Atk<Weapon>>(), w.entities())
 	);
 	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.0).collect();
 	let mut rng = rand::thread_rng();
@@ -40,8 +40,14 @@ pub fn ailoop(arg: RunArg) {
 										Ok(d) => xyz_plus_dir(pos, d),
 										_ => continue 'playerinput,
 									};
-									let wdur = watk.get(went).unwrap_or(&Atk::<Weapon>::new(0)).val;
-									newent.push((arg.create(), wch, Ai::new(AiState::Melee(wdur as u8), 1), Pos(bp)));
+									let wstats = *watk.get(went).unwrap_or(&Atk::<Weapon>::new(0, 0, 0));
+									newent.push((arg.create(), wch, Ai::new(AiState::Melee(wstats.dur, wstats.dmg), 1), Pos(bp)));
+									ai.tick = if wstats.spd < 0 {
+										let spd = (-wstats.spd) as u8;
+										if spd < ai.tick { ai.tick - spd } else { 0 }
+									} else {
+										ai.tick + wstats.spd as u8
+									};
 								}
 							}
 						},
@@ -164,7 +170,7 @@ pub fn ailoop(arg: RunArg) {
 									[pos[0], pos[1]-1, pos[2]],
 									[pos[0], pos[1]+1, pos[2]]] {
 										if choice == fxy {
-											newent.push((arg.create(), Chr(Char::from_char('x')), Ai::new(AiState::Melee(2), 1), Pos(choice)));
+											newent.push((arg.create(), Chr(Char::from_char('x')), Ai::new(AiState::Melee(2, 2), 1), Pos(choice)));
 											attacking = true;
 											break
 										}
@@ -202,7 +208,7 @@ pub fn ailoop(arg: RunArg) {
 				AiState::Missile(dir) => {
 					xy_incr_dir(&mut npos, dir);
 				},
-				AiState::Melee(ref mut dur) => {
+				AiState::Melee(ref mut dur, _) => {
 					if *dur == 0 {
 						arg.delete(ent)
 					} else {
@@ -252,9 +258,15 @@ pub fn ailoop(arg: RunArg) {
 	}
 	let mut rmpos = Vec::new();
 	for (ent, xyz) in grab {
-		if let Some(&mut Bag(ref mut ebag)) = bag.get_mut(ent) {
-			for (&Pos(pos), wei, ent) in (&cpos, &weight, &ents).iter() {
-				if pos == xyz {
+		if let (Some(&Strength(strg)), Some(&mut Bag(ref mut ebag))) = (strength.get(ent), bag.get_mut(ent)) {
+			let mut totwei = 0;
+			for &e in ebag.iter() {
+				if let Some(&Weight(wei)) = weight.get(e) {
+					totwei += wei as i32;
+				}
+			}
+			for (&Pos(pos), &Weight(wei), ent) in (&cpos, &weight, &ents).iter() {
+				if pos == xyz && totwei + wei as i32 <= strg as i32 {
 					ebag.push(ent);
 					rmpos.push(ent);
 				}

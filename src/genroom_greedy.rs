@@ -125,6 +125,7 @@ impl GreedyRoomGen {
 				doors.insert(xy);
 				room.create_now()
 					.with(Chr(Char::from_char(ch)))
+					.with(Weight(9999))
 					.with(Pos([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]]))
 					.build();
 			}
