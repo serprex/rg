@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use x1b::Char;
-use specs::{Entity, Component, VecStorage, HashMapStorage, NullStorage};
+use specs::{World, Entity, Component,
+	VecStorage, HashMapStorage, NullStorage};
 
 macro_rules! impl_storage {
 	($storage: ident, $($comp: ty),*) => {
@@ -66,6 +67,9 @@ pub struct Mortal(pub i16);
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Weight(pub i16);
 
+#[derive(Copy, Clone, Default)]
+pub struct Solid;
+
 #[derive(Copy, Clone)]
 pub struct Strength(pub u16);
 
@@ -118,13 +122,7 @@ impl<T> Atk<T> {
 #[derive(Copy, Clone)]
 pub struct Bow(pub u8, pub i8);
 
-#[derive(Copy, Clone)]
-pub enum Usable {
-	Mortal(i8),
-	CastBolt,
-	CastForce,
-	CastBlink,
-}
+pub struct Spell(pub Box<Fn(Entity, &World) + Send + Sync>);
 
 #[derive(Clone)]
 pub struct Bag(pub Vec<Entity>);
@@ -137,10 +135,10 @@ pub struct Inventory(pub Entity, pub usize);
 
 impl_storage!(VecStorage, Pos, Mortal, Ai, Race, Chr);
 impl_storage!(HashMapStorage, NPos, Portal, Weight, Strength,
-	Armor, Weapon, Shield, Head, Bag, AiStasis, Inventory,
+	Armor, Weapon, Shield, Head, Bag, AiStasis, Inventory, Spell,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
-//impl_storage!(NullStorage,);
+impl_storage!(NullStorage, Solid);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {

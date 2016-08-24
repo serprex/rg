@@ -7,17 +7,13 @@ use specs::{World, Join};
 use components::*;
 use util::{rectover, rectoverinc, FnvHashSet, Char};
 
-pub struct GreedyRoomGen(usize);
+pub struct GreedyRoomGen(pub usize);
 impl Default for GreedyRoomGen {
 	fn default() -> Self {
 		GreedyRoomGen(6)
 	}
 }
 impl GreedyRoomGen {
-	pub fn new(rc: usize) -> Self {
-		GreedyRoomGen(rc)
-	}
-
 	pub fn modify(&self, xyz: [i16; 3], w: i16, h: i16, room: &mut World) {
 		let rc = self.0;
 		let betwh = Range::new(0, (w-2)*(h-2));
@@ -125,7 +121,7 @@ impl GreedyRoomGen {
 				doors.insert(xy);
 				room.create_now()
 					.with(Chr(Char::from(ch)))
-					.with(Weight(9999))
+					.with(Solid)
 					.with(Pos([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]]))
 					.build();
 			}
