@@ -29,75 +29,71 @@ macro_rules! w_register {
 
 fn main(){
 	let player;
-	let mut planner = {
-		let mut w = World::new();
-		w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
-			Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell,
-			Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
-			Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
-		w.create_now()
-			.with(Chr(Char::from('x')))
-			.with(Weight(3))
-			.with(Atk::<Weapon>::new(1, 1, -2))
-			.with(Pos([4, 8, 0]))
-			.build();
-		player = w.create_now()
-			.with(Ai::new(AiState::Player, 10))
-			.with(Bag(Vec::new()))
-			.with(Chr(Char::from('@')))
-			.with(Pos([4, 4, 0]))
-			.with(Solid)
-			.with(Mortal(20))
-			.with(Race::Wazzlefu)
-			.with(Strength(10))
-			.with(Weight(30))
-			.build();
-		w.create_now()
-			.with(Chr(Char::from('r')))
-			.with(Pos([6, 6, 0]))
-			.with(Solid)
-			.with(Ai::new(AiState::Random, 12))
-			.with(Mortal(4))
-			.with(Weight(10))
-			.with(Race::Raffbarf)
-			.build();
-		w.create_now()
-			.with(Chr(Char::from('k')))
-			.with(Pos([20, 8, 0]))
-			.with(Solid)
-			.with(Ai::new(AiState::Random, 8))
-			.with(Mortal(2))
-			.with(Weight(20))
-			.with(Race::Leylapan)
-			.build();
-		w.create_now()
-			.with(Chr(Char::from('!')))
-			.with(Pos([8, 8, 0]))
-			.with(Atk::<Weapon>::new(2, 3, 2))
-			.with(Weight(5))
-			.build();
-		w.create_now()
-			.with(Chr(Char::from('#')))
-			.with(Pos([8, 10, 0]))
-			.with(Solid)
-			.with(Def::<Armor>::new(2))
-			.with(Weight(5))
-			.build();
-		let rrg = genroom_greedy::GreedyRoomGen::default();
-		rrg.modify([0, 0, 0], 40, 40, &mut w);
-		rrg.modify([-10, -10, 1], 60, 60, &mut w);
-		Planner::<()>::new(w, 2)
-	};
+	let mut w = World::new();
+	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
+		Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell,
+		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
+		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
+	w.create_now()
+		.with(Chr(Char::from('x')))
+		.with(Weight(3))
+		.with(Atk::<Weapon>::new(1, 1, -2))
+		.with(Pos([4, 8, 0]))
+		.build();
+	player = w.create_now()
+		.with(Ai::new(AiState::Player, 10))
+		.with(Bag(Vec::new()))
+		.with(Chr(Char::from('@')))
+		.with(Pos([4, 4, 0]))
+		.with(Solid)
+		.with(Mortal(20))
+		.with(Race::Wazzlefu)
+		.with(Strength(10))
+		.with(Weight(30))
+		.build();
+	w.create_now()
+		.with(Chr(Char::from('r')))
+		.with(Pos([6, 6, 0]))
+		.with(Solid)
+		.with(Ai::new(AiState::Random, 12))
+		.with(Mortal(4))
+		.with(Weight(10))
+		.with(Race::Raffbarf)
+		.build();
+	w.create_now()
+		.with(Chr(Char::from('k')))
+		.with(Pos([20, 8, 0]))
+		.with(Solid)
+		.with(Ai::new(AiState::Random, 8))
+		.with(Mortal(2))
+		.with(Weight(20))
+		.with(Race::Leylapan)
+		.build();
+	w.create_now()
+		.with(Chr(Char::from('!')))
+		.with(Pos([8, 8, 0]))
+		.with(Atk::<Weapon>::new(2, 3, 2))
+		.with(Weight(5))
+		.build();
+	w.create_now()
+		.with(Chr(Char::from('#')))
+		.with(Pos([8, 10, 0]))
+		.with(Solid)
+		.with(Def::<Armor>::new(2))
+		.with(Weight(5))
+		.build();
+	let rrg = genroom_greedy::GreedyRoomGen::default();
+	rrg.modify([0, 0, 0], 40, 40, &mut w);
+	rrg.modify([-10, -10, 1], 60, 60, &mut w);
 	let curse = Arc::new(Mutex::new(x1b::Curse::<()>::new(80, 60)));
 	let _lock = TermJuggler::new();
 	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		{
 			let curselop = curse.clone();
-			planner.run_custom(move |arg|{
-				let (pos, chr, inventory, weapons, cbag) = arg.fetch(|w|
-					(w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>())
-				);
+			{
+				let (pos, chr, inventory, weapons, cbag) =
+					(w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>());
 				if let Some(&Pos(plpos)) = pos.get(player) {
 					let mut curseloplock = curselop.lock().unwrap();
 					let pxy = plpos;
@@ -126,7 +122,7 @@ fn main(){
 				} else {
 					EXITGAME.store(true, Ordering::Relaxed)
 				}
-			});
+			}
 		}
 		let newnow = Instant::now();
 		let dur = newnow - now;
@@ -142,11 +138,10 @@ fn main(){
 			curselock.printnows(40, 0, &dur_as_f64(dur).to_string()[..6], x1b::TextAttr::empty(), (), ());
 			curselock.perframe_refresh_then_clear(Char::from(' ')).unwrap();
 		}
-		planner.run_custom(ailoop);
-		planner.run_custom(move|arg|{
-			let (mut pos, npos, mut mort, portal, mut ai, mut solid, ents) = arg.fetch(|w|
-				(w.write::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>(), w.entities())
-			);
+		ailoop(&mut w);
+		{
+			let (mut pos, npos, mut mort, portal, mut ai, mut solid, ents) =
+				(w.write::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>(), w.entities());
 			let mut collisions: FnvHashMap<[i16; 3], Vec<Entity>> = Default::default();
 
 			for (&Pos(p), e) in (&pos, &ents).iter() {
@@ -193,7 +188,7 @@ fn main(){
 											}
 										}
 										if let Some(_) = solid.get(ce) {
-											arg.delete(e)
+											w.delete_later(e)
 										}
 									},
 									AiState::Melee(_, dmg) => {
@@ -217,12 +212,9 @@ fn main(){
 			for e in rmai {
 				ai.remove(e);
 			}
-		});
-		{
-			let w = planner.mut_world();
-			w.write::<NPos>().clear();
-			w.maintain();
 		}
+		w.write::<NPos>().clear();
+		w.maintain();
 	}
 }
 struct TermJuggler(termios::Termios);
