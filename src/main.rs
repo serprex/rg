@@ -31,6 +31,7 @@ fn main(){
 	let player;
 	let mut w = World::new();
 	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
+		WDirection,
 		Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);

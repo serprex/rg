@@ -11,6 +11,8 @@ macro_rules! impl_storage {
 	}
 }
 
+pub type Action = Box<Fn(Entity, &mut World) + Send + Sync>;
+
 #[derive(Copy, Clone)]
 pub struct Chr(pub Char<()>);
 
@@ -122,7 +124,10 @@ impl<T> Atk<T> {
 #[derive(Copy, Clone)]
 pub struct Bow(pub u8, pub i8);
 
-pub struct Spell(pub Box<Fn(Entity, &World) + Send + Sync>);
+pub struct Spell(pub Action);
+
+#[derive(Copy, Clone)]
+pub struct WDirection(pub Dir);
 
 #[derive(Clone)]
 pub struct Bag(pub Vec<Entity>);
@@ -134,7 +139,7 @@ pub struct Portal(pub [i16; 3]);
 pub struct Inventory(pub Entity, pub usize);
 
 impl_storage!(VecStorage, Pos, Mortal, Ai, Race, Chr);
-impl_storage!(HashMapStorage, NPos, Portal, Weight, Strength,
+impl_storage!(HashMapStorage, NPos, Portal, Weight, Strength, WDirection,
 	Armor, Weapon, Shield, Head, Bag, AiStasis, Inventory, Spell,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);

@@ -3,8 +3,11 @@ use rand::{self, Rng};
 use specs::*;
 use super::components::*;
 use super::util::*;
+use super::spells;
 
 pub fn ailoop(w: &mut World) {
+	let mut actions: Vec<(Entity, Action)> = Vec::new();
+	{
 	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut strength, mut weapons, watk, ents) =
 		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.write::<Strength>(), w.write::<Weapon>(), w.read::<Atk<Weapon>>(), w.entities());
 	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.0).collect();
@@ -32,22 +35,13 @@ pub fn ailoop(w: &mut World) {
 							newinv.push((w.create_later(), ent));
 						},
 						Err('a') => {
-							if let Some(&Weapon(went)) = weapons.get(ent) {
-								if let Some(&wch) = cch.get(went) {
-									let ach = getch();
-									let bp = match char_as_dir(ach) {
-										Ok(d) => xyz_plus_dir(pos, d),
-										_ => continue 'playerinput,
-									};
-									let wstats = *watk.get(went).unwrap_or(&Atk::<Weapon>::new(0, 0, 0));
-									newent.push((w.create_later(), wch, Ai::new(AiState::Melee(wstats.dur, wstats.dmg), 1), Pos(bp)));
-									ai.tick = if wstats.spd < 0 {
-										let spd = (-wstats.spd) as u8;
-										if spd < ai.tick { ai.tick - spd } else { 0 }
-									} else {
-										ai.tick + wstats.spd as u8
-									};
-								}
+							match char_as_dir(getch()) {
+								Ok(d) => {
+									let mut wdir = w.write::<WDirection>();
+									wdir.insert(ent, WDirection(d));
+									actions.push((ent, Box::new(spells::attack)));
+								},
+								_ => continue 'playerinput,
 							}
 						},
 						Err('s') => {
@@ -229,8 +223,10 @@ pub fn ailoop(w: &mut World) {
 			'invput: loop {
 				match getch() {
 					'i' => rminv.push(ent),
-					'j' => *invp = if *invp == ebag.len()-1 { 0 } else { *invp + 1 },
-					'k' => *invp = if *invp == 0 { ebag.len()-1 } else { *invp - 1 },
+					'j' if ebag.len() > 0 =>
+						*invp = if *invp == ebag.len()-1 { 0 } else { *invp + 1 },
+					'k' if ebag.len() > 0 =>
+						*invp = if *invp == 0 { ebag.len()-1 } else { *invp - 1 },
 					'w' => {
 						match weapons.insert(inve, Weapon(ebag.remove(*invp))) {
 							InsertResult::Updated(Weapon(oldw)) => ebag.push(oldw),
@@ -238,6 +234,15 @@ pub fn ailoop(w: &mut World) {
 						}
 						if *invp == ebag.len() {
 							*invp = 0
+						}
+					},
+					'W' => {
+						weapons.remove(inve);
+					},
+					c if c >= '0' && c <= '9' => {
+						let v = (c as u32 as u8 - b'0') as usize;
+						if v < ebag.len() {
+							*invp = v
 						}
 					},
 					'\x1b' => (),
@@ -284,5 +289,9 @@ pub fn ailoop(w: &mut World) {
 		cai.insert(ent, newai);
 		cpos.insert(ent, newpos);
 		crace.insert(ent, Race::None);
+	}
+}
+	for (ent, action) in actions {
+		action(ent, w);
 	}
 }
