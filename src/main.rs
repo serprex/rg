@@ -8,7 +8,7 @@ mod ailoop;
 mod genroom_greedy;
 mod util;
 mod components;
-mod spells;
+mod actions;
 
 use std::collections::hash_map::Entry;
 use std::sync::{Arc, Mutex};
@@ -31,7 +31,7 @@ fn main(){
 	let player;
 	let mut w = World::new();
 	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
-		WDirection,
+		WDirection, Bow, Heal,
 		Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
@@ -40,6 +40,12 @@ fn main(){
 		.with(Weight(3))
 		.with(Atk::<Weapon>::new(1, 1, -2))
 		.with(Pos([4, 8, 0]))
+		.build();
+	w.create_now()
+		.with(Chr(Char::from('b')))
+		.with(Weight(2))
+		.with(Bow(4, 1))
+		.with(Pos([2, 5, 0]))
 		.build();
 	player = w.create_now()
 		.with(Ai::new(AiState::Player, 10))
@@ -54,7 +60,7 @@ fn main(){
 		.build();
 	w.create_now()
 		.with(Chr(Char::from('r')))
-		.with(Pos([6, 6, 0]))
+		.with(Pos([10, 6, 0]))
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 12))
 		.with(Mortal(4))
@@ -179,13 +185,14 @@ fn main(){
 							}
 							if let Some(aie) = ai.get(e) {
 								match aie.state {
-									AiState::Missile(_) => {
+									AiState::Missile(_, dmg) => {
 										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
-											if *mce == 0 {
+											if *mce <= dmg {
+												*mce = 0;
 												solid.remove(ce);
 												rmai.push(ce);
 											} else {
-												*mce -= 1;
+												*mce -= dmg;
 											}
 										}
 										if let Some(_) = solid.get(ce) {

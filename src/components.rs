@@ -42,7 +42,7 @@ pub enum AiState {
 	Scared(Entity),
 	Player,
 	Melee(u8, i16),
-	Missile(Dir),
+	Missile(Dir, i16),
 }
 #[derive(Copy, Clone)]
 pub struct Ai {
@@ -122,12 +122,15 @@ impl<T> Atk<T> {
 }
 
 #[derive(Copy, Clone)]
-pub struct Bow(pub u8, pub i8);
+pub struct Bow(pub u8, pub i16);
 
 pub struct Spell(pub Action);
 
 #[derive(Copy, Clone)]
 pub struct WDirection(pub Dir);
+
+#[derive(Copy, Clone)]
+pub struct Heal(pub i16);
 
 #[derive(Clone)]
 pub struct Bag(pub Vec<Entity>);
@@ -139,7 +142,8 @@ pub struct Portal(pub [i16; 3]);
 pub struct Inventory(pub Entity, pub usize);
 
 impl_storage!(VecStorage, Pos, Mortal, Ai, Race, Chr);
-impl_storage!(HashMapStorage, NPos, Portal, Weight, Strength, WDirection,
+impl_storage!(HashMapStorage, NPos, Portal, Weight, Strength,
+	WDirection, Bow, Heal,
 	Armor, Weapon, Shield, Head, Bag, AiStasis, Inventory, Spell,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);

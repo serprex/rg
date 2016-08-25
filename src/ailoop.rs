@@ -3,7 +3,7 @@ use rand::{self, Rng};
 use specs::*;
 use super::components::*;
 use super::util::*;
-use super::spells;
+use super::actions;
 
 pub fn ailoop(w: &mut World) {
 	let mut actions: Vec<(Entity, Action)> = Vec::new();
@@ -25,8 +25,7 @@ pub fn ailoop(w: &mut World) {
 					match char_as_dir(ch) {
 						Ok(d) => xy_incr_dir(&mut npos, d),
 						Err('p') => {
-							let ach = getch();
-							match char_as_dir(ach) {
+							match char_as_dir(getch()) {
 								Ok(d) => grab.push((ent, xyz_plus_dir(pos, d))),
 								_ => continue 'playerinput,
 							}
@@ -39,18 +38,20 @@ pub fn ailoop(w: &mut World) {
 								Ok(d) => {
 									let mut wdir = w.write::<WDirection>();
 									wdir.insert(ent, WDirection(d));
-									actions.push((ent, Box::new(spells::attack)));
+									actions.push((ent, Box::new(actions::attack)));
 								},
 								_ => continue 'playerinput,
 							}
 						},
 						Err('s') => {
-							let sch = getch();
-							let (dir, bp) = match char_as_dir(sch) {
-								Ok(d) => (d, xyz_plus_dir(pos, d)),
+							match char_as_dir(getch()) {
+								Ok(d) => {
+									let mut wdir = w.write::<WDirection>();
+									wdir.insert(ent, WDirection(d));
+									actions.push((ent, Box::new(actions::shoot)));
+								},
 								_ => continue 'playerinput,
-							};
-							newent.push((w.create_later(), Chr(Char::from('j')), Ai::new(AiState::Missile(dir), 4), Pos(bp)));
+							}
 						},
 						Err(c) if c >= '0' && c <= '9' => ai.tick = c as u32 as u8 - b'0',
 						_ => (),
@@ -133,7 +134,7 @@ pub fn ailoop(w: &mut World) {
 									if dnum > 0 {
 										let fdir = *rng.choose(&dirs[..dnum]).unwrap();
 										let bp = xyz_plus_dir(pos, fdir);
-										newent.push((w.create_later(), Chr(Char::from('j')), Ai::new(AiState::Missile(fdir), 2), Pos(bp)));
+										newent.push((w.create_later(), Chr(Char::from('j')), Ai::new(AiState::Missile(fdir, 1), 2), Pos(bp)));
 										let mdir = if dnum == 2 {
 											if dirs[0] == fdir { dirs[1] }
 											else { dirs[0] }
@@ -198,7 +199,7 @@ pub fn ailoop(w: &mut World) {
 						}
 					}
 				},
-				AiState::Missile(dir) => {
+				AiState::Missile(dir, _) => {
 					xy_incr_dir(&mut npos, dir);
 				},
 				AiState::Melee(ref mut dur, _) => {
@@ -290,7 +291,7 @@ pub fn ailoop(w: &mut World) {
 		cpos.insert(ent, newpos);
 		crace.insert(ent, Race::None);
 	}
-}
+	}
 	for (ent, action) in actions {
 		action(ent, w);
 	}
