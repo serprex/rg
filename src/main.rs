@@ -32,7 +32,7 @@ fn main(){
 	let mut w = World::new();
 	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
 		WDirection, Bow, Heal,
-		Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell,
+		Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell, Todo,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.create_now()
@@ -146,6 +146,25 @@ fn main(){
 			curselock.perframe_refresh_then_clear(Char::from(' ')).unwrap();
 		}
 		ailoop(&mut w);
+		loop {
+			w.maintain();
+			let todo = {
+				let mut todos = w.write::<Todo>();
+				let toe = (&todos, &w.entities()).iter().map(|(_, ent)| ent).collect::<Vec<Entity>>();
+				let mut todo = Vec::new();
+				for ent in toe {
+					let Todo(actions) = todos.remove(ent).unwrap();
+					for action in actions {
+						todo.push((action, ent));
+					}
+				}
+				todo
+			};
+			if todo.len() == 0 { break }
+			for (action, ent) in todo {
+				action(ent, &mut w)
+			}
+		}
 		{
 			let (mut pos, npos, mut mort, portal, mut ai, mut solid, ents) =
 				(w.write::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>(), w.entities());

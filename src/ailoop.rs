@@ -6,7 +6,6 @@ use super::util::*;
 use super::actions;
 
 pub fn ailoop(w: &mut World) {
-	let mut actions: Vec<(Entity, Action)> = Vec::new();
 	{
 	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut strength, mut weapons, watk, ents) =
 		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.write::<Strength>(), w.write::<Weapon>(), w.read::<Atk<Weapon>>(), w.entities());
@@ -15,6 +14,7 @@ pub fn ailoop(w: &mut World) {
 	let mut newent: Vec<(Entity, Chr, Ai, Pos)> = Vec::new();
 	let mut newinv: Vec<(Entity, Entity)> = Vec::new();
 	let mut grab: Vec<(Entity, [i16; 3])> = Vec::new();
+	let mut todos = w.write::<Todo>();
 	for (&Pos(pos), mut ai, &race, _stasis, ent) in (&cpos, &mut cai, &crace, !&stasis, &ents).iter() {
 		if ai.tick == 0 {
 			let mut npos = pos;
@@ -38,7 +38,7 @@ pub fn ailoop(w: &mut World) {
 								Ok(d) => {
 									let mut wdir = w.write::<WDirection>();
 									wdir.insert(ent, WDirection(d));
-									actions.push((ent, Box::new(actions::attack)));
+									Todo::add(&mut todos, ent, Box::new(actions::attack));
 								},
 								_ => continue 'playerinput,
 							}
@@ -48,7 +48,7 @@ pub fn ailoop(w: &mut World) {
 								Ok(d) => {
 									let mut wdir = w.write::<WDirection>();
 									wdir.insert(ent, WDirection(d));
-									actions.push((ent, Box::new(actions::shoot)));
+									Todo::add(&mut todos, ent, Box::new(actions::shoot));
 								},
 								_ => continue 'playerinput,
 							}
@@ -291,8 +291,5 @@ pub fn ailoop(w: &mut World) {
 		cpos.insert(ent, newpos);
 		crace.insert(ent, Race::None);
 	}
-	}
-	for (ent, action) in actions {
-		action(ent, w);
 	}
 }

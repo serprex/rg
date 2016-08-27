@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
 use x1b::Char;
-use specs::{World, Entity, Component,
+use specs::{World, Entity, Component, Storage, MaskedStorage, Allocator,
 	VecStorage, HashMapStorage, NullStorage};
 
 macro_rules! impl_storage {
@@ -126,6 +127,20 @@ pub struct Bow(pub u8, pub i16);
 
 pub struct Spell(pub Action);
 
+pub struct Todo(pub Vec<Action>);
+
+impl Todo {
+	pub fn add<A, D>(todos: &mut Storage<Todo, A, D>, ent: Entity, act: Action)
+		where A: Deref<Target = Allocator>, D: DerefMut<Target = MaskedStorage<Todo>>
+	{
+		if let Some(&mut Todo(ref mut tv)) = todos.get_mut(ent) {
+			tv.push(act);
+			return
+		}
+		todos.insert(ent, Todo(vec![act]));
+	}
+}
+
 #[derive(Copy, Clone)]
 pub struct WDirection(pub Dir);
 
@@ -144,7 +159,7 @@ pub struct Inventory(pub Entity, pub usize);
 impl_storage!(VecStorage, Pos, Mortal, Ai, Race, Chr);
 impl_storage!(HashMapStorage, NPos, Portal, Weight, Strength,
 	WDirection, Bow, Heal,
-	Armor, Weapon, Shield, Head, Bag, AiStasis, Inventory, Spell,
+	Armor, Weapon, Shield, Head, Bag, AiStasis, Inventory, Spell, Todo,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 impl_storage!(NullStorage, Solid);
