@@ -6,12 +6,13 @@ extern crate fnv;
 
 mod ailoop;
 mod genroom_greedy;
+mod genroom_forest;
 mod util;
 mod components;
 mod actions;
+mod super_sparse_storage;
 
 use std::collections::hash_map::Entry;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::{Instant, Duration};
@@ -31,7 +32,7 @@ fn main(){
 	let player;
 	let mut w = World::new();
 	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
-		WDirection, Bow, Heal,
+		WDirection, Bow, Heal, Casting,
 		Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell, Todo,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
@@ -92,43 +93,39 @@ fn main(){
 	let rrg = genroom_greedy::GreedyRoomGen::default();
 	rrg.modify([0, 0, 0], 40, 40, &mut w);
 	rrg.modify([-10, -10, 1], 60, 60, &mut w);
-	let curse = Arc::new(Mutex::new(x1b::Curse::<()>::new(80, 60)));
+	let mut curse = x1b::Curse::<()>::new(80, 60);
 	let _lock = TermJuggler::new();
 	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		{
-			let curselop = curse.clone();
-			{
-				let (pos, chr, inventory, weapons, cbag) =
-					(w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>());
-				if let Some(&Pos(plpos)) = pos.get(player) {
-					let mut curseloplock = curselop.lock().unwrap();
-					let pxy = plpos;
-					for (&Pos(a), &Chr(ch)) in (&pos, &chr).iter() {
-						let x = a[0] - pxy[0] + 6;
-						let y = a[1] - pxy[1] + 6;
-						if a[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
-							curseloplock.set(x as u16, y as u16, ch);
-						}
+			let (pos, chr, inventory, weapons, cbag) =
+				(w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>());
+			if let Some(&Pos(plpos)) = pos.get(player) {
+				let pxy = plpos;
+				for (&Pos(a), &Chr(ch)) in (&pos, &chr).iter() {
+					let x = a[0] - pxy[0] + 6;
+					let y = a[1] - pxy[1] + 6;
+					if a[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
+						curse.set(x as u16, y as u16, ch);
 					}
-					for &Inventory(inve, invp) in inventory.iter() {
-						if let Some(&Bag(ref bag)) = cbag.get(inve) {
-							for (idx, &item) in bag.iter().enumerate() {
-								let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
-								curseloplock.printnows(40, 1 + idx as u16,
-									&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
-									x1b::TextAttr::empty(), (), ());
-							}
-						}
-						if let Some(&Weapon(item)) = weapons.get(inve) {
+				}
+				for &Inventory(inve, invp) in inventory.iter() {
+					if let Some(&Bag(ref bag)) = cbag.get(inve) {
+						for (idx, &item) in bag.iter().enumerate() {
 							let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
-							curseloplock.printnows(60, 1, &format!("Weapon: {}", ch),
+							curse.printnows(40, 1 + idx as u16,
+								&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
 								x1b::TextAttr::empty(), (), ());
 						}
 					}
-				} else {
-					EXITGAME.store(true, Ordering::Relaxed)
+					if let Some(&Weapon(item)) = weapons.get(inve) {
+						let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
+						curse.printnows(60, 1, &format!("Weapon: {}", ch),
+							x1b::TextAttr::empty(), (), ());
+					}
 				}
+			} else {
+				EXITGAME.store(true, Ordering::Relaxed)
 			}
 		}
 		let newnow = Instant::now();
@@ -140,11 +137,8 @@ fn main(){
 		} else {
 			newnow
 		};
-		{
-			let mut curselock = curse.lock().unwrap();
-			curselock.printnows(40, 0, &dur_as_f64(dur).to_string()[..6], x1b::TextAttr::empty(), (), ());
-			curselock.perframe_refresh_then_clear(Char::from(' ')).unwrap();
-		}
+		curse.printnows(40, 0, &dur_as_string(dur), x1b::TextAttr::empty(), (), ());
+		curse.perframe_refresh_then_clear(Char::from(' ')).unwrap();
 		ailoop(&mut w);
 		loop {
 			w.maintain();

@@ -1,25 +1,13 @@
+use rand::{self, Rng};
 use specs::*;
 use super::components::*;
 use super::util::*;
 
-fn create_aipos(w: &mut World, comps: &[(Chr, Ai, Pos)])
-{
-	for &(newch, newai, newpos) in comps {
-		w.create_now()
-			.with(newch)
-			.with(newai)
-			.with(newpos)
-			.with(Race::None)
-			.build();
-	}
-}
-
 pub fn attack(src: Entity, w: &mut World) {
-	let mut newent: Vec<(Chr, Ai, Pos)> = Vec::new();
-	{
 	let weapons = w.read::<Weapon>();
-	let cch = w.read::<Chr>();
-	let cpos = w.read::<Pos>();
+	let mut cch = w.write::<Chr>();
+	let mut cai = w.write::<Ai>();
+	let mut cpos = w.write::<Pos>();
 	let watk = w.read::<Atk<Weapon>>();
 	let wdirection = w.read::<WDirection>();
 	if let Some(&Weapon(went)) = weapons.get(src) {
@@ -28,8 +16,10 @@ pub fn attack(src: Entity, w: &mut World) {
 				if let Some(&WDirection(wdir)) =  wdirection.get(src) {
 					let bp = xyz_plus_dir(pos, wdir);
 					let wstats = *watk.get(went).unwrap_or(&Atk::<Weapon>::new(0, 0, 0));
-					newent.push((wch, Ai::new(AiState::Melee(wstats.dur, wstats.dmg), 1), Pos(bp)));
-					let mut cai = w.write::<Ai>();
+					let newent = w.create_later();
+					cch.insert(newent, wch);
+					cai.insert(newent, Ai::new(AiState::Melee(wstats.dur, wstats.dmg), 1));
+					cpos.insert(newent, Pos(bp));
 					if let Some(mut ai) = cai.get_mut(src) {
 						ai.tick = if wstats.spd < 0 {
 							let spd = (-wstats.spd) as u8;
@@ -42,32 +32,30 @@ pub fn attack(src: Entity, w: &mut World) {
 			}
 		}
 	}
-	}
-	create_aipos(w, &newent);
 }
 
 pub fn shoot(src: Entity, w: &mut World) {
-	let mut newent: Vec<(Chr, Ai, Pos)> = Vec::new();
-	{
 	let weapons = w.read::<Weapon>();
 	let bows = w.read::<Bow>();
-	let cch = w.read::<Chr>();
-	let cpos = w.read::<Pos>();
+	let mut cch = w.write::<Chr>();
+	let mut cpos = w.write::<Pos>();
 	let wdirection = w.read::<WDirection>();
+	let mut cai = w.write::<Ai>();
 	if let Some(&Weapon(went)) = weapons.get(src) {
 		if let Some(&Bow(spd, dmg)) = bows.get(went) {
 			if let Some(&wch) = cch.get(went) {
 				if let Some(&Pos(pos)) = cpos.get(src) {
 					if let Some(&WDirection(wdir)) =  wdirection.get(src) {
 						let bp = xyz_plus_dir(pos, wdir);
-						newent.push((wch, Ai::new(AiState::Missile(wdir, dmg), spd), Pos(bp)));
+						let newent = w.create_later();
+						cch.insert(newent, wch);
+						cai.insert(newent, Ai::new(AiState::Missile(wdir, dmg), spd));
+						cpos.insert(newent, Pos(bp));
 					}
 				}
 			}
 		}
 	}
-	}
-	create_aipos(w, &newent);
 }
 
 pub fn heal(src: Entity, w: &mut World) {
@@ -77,5 +65,14 @@ pub fn heal(src: Entity, w: &mut World) {
 		if let Some(&Heal(amt)) = heal.get(src) {
 			*mo += amt
 		}
+	}
+}
+
+pub fn blink(src: Entity, w: &mut World) {
+	let mut npos = w.write::<NPos>();
+	let pos = w.read::<Pos>();
+	if let Some(&Pos(pxy)) = pos.get(src) {
+		let mut rng = rand::thread_rng();
+		npos.insert(src, NPos([rng.gen_range(0, 40), rng.gen_range(0, 40), pxy[2]]));
 	}
 }

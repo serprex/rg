@@ -3,6 +3,7 @@ use std::ops::{Deref, DerefMut};
 use x1b::Char;
 use specs::{World, Entity, Component, Storage, MaskedStorage, Allocator,
 	VecStorage, HashMapStorage, NullStorage};
+use super::super_sparse_storage::SuperSparseStorage;
 
 macro_rules! impl_storage {
 	($storage: ident, $($comp: ty),*) => {
@@ -127,6 +128,8 @@ pub struct Bow(pub u8, pub i16);
 
 pub struct Spell(pub Action);
 
+pub struct Casting(pub String);
+
 pub struct Todo(pub Vec<Action>);
 
 impl Todo {
@@ -157,12 +160,13 @@ pub struct Portal(pub [i16; 3]);
 pub struct Inventory(pub Entity, pub usize);
 
 impl_storage!(VecStorage, Pos, Mortal, Ai, Race, Chr);
-impl_storage!(HashMapStorage, NPos, Portal, Weight, Strength,
-	WDirection, Bow, Heal,
+impl_storage!(HashMapStorage, Portal, Weight, Strength,
+	Bow, Heal,
 	Armor, Weapon, Shield, Head, Bag, AiStasis, Inventory, Spell, Todo,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 impl_storage!(NullStorage, Solid);
+impl_storage!(SuperSparseStorage, NPos, WDirection, Casting);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {

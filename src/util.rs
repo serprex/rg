@@ -23,8 +23,25 @@ pub fn rectoverinc(r1: [i16; 4], r2: [i16; 4]) -> bool {
 
 pub static EXITGAME: AtomicBool = ATOMIC_BOOL_INIT;
 
-pub fn dur_as_f64(dur: Duration) -> f64 {
-	dur.as_secs() as f64 + dur.subsec_nanos() as f64 / 1e9
+pub fn dur_as_string(dur: Duration) -> String {
+	let mut st = {
+		if dur.as_secs() == 0 {
+			let mut st = String::with_capacity(5);
+			st.push_str("0.");
+			st
+		} else {
+			let mut st = dur.as_secs().to_string();
+			st.reserve(4);
+			st.push('.');
+			st
+		}
+	};
+	let dc = (dur.subsec_nanos() / 1000000).to_string();
+	for _ in dc.len()..3 {
+		st.push('0');
+	}
+	st.push_str(&dc);
+	st
 }
 
 pub fn cmpi<T, U>(a: T, b: T, lt: U, eq: U, gt: U) -> U

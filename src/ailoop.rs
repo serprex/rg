@@ -6,55 +6,76 @@ use super::util::*;
 use super::actions;
 
 pub fn ailoop(w: &mut World) {
-	{
-	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut strength, mut weapons, watk, ents) =
-		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.write::<Strength>(), w.write::<Weapon>(), w.read::<Atk<Weapon>>(), w.entities());
+	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut strength, mut weapons, mut casting, ents) =
+		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.write::<Strength>(), w.write::<Weapon>(), w.write::<Casting>(), w.entities());
 	let collisions: FnvHashSet<[i16; 3]> = cpos.iter().map(|pos| pos.0).collect();
 	let mut rng = rand::thread_rng();
 	let mut newent: Vec<(Entity, Chr, Ai, Pos)> = Vec::new();
-	let mut newinv: Vec<(Entity, Entity)> = Vec::new();
 	let mut grab: Vec<(Entity, [i16; 3])> = Vec::new();
 	let mut todos = w.write::<Todo>();
-	for (&Pos(pos), mut ai, &race, _stasis, ent) in (&cpos, &mut cai, &crace, !&stasis, &ents).iter() {
-		if ai.tick == 0 {
+	for (&Pos(pos), mut ai, &race, ent) in (&cpos, &mut cai, &crace, &ents).iter() {
+		if stasis.get(ent).is_none() && ai.tick == 0 {
 			let mut npos = pos;
 			ai.tick = ai.speed;
 			match ai.state {
 				AiState::Player => 'playerinput: loop {
 					let ch = getch();
-					match char_as_dir(ch) {
-						Ok(d) => xy_incr_dir(&mut npos, d),
-						Err('p') => {
-							match char_as_dir(getch()) {
-								Ok(d) => grab.push((ent, xyz_plus_dir(pos, d))),
-								_ => continue 'playerinput,
+					let mut rmcast = false;
+					let mut wassomecast = false; // Lexical lifetimes I condemn you
+					if let Some(&mut Casting(ref mut cast)) = casting.get_mut(ent) {
+						wassomecast = true;
+						if ch == ';' || ch == '\x1b' {
+							rmcast = true;
+						} else {
+							cast.push(ch);
+							if cast == "blink" {
+								Todo::add(&mut todos, ent, Box::new(actions::blink));
+								rmcast = true;
 							}
-						},
-						Err('i') => {
-							newinv.push((w.create_later(), ent));
-						},
-						Err('a') => {
-							match char_as_dir(getch()) {
-								Ok(d) => {
-									let mut wdir = w.write::<WDirection>();
-									wdir.insert(ent, WDirection(d));
-									Todo::add(&mut todos, ent, Box::new(actions::attack));
-								},
-								_ => continue 'playerinput,
-							}
-						},
-						Err('s') => {
-							match char_as_dir(getch()) {
-								Ok(d) => {
-									let mut wdir = w.write::<WDirection>();
-									wdir.insert(ent, WDirection(d));
-									Todo::add(&mut todos, ent, Box::new(actions::shoot));
-								},
-								_ => continue 'playerinput,
-							}
-						},
-						Err(c) if c >= '0' && c <= '9' => ai.tick = c as u32 as u8 - b'0',
-						_ => (),
+						}
+					}
+					if rmcast { casting.remove(ent); }
+					if !wassomecast {
+						// TODO don't go down this path if casting
+						match char_as_dir(ch) {
+							Ok(d) => xy_incr_dir(&mut npos, d),
+							Err('p') => {
+								match char_as_dir(getch()) {
+									Ok(d) => grab.push((ent, xyz_plus_dir(pos, d))),
+									_ => continue 'playerinput,
+								}
+							},
+							Err('i') => {
+								let newinv = w.create_later();
+								inventory.insert(newinv, Inventory(ent, 0));
+								stasis.insert(newinv, AiStasis(ent));
+							},
+							Err('a') => {
+								match char_as_dir(getch()) {
+									Ok(d) => {
+										let mut wdir = w.write::<WDirection>();
+										wdir.insert(ent, WDirection(d));
+										Todo::add(&mut todos, ent, Box::new(actions::attack));
+									},
+									_ => continue 'playerinput,
+								}
+							},
+							Err('s') => {
+								match char_as_dir(getch()) {
+									Ok(d) => {
+										let mut wdir = w.write::<WDirection>();
+										wdir.insert(ent, WDirection(d));
+										Todo::add(&mut todos, ent, Box::new(actions::shoot));
+									},
+									_ => continue 'playerinput,
+								}
+							},
+							Err('d') => {
+								casting.insert(ent, Casting(String::new()));
+							},
+							Err(c) if c >= '0' && c <= '9' => ai.tick = c as u32 as u8 - b'0',
+							_ => (),
+						}
 					}
 					break
 				},
@@ -281,15 +302,10 @@ pub fn ailoop(w: &mut World) {
 	for ent in rmpos {
 		cpos.remove(ent);
 	}
-	for (ent, inve) in newinv {
-		inventory.insert(ent, Inventory(inve, 0));
-		stasis.insert(inve, AiStasis(ent));
-	}
 	for (ent, newch, newai, newpos) in newent {
 		cch.insert(ent, newch);
 		cai.insert(ent, newai);
 		cpos.insert(ent, newpos);
 		crace.insert(ent, Race::None);
-	}
 	}
 }
