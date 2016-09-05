@@ -3,8 +3,10 @@ extern crate termios;
 extern crate x1b;
 extern crate specs;
 extern crate fnv;
+extern crate smallvec;
 
 mod ailoop;
+mod roomgen;
 mod genroom_greedy;
 mod genroom_forest;
 mod util;
@@ -17,10 +19,12 @@ use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::{Instant, Duration};
 use specs::*;
+use smallvec::SmallVec;
 
 use ailoop::ailoop;
 use components::*;
 use util::*;
+use roomgen::RoomGen;
 
 macro_rules! w_register {
 	($w: expr, $($comp: ty),*) => {
@@ -29,13 +33,13 @@ macro_rules! w_register {
 }
 
 fn main(){
-	let player;
 	let mut w = World::new();
 	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
 		WDirection, Bow, Heal, Casting,
 		Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell, Todo,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
+	w.add_resource(Walls::default());
 	w.create_now()
 		.with(Chr(Char::from('x')))
 		.with(Weight(3))
@@ -48,7 +52,7 @@ fn main(){
 		.with(Bow(4, 1))
 		.with(Pos([2, 5, 0]))
 		.build();
-	player = w.create_now()
+	let player = w.create_now()
 		.with(Ai::new(AiState::Player, 10))
 		.with(Bag(Vec::new()))
 		.with(Chr(Char::from('@')))
@@ -91,8 +95,10 @@ fn main(){
 		.with(Weight(5))
 		.build();
 	let rrg = genroom_greedy::GreedyRoomGen::default();
-	rrg.modify([0, 0, 0], 40, 40, &mut w);
-	rrg.modify([-10, -10, 1], 60, 60, &mut w);
+	let frg = genroom_forest::ForestRoomGen::default();
+	rrg.generate([0, 0, 0], 40, 40, &mut w);
+	rrg.generate([-10, -10, 1], 60, 60, &mut w);
+	frg.generate([0, 0, 2], 80, 80, &mut w);
 	let mut curse = x1b::Curse::<()>::new(80, 60);
 	let _lock = TermJuggler::new();
 	let mut now = Instant::now();
@@ -100,9 +106,12 @@ fn main(){
 		{
 			let (pos, chr, inventory, weapons, cbag) =
 				(w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>());
+			let Walls(ref walls) = *w.read_resource::<Walls>();
 			if let Some(&Pos(plpos)) = pos.get(player) {
 				let pxy = plpos;
-				for (&Pos(a), &Chr(ch)) in (&pos, &chr).iter() {
+				for (a, ch) in (&pos, &chr).iter().map(|(&Pos(a), &Chr(ch))| (a, ch))
+					.chain(walls.iter().map(|(&k, &v)| (k, v)))
+				{
 					let x = a[0] - pxy[0] + 6;
 					let y = a[1] - pxy[1] + 6;
 					if a[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
@@ -162,30 +171,38 @@ fn main(){
 		{
 			let (mut pos, npos, mut mort, portal, mut ai, mut solid, ents) =
 				(w.write::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>(), w.entities());
-			let mut collisions: FnvHashMap<[i16; 3], Vec<Entity>> = Default::default();
+			let Walls(ref walls) = *w.read_resource::<Walls>();
+			let mut collisions: FnvHashMap<[i16; 3], SmallVec<[Entity; 2]>> = Default::default();
 
 			for (&Pos(p), e) in (&pos, &ents).iter() {
 				let xy = npos.get(e).map(|&NPos(np)| np).unwrap_or(p);
 				match collisions.entry(xy) {
 					Entry::Occupied(mut ent) => {ent.get_mut().push(e);},
-					Entry::Vacant(ent) => {ent.insert(vec![e]);},
+					Entry::Vacant(ent) => {
+						let mut sv = SmallVec::new();
+						sv.push(e);
+						ent.insert(sv);
+					},
 				}
 			}
 
 			'newposloop:
 			for (&mut Pos(ref mut p), &NPos(n), ent) in (&mut pos, &npos, &ents).iter() {
 				let col = collisions.get(&n).unwrap();
+				if walls.contains_key(&n) {
+					continue 'newposloop
+				}
 				for &e in col {
 					if e != ent {
 						if let Some(_) = solid.get(e) {
-							continue 'newposloop;
+							continue 'newposloop
 						}
 					}
 				}
 				*p = n;
 			}
 
-			let mut rmai = Vec::new();
+			let mut rmai = SmallVec::<[Entity; 2]>::new();
 			for (_xyz, col) in collisions.into_iter() {
 				if col.len() < 2 { continue }
 				for &e in col.iter() {

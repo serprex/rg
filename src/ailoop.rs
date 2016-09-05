@@ -1,9 +1,9 @@
 use std::mem;
 use rand::{self, Rng};
 use specs::*;
-use super::components::*;
-use super::util::*;
-use super::actions;
+use components::*;
+use util::*;
+use actions;
 
 pub fn ailoop(w: &mut World) {
 	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut strength, mut weapons, mut casting, ents) =
@@ -36,7 +36,6 @@ pub fn ailoop(w: &mut World) {
 					}
 					if rmcast { casting.remove(ent); }
 					if !wassomecast {
-						// TODO don't go down this path if casting
 						match char_as_dir(ch) {
 							Ok(d) => xy_incr_dir(&mut npos, d),
 							Err('p') => {

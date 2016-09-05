@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use x1b::Char;
 use specs::{World, Entity, Component, Storage, MaskedStorage, Allocator,
 	VecStorage, HashMapStorage, NullStorage};
-use super::super_sparse_storage::SuperSparseStorage;
+
+use util::{Char, FnvHashMap};
+use super_sparse_storage::SuperSparseStorage;
 
 macro_rules! impl_storage {
 	($storage: ident, $($comp: ty),*) => {
@@ -16,7 +17,7 @@ macro_rules! impl_storage {
 pub type Action = Box<Fn(Entity, &mut World) + Send + Sync>;
 
 #[derive(Copy, Clone)]
-pub struct Chr(pub Char<()>);
+pub struct Chr(pub Char);
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Pos(pub [i16; 3]);
@@ -128,6 +129,7 @@ pub struct Bow(pub u8, pub i16);
 
 pub struct Spell(pub Action);
 
+#[derive(Clone)]
 pub struct Casting(pub String);
 
 pub struct Todo(pub Vec<Action>);
@@ -159,14 +161,17 @@ pub struct Portal(pub [i16; 3]);
 #[derive(Copy, Clone)]
 pub struct Inventory(pub Entity, pub usize);
 
-impl_storage!(VecStorage, Pos, Mortal, Ai, Race, Chr);
+#[derive(Clone, Default)]
+pub struct Walls(pub FnvHashMap<[i16; 3], Char>);
+
+impl_storage!(VecStorage, Pos, Chr);
 impl_storage!(HashMapStorage, Portal, Weight, Strength,
-	Bow, Heal,
-	Armor, Weapon, Shield, Head, Bag, AiStasis, Inventory, Spell, Todo,
+	Bow, Heal, Mortal, Ai, Race,
+	Armor, Weapon, Shield, Head, Bag, Inventory, Spell, Todo,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 impl_storage!(NullStorage, Solid);
-impl_storage!(SuperSparseStorage, NPos, WDirection, Casting);
+impl_storage!(SuperSparseStorage, NPos, WDirection, Casting, AiStasis);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {

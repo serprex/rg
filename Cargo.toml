@@ -5,9 +5,10 @@ authors = ["serprex"]
 
 [dependencies]
 rand = "0.3"
-fnv = "1.0.3"
+fnv = "1.0"
 termios = "0.2"
 specs = "0.7"
+smallvec = "0.2"
 x1b = "0.4.1"
 #x1b = { path = "../x1b", version = "*" }
 

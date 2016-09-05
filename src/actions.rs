@@ -1,7 +1,7 @@
 use rand::{self, Rng};
 use specs::*;
-use super::components::*;
-use super::util::*;
+use components::*;
+use util::*;
 
 pub fn attack(src: Entity, w: &mut World) {
 	let weapons = w.read::<Weapon>();

@@ -4,17 +4,19 @@ use rand::{self, Rng};
 use rand::distributions::{IndependentSample, Range};
 use specs::{World, Join};
 
+use roomgen::RoomGen;
 use components::*;
 use util::{rectover, rectoverinc, FnvHashSet, Char};
 
+#[derive(Copy, Clone)]
 pub struct GreedyRoomGen(pub usize);
 impl Default for GreedyRoomGen {
 	fn default() -> Self {
 		GreedyRoomGen(6)
 	}
 }
-impl GreedyRoomGen {
-	pub fn modify(&self, xyz: [i16; 3], w: i16, h: i16, room: &mut World) {
+impl RoomGen for GreedyRoomGen {
+	fn generate(&self, xyz: [i16; 3], w: i16, h: i16, room: &mut World) {
 		let rc = self.0;
 		let betwh = Range::new(0, (w-2)*(h-2));
 		let bet4 = Range::new(0, 4);
@@ -116,14 +118,11 @@ impl GreedyRoomGen {
 				doors.insert([pos[0], pos[1]]);
 			}
 		}
+		let Walls(ref mut walls) = *room.write_resource::<Walls>();
 		let mut add_wall = |xy: [i16; 2], ch: char| {
 			if !doors.contains(&xy) {
 				doors.insert(xy);
-				room.create_now()
-					.with(Chr(Char::from(ch)))
-					.with(Solid)
-					.with(Pos([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]]))
-					.build();
+				walls.insert([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]], Char::from(ch));
 			}
 		};
 		for xywh in rxy {

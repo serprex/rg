@@ -1,11 +1,12 @@
 use std::mem;
+use smallvec::SmallVec;
 use specs::{UnprotectedStorage, Index};
 
-pub struct SuperSparseStorage<T>(Vec<(Index, T)>);
+pub struct SuperSparseStorage<T>(SmallVec<[(Index, T); 4]>);
 
 impl<T> UnprotectedStorage<T> for SuperSparseStorage<T> {
 	fn new() -> Self {
-		SuperSparseStorage(Vec::new())
+		SuperSparseStorage(SmallVec::new())
 	}
 	unsafe fn clean<F>(&mut self, _has: F) where F: Fn(Index) -> bool {
 	}
