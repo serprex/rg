@@ -106,12 +106,22 @@ fn main(){
 		{
 			let (pos, chr, inventory, weapons, cbag) =
 				(w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>());
-			let Walls(ref walls) = *w.read_resource::<Walls>();
 			if let Some(&Pos(plpos)) = pos.get(player) {
 				let pxy = plpos;
-				for (a, ch) in (&pos, &chr).iter().map(|(&Pos(a), &Chr(ch))| (a, ch))
-					.chain(walls.iter().map(|(&k, &v)| (k, v)))
 				{
+				let Walls(ref walls) = *w.read_resource::<Walls>();
+				let mut xyz = pxy;
+				for x in 0..12 {
+					xyz[0] = pxy[0] + x - 6;
+					for y in 0..12 {
+						xyz[1] = pxy[1] + y - 6;
+						if let Some(&ch) = walls.get(&xyz) {
+							curse.set(x as u16, y as u16, ch);
+						}
+					}
+				}
+				}
+				for (&Pos(a), &Chr(ch)) in (&pos, &chr).iter() {
 					let x = a[0] - pxy[0] + 6;
 					let y = a[1] - pxy[1] + 6;
 					if a[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
@@ -273,7 +283,7 @@ impl TermJuggler {
 impl Drop for TermJuggler {
 	fn drop(&mut self){
 		use termios::*;
-		x1b::Cursor::<()>::dropclear().ok();
+		x1b::Cursor::dropclear().ok();
 		tcsetattr(0, TCSAFLUSH, &self.0).ok();
 	}
 }
