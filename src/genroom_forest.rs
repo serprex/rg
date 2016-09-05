@@ -4,6 +4,7 @@ use specs::World;
 use roomgen::RoomGen;
 use components::*;
 use util::Char;
+use x1b::RGB4;
 
 #[derive(Copy, Clone)]
 pub struct ForestRoomGen(pub f64);
@@ -22,7 +23,7 @@ impl RoomGen for ForestRoomGen {
 		for x in xyz[0]..xyz[0]+w {
 			for y in xyz[1]..xyz[1]+h {
 				if rng.gen::<f64>() < rc {
-					walls.insert([x, y, xyz[2]], Char::from('*'));
+					walls.insert([x, y, xyz[2]], Char::new_with_color('*', RGB4::LightGreen, RGB4::Green));
 				}
 			}
 		}

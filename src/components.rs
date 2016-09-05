@@ -1,7 +1,5 @@
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use specs::{World, Entity, Component, Storage, MaskedStorage, Allocator,
-	VecStorage, HashMapStorage, NullStorage};
+use specs::{World, Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
 use util::{Char, FnvHashMap};
 use super_sparse_storage::SuperSparseStorage;
@@ -132,20 +130,6 @@ pub struct Spell(pub Action);
 #[derive(Clone)]
 pub struct Casting(pub String);
 
-pub struct Todo(pub Vec<Action>);
-
-impl Todo {
-	pub fn add<A, D>(todos: &mut Storage<Todo, A, D>, ent: Entity, act: Action)
-		where A: Deref<Target = Allocator>, D: DerefMut<Target = MaskedStorage<Todo>>
-	{
-		if let Some(&mut Todo(ref mut tv)) = todos.get_mut(ent) {
-			tv.push(act);
-			return
-		}
-		todos.insert(ent, Todo(vec![act]));
-	}
-}
-
 #[derive(Copy, Clone)]
 pub struct WDirection(pub Dir);
 
@@ -161,13 +145,16 @@ pub struct Portal(pub [i16; 3]);
 #[derive(Copy, Clone)]
 pub struct Inventory(pub Entity, pub usize);
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Walls(pub FnvHashMap<[i16; 3], Char>);
 
-impl_storage!(VecStorage, Pos, Chr);
+#[derive(Default)]
+pub struct Todo(pub Vec<(Entity, Action)>);
+
+impl_storage!(VecStorage, Pos, Chr, Ai, Race);
 impl_storage!(HashMapStorage, Portal, Weight, Strength,
-	Bow, Heal, Mortal, Ai, Race,
-	Armor, Weapon, Shield, Head, Bag, Inventory, Spell, Todo,
+	Bow, Heal, Mortal,
+	Armor, Weapon, Shield, Head, Bag, Inventory, Spell,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 impl_storage!(NullStorage, Solid);

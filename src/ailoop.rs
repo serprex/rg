@@ -12,7 +12,7 @@ pub fn ailoop(w: &mut World) {
 	let mut rng = rand::thread_rng();
 	let mut newent: Vec<(Entity, Chr, Ai, Pos)> = Vec::new();
 	let mut grab: Vec<(Entity, [i16; 3])> = Vec::new();
-	let mut todos = w.write::<Todo>();
+	let Todo(ref mut todos) = *w.write_resource::<Todo>();
 	for (&Pos(pos), mut ai, &race, ent) in (&cpos, &mut cai, &crace, &ents).iter() {
 		if stasis.get(ent).is_none() && ai.tick == 0 {
 			let mut npos = pos;
@@ -29,7 +29,7 @@ pub fn ailoop(w: &mut World) {
 						} else {
 							cast.push(ch);
 							if cast == "blink" {
-								Todo::add(&mut todos, ent, Box::new(actions::blink));
+								todos.push((ent, Box::new(actions::blink)));
 								rmcast = true;
 							}
 						}
@@ -54,7 +54,7 @@ pub fn ailoop(w: &mut World) {
 									Ok(d) => {
 										let mut wdir = w.write::<WDirection>();
 										wdir.insert(ent, WDirection(d));
-										Todo::add(&mut todos, ent, Box::new(actions::attack));
+										todos.push((ent, Box::new(actions::attack)));
 									},
 									_ => continue 'playerinput,
 								}
@@ -64,7 +64,7 @@ pub fn ailoop(w: &mut World) {
 									Ok(d) => {
 										let mut wdir = w.write::<WDirection>();
 										wdir.insert(ent, WDirection(d));
-										Todo::add(&mut todos, ent, Box::new(actions::shoot));
+										todos.push((ent, Box::new(actions::shoot)));
 									},
 									_ => continue 'playerinput,
 								}

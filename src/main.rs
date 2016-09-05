@@ -20,6 +20,7 @@ use std::thread;
 use std::time::{Instant, Duration};
 use specs::*;
 use smallvec::SmallVec;
+use x1b::RGB4;
 
 use ailoop::ailoop;
 use components::*;
@@ -36,10 +37,11 @@ fn main(){
 	let mut w = World::new();
 	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
 		WDirection, Bow, Heal, Casting,
-		Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell, Todo,
+		Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());
+	w.add_resource(Todo::default());
 	w.create_now()
 		.with(Chr(Char::from('x')))
 		.with(Weight(3))
@@ -99,7 +101,7 @@ fn main(){
 	rrg.generate([0, 0, 0], 40, 40, &mut w);
 	rrg.generate([-10, -10, 1], 60, 60, &mut w);
 	frg.generate([0, 0, 2], 80, 80, &mut w);
-	let mut curse = x1b::Curse::<()>::new(80, 60);
+	let mut curse = x1b::Curse::<RGB4>::new(80, 60);
 	let _lock = TermJuggler::new();
 	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
@@ -134,13 +136,13 @@ fn main(){
 							let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
 							curse.printnows(40, 1 + idx as u16,
 								&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
-								x1b::TextAttr::empty(), (), ());
+								x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
 						}
 					}
 					if let Some(&Weapon(item)) = weapons.get(inve) {
 						let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
 						curse.printnows(60, 1, &format!("Weapon: {}", ch),
-							x1b::TextAttr::empty(), (), ());
+							x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
 					}
 				}
 			} else {
@@ -156,25 +158,18 @@ fn main(){
 		} else {
 			newnow
 		};
-		curse.printnows(40, 0, &dur_as_string(dur), x1b::TextAttr::empty(), (), ());
+		curse.printnows(40, 0, &dur_as_string(dur), x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
 		curse.perframe_refresh_then_clear(Char::from(' ')).unwrap();
 		ailoop(&mut w);
 		loop {
 			w.maintain();
 			let todo = {
-				let mut todos = w.write::<Todo>();
-				let toe = (&todos, &w.entities()).iter().map(|(_, ent)| ent).collect::<Vec<Entity>>();
-				let mut todo = Vec::new();
-				for ent in toe {
-					let Todo(actions) = todos.remove(ent).unwrap();
-					for action in actions {
-						todo.push((action, ent));
-					}
-				}
-				todo
+				let Todo(ref mut todos) = *w.write_resource::<Todo>();
+				if todos.is_empty() { break }
+				let todo = todos.drain(..).collect::<Vec<_>>();
+				todo // stupid lifetime inference
 			};
-			if todo.len() == 0 { break }
-			for (action, ent) in todo {
+			for (ent, action) in todo {
 				action(ent, &mut w)
 			}
 		}
