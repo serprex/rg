@@ -6,7 +6,8 @@ use specs::{World, Join};
 
 use roomgen::RoomGen;
 use components::*;
-use util::{rectover, rectoverinc, FnvHashSet, Char};
+use util::{rectover, FnvHashSet, Char};
+use greedgrow;
 
 #[derive(Copy, Clone)]
 pub struct GreedyRoomGen(pub usize);
@@ -19,11 +20,8 @@ impl RoomGen for GreedyRoomGen {
 	fn generate(&self, xyz: [i16; 3], w: i16, h: i16, room: &mut World) {
 		let rc = self.0;
 		let betwh = Range::new(0, (w-2)*(h-2));
-		let bet4 = Range::new(0, 4);
 		let mut rng = rand::thread_rng();
 		let mut rxy = Vec::with_capacity(rc);
-		let done = &mut [false; 4];
-		let mut adjacent = vec![false; rc*rc];
 		while rxy.len() < rc {
 			let xy = betwh.ind_sample(&mut rng);
 			let (rx, ry) = (xy % (w-2), xy / (h-2));
@@ -31,49 +29,7 @@ impl RoomGen for GreedyRoomGen {
 			if !rxy.iter().any(|&a| rectover(candy, a))
 				{ rxy.push(candy) }
 		}
-		loop {
-			let mut cangrow: Vec<bool> = Vec::with_capacity(rc);
-			let b4 = bet4.ind_sample(&mut rng);
-			for (i, rect) in rxy.iter().enumerate() {
-				let mut newrect = *rect;
-				let oob = match b4 {
-					0|1 => {
-						newrect[b4] -= 1;
-						newrect[b4] < 0
-					},
-					2|3 => {
-						newrect[b4] += 1;
-						newrect[b4] >= if b4 == 2 { w } else { h }
-					},
-					_ => unreachable!(),
-				};
-				if oob {
-					cangrow.push(false);
-					continue
-				}
-				let mut grow = true;
-				for (j, rect2) in rxy.iter().enumerate() {
-					if i != j && rectoverinc(newrect, *rect2){
-						grow = false;
-						adjacent[i+j*rc] = true;
-						adjacent[i*rc+j] = true;
-					}
-				}
-				cangrow.push(grow)
-			}
-			if cangrow.iter().all(|&x| !x) {
-				done[b4] = true;
-				if done.iter().all(|&x| x) { break }
-			}
-			for (ref mut xywh, &grow) in rxy.iter_mut().zip(&cangrow) {
-				if !grow { continue }
-				xywh[b4] += match b4 {
-					0|1 => -1,
-					2|3 => 1,
-					_ => unreachable!(),
-				}
-			}
-		}
+		let adjacent = greedgrow::grow(&mut rng, &mut rxy, xyz, w, h);
 		let mut doors: FnvHashSet<[i16; 2]> = Default::default();
 		let mut nzgrps: FnvHashSet<usize> = (1..rc).into_iter().collect();
 		let mut zgrps: FnvHashSet<usize> = HashSet::with_capacity_and_hasher(rc, Default::default());

@@ -7,6 +7,7 @@ extern crate smallvec;
 
 mod ailoop;
 mod roomgen;
+mod greedgrow;
 mod genroom_greedy;
 mod genroom_forest;
 mod util;
