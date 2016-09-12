@@ -106,9 +106,10 @@ fn main(){
 	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		{
-			let (pos, chr, inventory, weapons, cbag) =
-				(w.read::<Pos>(), w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>());
+			let pos = w.read::<Pos>();
 			if let Some(&Pos(plpos)) = pos.get(player) {
+				let (chr, inventory, weapons, cbag) =
+					(w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>());
 				let pxy = plpos;
 				{
 				let Walls(ref walls) = *w.read_resource::<Walls>();
@@ -132,11 +133,15 @@ fn main(){
 				}
 				for &Inventory(inve, invp) in inventory.iter() {
 					if let Some(&Bag(ref bag)) = cbag.get(inve) {
-						for (idx, &item) in bag.iter().enumerate() {
-							let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
-							curse.printnows(40, 1 + idx as u16,
-								&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
-								x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+						if bag.is_empty() {
+							curse.printnows(40, 1, "Empty", x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+						} else {
+							for (idx, &item) in bag.iter().enumerate() {
+								let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
+								curse.printnows(40, 1 + idx as u16,
+									&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
+									x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+							}
 						}
 					}
 					if let Some(&Weapon(item)) = weapons.get(inve) {

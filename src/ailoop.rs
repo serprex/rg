@@ -46,7 +46,7 @@ pub fn ailoop(w: &mut World) {
 							},
 							Err('i') => {
 								let newinv = w.create_later();
-								inventory.insert(newinv, Inventory(ent, 0));
+								inventory.insert(newinv, Inventory(ent, 99999));
 								stasis.insert(newinv, AiStasis(ent));
 							},
 							Err('a') => {
@@ -240,6 +240,10 @@ pub fn ailoop(w: &mut World) {
 	}
 	let mut rminv = Vec::new();
 	for (&mut Inventory(inve, ref mut invp), ent) in (&mut inventory, &ents).iter() {
+		if *invp == 99999 {
+			*invp = 0;
+			continue
+		}
 		if let Some(&mut Bag(ref mut ebag)) = bag.get_mut(inve) {
 			'invput: loop {
 				match getch() {
