@@ -16,7 +16,6 @@ mod actions;
 mod super_sparse_storage;
 mod position;
 
-use std::collections::hash_map::Entry;
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::{Instant, Duration};

@@ -65,7 +65,7 @@ impl<'a, 'b, 'c, A, D> PossyNpos<'a, 'b, 'c, A, D>
 		self.npos.iter()
 			.map(|&NPos(p)| p)
 			.filter(|p| !self.possy.collisions.contains(p))
-			.chain(self.possy.collisions.iter().map(|&p| p))
+			.chain(self.possy.collisions.iter().cloned())
 			.map(|p| (p, self.get_ents(p)))
 			.filter(|&(_, ref ents)| ents.len() > 1)
 			.collect::<Vec<_>>()

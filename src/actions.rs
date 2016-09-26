@@ -10,6 +10,7 @@ pub fn attack(src: Entity, w: &mut World) {
 	let mut cai = w.write::<Ai>();
 	let mut cpos = w.write_resource::<Possy>();
 	let mut cp = w.write::<Pos>();
+	let mut crace = w.write::<Race>();
 	let watk = w.read::<Atk<Weapon>>();
 	let wdirection = w.read::<WDirection>();
 	if let Some(&Weapon(went)) = weapons.get(src) {
@@ -22,6 +23,7 @@ pub fn attack(src: Entity, w: &mut World) {
 					cch.insert(newent, wch);
 					cai.insert(newent, Ai::new(AiState::Melee(wstats.dur, wstats.dmg), 1));
 					cp.insert(newent, Pos);
+					crace.insert(newent, Race::None);
 					cpos.set_pos(newent, bp);
 					if let Some(mut ai) = cai.get_mut(src) {
 						ai.tick = if wstats.spd < 0 {
@@ -43,6 +45,7 @@ pub fn shoot(src: Entity, w: &mut World) {
 	let mut cch = w.write::<Chr>();
 	let mut cpos = w.write_resource::<Possy>();
 	let mut cp = w.write::<Pos>();
+	let mut crace = w.write::<Race>();
 	let wdirection = w.read::<WDirection>();
 	let mut cai = w.write::<Ai>();
 	if let Some(&Weapon(went)) = weapons.get(src) {
@@ -55,6 +58,7 @@ pub fn shoot(src: Entity, w: &mut World) {
 						cch.insert(newent, wch);
 						cai.insert(newent, Ai::new(AiState::Missile(wdir, dmg), spd));
 						cp.insert(newent, Pos);
+						crace.insert(newent, Race::None);
 						cpos.set_pos(newent, bp);
 					}
 				}
