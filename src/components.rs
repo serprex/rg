@@ -17,8 +17,8 @@ pub type Action = Box<Fn(Entity, &mut World) + Send + Sync>;
 #[derive(Copy, Clone)]
 pub struct Chr(pub Char);
 
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub struct Pos(pub [i16; 3]);
+#[derive(Copy, Clone, Default)]
+pub struct Pos;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct NPos(pub [i16; 3]);
@@ -151,14 +151,14 @@ pub struct Walls(pub FnvHashMap<[i16; 3], Char>);
 #[derive(Default)]
 pub struct Todo(pub Vec<(Entity, Action)>);
 
-impl_storage!(VecStorage, Pos, Chr, Ai, Race);
+impl_storage!(VecStorage, Chr, Ai, Race);
 impl_storage!(HashMapStorage, Portal, Weight, Strength,
 	Bow, Heal, Mortal,
-	Armor, Weapon, Shield, Head, Bag, Inventory, Spell,
+	Armor, Weapon, Shield, Head, Bag, Spell,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
-impl_storage!(NullStorage, Solid);
-impl_storage!(SuperSparseStorage, NPos, WDirection, Casting, AiStasis);
+impl_storage!(NullStorage, Solid, Pos);
+impl_storage!(HashMapStorage, NPos, WDirection, Casting, AiStasis, Inventory);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {

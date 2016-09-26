@@ -14,11 +14,14 @@ mod util;
 mod components;
 mod actions;
 mod super_sparse_storage;
+mod position;
 
 use std::collections::hash_map::Entry;
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::{Instant, Duration};
+
+use rand::{Rng, Rand, XorShiftRng};
 use specs::*;
 use smallvec::SmallVec;
 use x1b::RGB4;
@@ -27,6 +30,7 @@ use ailoop::ailoop;
 use components::*;
 use util::*;
 use roomgen::RoomGen;
+use position::Possy;
 
 macro_rules! w_register {
 	($w: expr, $($comp: ty),*) => {
@@ -35,6 +39,7 @@ macro_rules! w_register {
 }
 
 fn main(){
+	let mut rng = XorShiftRng::rand(&mut rand::thread_rng());
 	let mut w = World::new();
 	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
 		WDirection, Bow, Heal, Casting,
@@ -47,19 +52,22 @@ fn main(){
 		.with(Chr(Char::from('x')))
 		.with(Weight(3))
 		.with(Atk::<Weapon>::new(1, 1, -2))
-		.with(Pos([4, 8, 0]))
+		.with(NPos([4, 8, 0]))
+		.with(Pos)
 		.build();
 	w.create_now()
 		.with(Chr(Char::from('b')))
 		.with(Weight(2))
 		.with(Bow(4, 1))
-		.with(Pos([2, 5, 0]))
+		.with(NPos([2, 5, 0]))
+		.with(Pos)
 		.build();
 	let player = w.create_now()
 		.with(Ai::new(AiState::Player, 10))
 		.with(Bag(Vec::new()))
 		.with(Chr(Char::from('@')))
-		.with(Pos([4, 4, 0]))
+		.with(NPos([4, 4, 0]))
+		.with(Pos)
 		.with(Solid)
 		.with(Mortal(20))
 		.with(Race::Wazzlefu)
@@ -68,7 +76,8 @@ fn main(){
 		.build();
 	w.create_now()
 		.with(Chr(Char::from('r')))
-		.with(Pos([10, 6, 0]))
+		.with(NPos([10, 6, 0]))
+		.with(Pos)
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 12))
 		.with(Mortal(4))
@@ -77,7 +86,8 @@ fn main(){
 		.build();
 	w.create_now()
 		.with(Chr(Char::from('k')))
-		.with(Pos([20, 8, 0]))
+		.with(NPos([20, 8, 0]))
+		.with(Pos)
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 8))
 		.with(Mortal(2))
@@ -86,29 +96,48 @@ fn main(){
 		.build();
 	w.create_now()
 		.with(Chr(Char::from('!')))
-		.with(Pos([8, 8, 0]))
+		.with(NPos([8, 8, 0]))
+		.with(Pos)
 		.with(Atk::<Weapon>::new(2, 3, 2))
 		.with(Weight(5))
 		.build();
 	w.create_now()
 		.with(Chr(Char::from('#')))
-		.with(Pos([8, 10, 0]))
+		.with(NPos([8, 10, 0]))
+		.with(Pos)
 		.with(Solid)
 		.with(Def::<Armor>::new(2))
 		.with(Weight(5))
 		.build();
+	{
+		let possy = Possy::new(&mut w);
+		w.add_resource(possy);
+	}
+	{
 	let rrg = genroom_greedy::GreedyRoomGen::default();
 	let frg = genroom_forest::ForestRoomGen::default();
-	rrg.generate([0, 0, 0], 40, 40, &mut w);
-	rrg.generate([-10, -10, 1], 60, 60, &mut w);
-	frg.generate([0, 0, 2], 80, 80, &mut w);
+	let mut f1 = [[20, 10, 22, 12], [30, 32, 20, 22], [20, 30, 24, 36], [50, 50, 55, 55], [60, 50, 62, 52], [80, 60, 82, 70], [90, 90, 95, 105]];
+	let fadj = greedgrow::grow(&mut rng, &mut f1, 0, 0, 120, 120);
+	/*for fxy in f1.iter() {
+		if rng.gen() {
+			rrg.generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0], fxy[3]-fxy[1], &mut w)
+		} else {
+			frg.generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0], fxy[3]-fxy[1], &mut w)
+		}
+	}*/
+	rrg.generate(&mut rng, [0, 0, 0], 40, 40, &mut w);
+	rrg.generate(&mut rng, [-10, -10, 1], 60, 60, &mut w);
+	frg.generate(&mut rng, [0, 0, 2], 40, 80, &mut w);
+	frg.generate(&mut rng, [0, 0, 3], 40, 80, &mut w);
+	}
 	let mut curse = x1b::Curse::<RGB4>::new(80, 60);
 	let _lock = TermJuggler::new();
 	let mut now = Instant::now();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		{
-			let pos = w.read::<Pos>();
-			if let Some(&Pos(plpos)) = pos.get(player) {
+			let possy = w.read_resource::<Possy>();
+			if let Some(plpos) = possy.get_pos(player) {
+				let pos = w.read::<Pos>();
 				let (chr, inventory, weapons, cbag) =
 					(w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>());
 				let pxy = plpos;
@@ -125,11 +154,13 @@ fn main(){
 					}
 				}
 				}
-				for (&Pos(a), &Chr(ch)) in (&pos, &chr).iter() {
-					let x = a[0] - pxy[0] + 6;
-					let y = a[1] - pxy[1] + 6;
-					if a[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
-						curse.set(x as u16, y as u16, ch);
+				for (_, &Chr(ch), e) in (&pos, &chr, &w.entities()).iter() {
+					if let Some(a) = possy.get_pos(e) {
+						let x = a[0] - pxy[0] + 6;
+						let y = a[1] - pxy[1] + 6;
+						if a[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
+							curse.set(x as u16, y as u16, ch);
+						}
 					}
 				}
 				for &Inventory(inve, invp) in inventory.iter() {
@@ -166,7 +197,7 @@ fn main(){
 		};
 		curse.printnows(40, 0, &dur_as_string(dur), x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
 		curse.perframe_refresh_then_clear(Char::from(' ')).unwrap();
-		ailoop(&mut w);
+		ailoop(&mut rng, &mut w);
 		loop {
 			w.maintain();
 			let todo = {
@@ -180,49 +211,33 @@ fn main(){
 			}
 		}
 		{
-			let (mut pos, npos, mut mort, portal, mut ai, mut solid, ents) =
-				(w.write::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>(), w.entities());
+			let (pos, npos, mut mort, portal, mut ai, mut solid, ents) =
+				(w.read::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>(), w.entities());
 			let Walls(ref walls) = *w.read_resource::<Walls>();
-			let mut collisions: FnvHashMap<[i16; 3], SmallVec<[Entity; 2]>> = Default::default();
-
-			for (&Pos(p), e) in (&pos, &ents).iter() {
-				let xy = npos.get(e).map(|&NPos(np)| np).unwrap_or(p);
-				match collisions.entry(xy) {
-					Entry::Occupied(mut ent) => {ent.get_mut().push(e);},
-					Entry::Vacant(ent) => {
-						let mut sv = SmallVec::new();
-						sv.push(e);
-						ent.insert(sv);
-					},
-				}
-			}
+			let mut possy = w.write_resource::<Possy>();
 
 			'newposloop:
-			for (&mut Pos(ref mut p), &NPos(n), ent) in (&mut pos, &npos, &ents).iter() {
-				let col = collisions.get(&n).unwrap();
+			for (_, &NPos(n), ent) in (&pos, &npos, &ents).iter() {
 				if walls.contains_key(&n) {
 					continue 'newposloop
 				}
-				for &e in col {
-					if e != ent {
-						if let Some(_) = solid.get(e) {
-							continue 'newposloop
-						}
+				for &e in possy.npos_map(&npos, &ents).get_ents(n).into_iter() {
+					if e != ent && solid.get(e).is_some() {
+						continue 'newposloop
 					}
 				}
-				*p = n;
+				possy.set_pos(ent, n);
 			}
 
 			let mut rmai = SmallVec::<[Entity; 2]>::new();
-			for (_xyz, col) in collisions.into_iter() {
+			let mut spos = SmallVec::<[(Entity, [i16; 3]); 2]>::new();
+			for (_xyz, col) in possy.npos_map(&npos, &ents).collisions().into_iter() {
 				if col.len() < 2 { continue }
 				for &e in col.iter() {
 					for &ce in col.iter() {
 						if ce != e {
 							if let Some(&Portal(porx)) = portal.get(e) {
-								if let Some(&mut Pos(ref mut posxy)) = pos.get_mut(ce) {
-									*posxy = porx
-								}
+								spos.push((ce, porx));
 							}
 							if let Some(aie) = ai.get(e) {
 								match aie.state {
@@ -260,6 +275,9 @@ fn main(){
 			}
 			for e in rmai {
 				ai.remove(e);
+			}
+			for (e, p) in spos {
+				possy.set_pos(e, p);
 			}
 		}
 		w.write::<NPos>().clear();

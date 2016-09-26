@@ -1,6 +1,6 @@
 use std::cmp;
 use std::collections::HashSet;
-use rand::{self, Rng};
+use rand::Rng;
 use rand::distributions::{IndependentSample, Range};
 use specs::{World, Join};
 
@@ -8,6 +8,7 @@ use roomgen::RoomGen;
 use components::*;
 use util::{rectover, FnvHashSet, Char};
 use greedgrow;
+use position::Possy;
 
 #[derive(Copy, Clone)]
 pub struct GreedyRoomGen(pub usize);
@@ -17,19 +18,19 @@ impl Default for GreedyRoomGen {
 	}
 }
 impl RoomGen for GreedyRoomGen {
-	fn generate(&self, xyz: [i16; 3], w: i16, h: i16, room: &mut World) {
+	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, room: &mut World) {
 		let rc = self.0;
+		if w<2 || h<2 { return }
 		let betwh = Range::new(0, (w-2)*(h-2));
-		let mut rng = rand::thread_rng();
 		let mut rxy = Vec::with_capacity(rc);
 		while rxy.len() < rc {
-			let xy = betwh.ind_sample(&mut rng);
-			let (rx, ry) = (xy % (w-2), xy / (h-2));
+			let xy = betwh.ind_sample(rng);
+			let (rx, ry) = (xyz[0] + xy % (w-2), xyz[1] + xy / (h-2));
 			let candy = [rx, ry, rx+2, ry+2];
 			if !rxy.iter().any(|&a| rectover(candy, a))
 				{ rxy.push(candy) }
 		}
-		let adjacent = greedgrow::grow(&mut rng, &mut rxy, xyz, w, h);
+		let adjacent = greedgrow::grow(rng, &mut rxy, xyz[0], xyz[1], w, h);
 		let mut doors: FnvHashSet<[i16; 2]> = Default::default();
 		let mut nzgrps: FnvHashSet<usize> = (1..rc).into_iter().collect();
 		let mut zgrps: FnvHashSet<usize> = HashSet::with_capacity_and_hasher(rc, Default::default());
@@ -63,15 +64,17 @@ impl RoomGen for GreedyRoomGen {
 				let y = rng.gen_range(r[1]+1, r[3]);
 				room.create_now()
 					.with(Chr(Char::from('\\')))
-					.with(Pos([xyz[0]+x,xyz[1]+y,xyz[2]]))
+					.with(NPos([xyz[0]+x,xyz[1]+y,xyz[2]]))
+					.with(Pos)
 					.with(Portal([xyz[0]+x,xyz[1],xyz[2]+1]))
 					.build();
 				break
 			}
 		}
-		for &Pos(pos) in room.read::<Pos>().iter() {
-			if pos[2] == xyz[2] {
-				doors.insert([pos[0], pos[1]]);
+		let possy = room.read_resource::<Possy>();
+		if let Some(floor) = possy.floors.get(&xyz[2]) {
+			for k in floor.keys() {
+				doors.insert([k[0], k[1]]);
 			}
 		}
 		let Walls(ref mut walls) = *room.write_resource::<Walls>();

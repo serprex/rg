@@ -5,7 +5,7 @@ use util::rectoverinc;
 
 /* Given a set of rects, grow them as much as possible
    Return adjacency matrix */
-pub fn grow<R: Rng>(rng: &mut R, rxy: &mut [[i16;4]], xyz: [i16; 3], w: i16, h: i16) -> Vec<bool> {
+pub fn grow<R: Rng>(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h: i16) -> Vec<bool> {
 	let bet4 = Range::new(0, 4);
 	let rc = rxy.len();
 	let mut adjacent = vec![false; rc*rc];
@@ -18,7 +18,7 @@ pub fn grow<R: Rng>(rng: &mut R, rxy: &mut [[i16;4]], xyz: [i16; 3], w: i16, h: 
 			let oob = match b4 {
 				0|1 => {
 					newrect[b4] -= 1;
-					newrect[b4] < xyz[if b4 == 0 { 0 } else { 1 }]
+					newrect[b4] < if b4 == 0 { x } else { y }
 				},
 				2|3 => {
 					newrect[b4] += 1;
