@@ -1,7 +1,8 @@
 use std::marker::PhantomData;
+use fnv::FnvHashMap;
 use specs::{World, Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
-use util::{Char, FnvHashMap};
+use util::Char;
 use super_sparse_storage::SuperSparseStorage;
 
 macro_rules! impl_storage {

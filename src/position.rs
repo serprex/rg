@@ -2,11 +2,11 @@ use std::borrow::Cow;
 use std::collections::hash_map::Entry;
 use std::ops::Deref;
 
+use fnv::{FnvHashMap, FnvHashSet};
 use smallvec::SmallVec;
 use specs::{World, Entities, Entity, Join, Storage, Allocator, MaskedStorage};
 
 use components::{Pos, NPos};
-use util::{FnvHashMap, FnvHashSet};
 
 #[derive(Default)]
 pub struct Possy {

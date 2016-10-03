@@ -1,12 +1,13 @@
 use std::cmp;
 use std::collections::HashSet;
+use fnv::FnvHashSet;
 use rand::Rng;
 use rand::distributions::{IndependentSample, Range};
 use specs::{World, Join};
 
 use roomgen::RoomGen;
 use components::*;
-use util::{rectover, FnvHashSet, Char};
+use util::{rectover, Char};
 use greedgrow;
 use position::Possy;
 
