@@ -42,7 +42,7 @@ impl<'a, 'b, 'c, A, D> PossyNpos<'a, 'b, 'c, A, D>
 		}
 	}
 	pub fn get_ents(&'a self, pos: [i16; 3]) -> Cow<[Entity]> {
-		let mut sv = self.possy.get_ents(pos).map(|x| Cow::Borrowed(&x[..])).unwrap_or_else(|| Cow::Owned(Vec::new()));
+		let mut sv = self.possy.get_ents(pos).map(Cow::Borrowed).unwrap_or_else(|| Cow::Owned(Vec::new()));
 		let len0 = sv.len();
 		let mut rme = Vec::new();
 		for (&NPos(np), e) in (self.npos, self.ents).iter() {
@@ -112,10 +112,10 @@ impl Possy {
 			None => Vec::new(),
 			Some(floor) => {
 				let mut ents = Vec::new();
-				for (k, v) in floor.iter() {
+				for (&k, v) in floor.iter() {
 					if (k[0] - x).abs() < r && (k[1] - y).abs() < r {
 						for &e in v.iter() {
-							ents.push((e, *k))
+							ents.push((e, k))
 						}
 					}
 				}
@@ -123,8 +123,10 @@ impl Possy {
 			}
 		}
 	}
-	pub fn get_ents(&self, pos: [i16; 3]) -> Option<&SmallVec<[Entity; 1]>> {
-		self.floors.get(&pos[2]).and_then(|floor| floor.get(&pos[..2]))
+	pub fn get_ents(&self, pos: [i16; 3]) -> Option<&[Entity]> {
+		self.floors.get(&pos[2])
+			.and_then(|floor| floor.get(&pos[..2]))
+			.map(|sv| &sv[..])
 	}
 	pub fn contains(&self, pos: [i16; 3]) -> bool {
 		self.get_ents(pos).is_some()
