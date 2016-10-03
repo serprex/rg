@@ -5,31 +5,33 @@ extern crate specs;
 extern crate fnv;
 extern crate smallvec;
 
-mod ailoop;
-mod roomgen;
-mod greedgrow;
-mod genroom_greedy;
-mod genroom_forest;
-mod util;
-mod components;
 mod actions;
-mod super_sparse_storage;
+mod ailoop;
+mod components;
+mod genroom_forest;
+mod genroom_greedy;
+mod greedgrow;
 mod position;
+mod roomgen;
+mod super_sparse_storage;
+mod termjuggler;
+mod util;
 
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::{Instant, Duration};
 
-use rand::{Rng, Rand, XorShiftRng};
+use rand::{Rand, XorShiftRng};
 use specs::*;
 use smallvec::SmallVec;
 use x1b::RGB4;
 
 use ailoop::ailoop;
 use components::*;
-use util::*;
-use roomgen::RoomGen;
 use position::Possy;
+use roomgen::RoomGen;
+use termjuggler::TermJuggler;
+use util::*;
 
 macro_rules! w_register {
 	($w: expr, $($comp: ty),*) => {
@@ -210,13 +212,13 @@ fn main(){
 			}
 		}
 		{
-			let (pos, npos, mut mort, portal, mut ai, mut solid, ents) =
-				(w.read::<Pos>(), w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>(), w.entities());
+			let (npos, mut mort, portal, mut ai, mut solid, ents) =
+				(w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>(), w.entities());
 			let Walls(ref walls) = *w.read_resource::<Walls>();
 			let mut possy = w.write_resource::<Possy>();
 
 			'newposloop:
-			for (_, &NPos(n), ent) in (&pos, &npos, &ents).iter() {
+			for (&NPos(n), ent) in (&npos, &ents).iter() {
 				if walls.contains_key(&n) {
 					continue 'newposloop
 				}
@@ -230,43 +232,40 @@ fn main(){
 
 			let mut rmai = SmallVec::<[Entity; 2]>::new();
 			let mut spos = SmallVec::<[(Entity, [i16; 3]); 2]>::new();
-			for (_xyz, col) in possy.npos_map(&npos, &ents).collisions().into_iter() {
-				if col.len() < 2 { continue }
-				for &e in col.iter() {
-					for &ce in col.iter() {
-						if ce != e {
-							if let Some(&Portal(porx)) = portal.get(e) {
-								spos.push((ce, porx));
-							}
-							if let Some(aie) = ai.get(e) {
-								match aie.state {
-									AiState::Missile(_, dmg) => {
-										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
-											if *mce <= dmg {
-												*mce = 0;
-												solid.remove(ce);
-												rmai.push(ce);
-											} else {
-												*mce -= dmg;
-											}
+			for (_xyz, col) in possy.npos_map(&npos, &ents).collisions() {
+				for e in col.iter().cloned() {
+					for ce in col.iter().cloned().filter(|&ce| ce != e) {
+						if let Some(&Portal(porx)) = portal.get(e) {
+							spos.push((ce, porx));
+						}
+						if let Some(aie) = ai.get(e) {
+							match aie.state {
+								AiState::Missile(_, dmg) => {
+									if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
+										if *mce <= dmg {
+											*mce = 0;
+											solid.remove(ce);
+											rmai.push(ce);
+										} else {
+											*mce -= dmg;
 										}
-										if let Some(_) = solid.get(ce) {
-											w.delete_later(e)
+									}
+									if let Some(_) = solid.get(ce) {
+										w.delete_later(e)
+									}
+								},
+								AiState::Melee(_, dmg) => {
+									if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
+										if *mce <= dmg {
+											*mce = 0;
+											solid.remove(ce);
+											rmai.push(ce);
+										} else {
+											*mce -= dmg;
 										}
-									},
-									AiState::Melee(_, dmg) => {
-										if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
-											if *mce <= dmg {
-												*mce = 0;
-												solid.remove(ce);
-												rmai.push(ce);
-											} else {
-												*mce -= dmg;
-											}
-										}
-									},
-									_ => (),
-								}
+									}
+								},
+								_ => (),
 							}
 						}
 					}
@@ -281,27 +280,5 @@ fn main(){
 		}
 		w.write::<NPos>().clear();
 		w.maintain();
-	}
-}
-struct TermJuggler(termios::Termios);
-impl TermJuggler {
-	pub fn new() -> Option<Self> {
-		use termios::*;
-		if let Ok(ref mut term) = Termios::from_fd(0) {
-			let oldterm = *term;
-			cfmakeraw(term);
-			tcsetattr(0, TCSANOW, term).expect("tcsetattr failed");
-			print!("\x1bc\x1b[?25l");
-			Some(TermJuggler(oldterm))
-		} else {
-			None
-		}
-	}
-}
-impl Drop for TermJuggler {
-	fn drop(&mut self){
-		use termios::*;
-		x1b::Cursor::dropclear().ok();
-		tcsetattr(0, TCSAFLUSH, &self.0).ok();
 	}
 }

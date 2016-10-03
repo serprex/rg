@@ -101,7 +101,18 @@ impl Possy {
 		}
 		for (k, p) in rme.into_iter() {
 			self.e2p.remove(&k);
-			self.floors.get(&p[2]).unwrap().get(&p[..2]);
+			if let Some(floor) = self.floors.get_mut(&p[2]) {
+				if let Some(sv) = floor.get_mut(&p[..2]) {
+					let mut idx: usize = unsafe { ::std::mem::uninitialized() };
+					for (i, &ie) in sv.iter().enumerate() {
+						if k == ie {
+							idx = i;
+							break
+						}
+					}
+					sv.remove(idx);
+				}
+			}
 		}
 	}
 	pub fn get_within(&self, xyz: [i16; 3], r: i16) -> Vec<(Entity, [i16; 2])> {
