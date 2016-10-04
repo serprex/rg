@@ -1,5 +1,3 @@
-use std::time::{Duration, Instant};
-use std::thread;
 use specs::{Entity, Join, World};
 use x1b::{self, RGB4};
 
@@ -7,7 +5,7 @@ use components::*;
 use position::Possy;
 use util::Char;
 
-pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>, now: Instant) -> Instant {
+pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) {
 	let possy = w.read_resource::<Possy>();
 	if let Some(plpos) = possy.get_pos(player) {
 		let pos = w.read::<Pos>();
@@ -61,13 +59,4 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>, now: 
 		}
 	}
 	curse.perframe_refresh_then_clear(Char::from(' ')).unwrap();
-	let newnow = Instant::now();
-	let dur = newnow - now;
-	if dur < Duration::from_millis(16) {
-		let sleepdur = Duration::from_millis(16) - dur;
-		thread::sleep(sleepdur);
-		newnow + sleepdur
-	} else {
-		newnow
-	}
 }
