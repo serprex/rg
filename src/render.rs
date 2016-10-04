@@ -1,0 +1,73 @@
+use std::time::{Duration, Instant};
+use std::thread;
+use specs::{Entity, Join, World};
+use x1b::{self, RGB4};
+
+use components::*;
+use position::Possy;
+use util::Char;
+
+pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>, now: Instant) -> Instant {
+	let possy = w.read_resource::<Possy>();
+	if let Some(plpos) = possy.get_pos(player) {
+		let pos = w.read::<Pos>();
+		let cai = w.read::<Ai>();
+		let chr = w.read::<Chr>();
+		let weapons = w.read::<Weapon>();
+		let cbag = w.read::<Bag>();
+		let pxy = plpos;
+		{
+		let Walls(ref walls) = *w.read_resource::<Walls>();
+		let mut xyz = pxy;
+		for x in 0..12 {
+			xyz[0] = pxy[0] + x - 6;
+			for y in 0..12 {
+				xyz[1] = pxy[1] + y - 6;
+				if let Some(&ch) = walls.get(&xyz) {
+					curse.set(x as u16, y as u16, ch);
+				}
+			}
+		}
+		}
+		for (_, &Chr(ch), e) in (&pos, &chr, &w.entities()).iter() {
+			if let Some(a) = possy.get_pos(e) {
+				let x = a[0] - pxy[0] + 6;
+				let y = a[1] - pxy[1] + 6;
+				if a[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
+					curse.set(x as u16, y as u16, ch);
+				}
+			}
+		}
+		if let Some(ai) = cai.get(player) {
+			if let AiState::PlayerInventory(invp) = ai.state {
+				if let Some(&Bag(ref bag)) = cbag.get(player) {
+					if bag.is_empty() {
+						curse.printnows(40, 1, "Empty", x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+					} else {
+						for (idx, &item) in bag.iter().enumerate() {
+							let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
+							curse.printnows(40, 1 + idx as u16,
+								&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
+								x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+						}
+					}
+				}
+				if let Some(&Weapon(item)) = weapons.get(player) {
+					let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
+					curse.printnows(60, 1, &format!("Weapon: {}", ch),
+						x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+				}
+			}
+		}
+	}
+	curse.perframe_refresh_then_clear(Char::from(' ')).unwrap();
+	let newnow = Instant::now();
+	let dur = newnow - now;
+	if dur < Duration::from_millis(16) {
+		let sleepdur = Duration::from_millis(16) - dur;
+		thread::sleep(sleepdur);
+		newnow + sleepdur
+	} else {
+		newnow
+	}
+}
