@@ -44,7 +44,7 @@ fn main(){
 	let mut w = World::new();
 	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
 		WDirection, Bow, Heal, Casting,
-		Bag, Armor, Weapon, Head, Shield, AiStasis, Inventory, Solid, Spell,
+		Bag, Armor, Weapon, Head, Shield, Solid, Spell,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());
@@ -139,8 +139,10 @@ fn main(){
 			let possy = w.read_resource::<Possy>();
 			if let Some(plpos) = possy.get_pos(player) {
 				let pos = w.read::<Pos>();
-				let (chr, inventory, weapons, cbag) =
-					(w.read::<Chr>(), w.read::<Inventory>(), w.read::<Weapon>(), w.read::<Bag>());
+				let cai = w.read::<Ai>();
+				let chr = w.read::<Chr>();
+				let weapons = w.read::<Weapon>();
+				let cbag = w.read::<Bag>();
 				let pxy = plpos;
 				{
 				let Walls(ref walls) = *w.read_resource::<Walls>();
@@ -164,23 +166,25 @@ fn main(){
 						}
 					}
 				}
-				for &Inventory(inve, invp) in inventory.iter() {
-					if let Some(&Bag(ref bag)) = cbag.get(inve) {
-						if bag.is_empty() {
-							curse.printnows(40, 1, "Empty", x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
-						} else {
-							for (idx, &item) in bag.iter().enumerate() {
-								let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
-								curse.printnows(40, 1 + idx as u16,
-									&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
-									x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+				if let Some(ai) = cai.get(player) {
+					if let AiState::PlayerInventory(invp) = ai.state {
+						if let Some(&Bag(ref bag)) = cbag.get(player) {
+							if bag.is_empty() {
+								curse.printnows(40, 1, "Empty", x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+							} else {
+								for (idx, &item) in bag.iter().enumerate() {
+									let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
+									curse.printnows(40, 1 + idx as u16,
+										&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
+										x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+								}
 							}
 						}
-					}
-					if let Some(&Weapon(item)) = weapons.get(inve) {
-						let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
-						curse.printnows(60, 1, &format!("Weapon: {}", ch),
-							x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+						if let Some(&Weapon(item)) = weapons.get(player) {
+							let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
+							curse.printnows(60, 1, &format!("Weapon: {}", ch),
+								x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+						}
 					}
 				}
 			} else {

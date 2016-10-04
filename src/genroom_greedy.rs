@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use fnv::FnvHashSet;
 use rand::Rng;
 use rand::distributions::{IndependentSample, Range};
-use specs::{World, Join};
+use specs::World;
 
 use roomgen::RoomGen;
 use components::*;

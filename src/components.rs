@@ -43,6 +43,7 @@ pub enum AiState {
 	Aggro(Entity),
 	Scared(Entity),
 	Player,
+	PlayerInventory(usize),
 	Melee(u8, i16),
 	Missile(Dir, i16),
 }
@@ -61,9 +62,6 @@ impl Ai {
 		}
 	}
 }
-
-#[derive(Copy, Clone)]
-pub struct AiStasis(pub Entity);
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Mortal(pub i16);
@@ -143,9 +141,6 @@ pub struct Bag(pub Vec<Entity>);
 #[derive(Copy, Clone)]
 pub struct Portal(pub [i16; 3]);
 
-#[derive(Copy, Clone)]
-pub struct Inventory(pub Entity, pub usize);
-
 #[derive(Default)]
 pub struct Walls(pub FnvHashMap<[i16; 3], Char>);
 
@@ -159,7 +154,7 @@ impl_storage!(HashMapStorage, Portal, Weight, Strength,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 impl_storage!(NullStorage, Solid, Pos);
-impl_storage!(HashMapStorage, NPos, WDirection, Casting, AiStasis, Inventory);
+impl_storage!(HashMapStorage, NPos, WDirection, Casting);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {

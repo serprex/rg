@@ -7,18 +7,58 @@ use actions;
 use position::Possy;
 
 pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
-	let (mut stasis, mut inventory, mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, mut weight, mut strength, mut weapons, mut casting, ents) =
-		(w.write::<AiStasis>(), w.write::<Inventory>(), w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.write::<Weight>(), w.write::<Strength>(), w.write::<Weapon>(), w.write::<Casting>(), w.entities());
+	let (mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, weight, strength, mut weapons, mut casting, ents) =
+		(w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.read::<Weight>(), w.read::<Strength>(), w.write::<Weapon>(), w.write::<Casting>(), w.entities());
 	let mut possy = w.write_resource::<Possy>();
 	let mut newent: Vec<(Entity, Chr, Ai, [i16; 3])> = Vec::new();
 	let mut grab: Vec<(Entity, [i16; 3])> = Vec::new();
 	let Todo(ref mut todos) = *w.write_resource::<Todo>();
 	for (_, mut ai, &race, ent) in (&cpos, &mut cai, &crace, &ents).iter() {
 		if let Some(pos) = possy.get_pos(ent) {
-			if stasis.get(ent).is_none() && ai.tick == 0 {
+			if ai.tick == 0 {
 				let mut npos = pos;
 				ai.tick = ai.speed;
 				match ai.state {
+					AiState::PlayerInventory(invp) => {
+						ai.tick = 1;
+						if let Some(&mut Bag(ref mut ebag)) = bag.get_mut(ent) {
+							'invput: loop {
+								match getch() {
+									'i' => {
+										ai.state = AiState::Player;
+										ai.tick = 10;
+									},
+									'j' if ebag.len() > 0 =>
+										ai.state = AiState::PlayerInventory(if invp == ebag.len()-1 { 0 } else { invp + 1 }),
+									'k' if ebag.len() > 0 =>
+										ai.state = AiState::PlayerInventory(if invp == 0 { ebag.len()-1 } else { invp - 1 }),
+									'w' => {
+										match weapons.insert(ent, Weapon(ebag.remove(invp))) {
+											InsertResult::Updated(Weapon(oldw)) => ebag.push(oldw),
+											_ => (),
+										}
+										if invp == ebag.len() {
+											ai.state = AiState::PlayerInventory(0);
+										}
+									},
+									'W' => {
+										weapons.remove(ent);
+									},
+									c if c >= '0' && c <= '9' => {
+										let v = (c as u32 as u8 - b'0') as usize;
+										if v < ebag.len() {
+											ai.state = AiState::PlayerInventory(v);
+										}
+									},
+									'\x1b' => (),
+									_ => continue 'invput,
+								};
+								break
+							}
+						} else {
+							ai.state = AiState::Player;
+						}
+					},
 					AiState::Player => 'playerinput: loop {
 						let ch = getch();
 						let mut rmcast = false;
@@ -46,9 +86,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 									}
 								},
 								Err('i') => {
-									let newinv = w.create_later();
-									inventory.insert(newinv, Inventory(ent, 99999));
-									stasis.insert(newinv, AiStasis(ent));
+									ai.state = AiState::PlayerInventory(0);
 								},
 								Err('a') => {
 									match char_as_dir(getch()) {
@@ -240,53 +278,6 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 				ai.tick -= 1
 			}
 		}
-	}
-	let mut rminv = Vec::new();
-	for (&mut Inventory(inve, ref mut invp), ent) in (&mut inventory, &ents).iter() {
-		if *invp == 99999 {
-			*invp = 0;
-			continue
-		}
-		if let Some(&mut Bag(ref mut ebag)) = bag.get_mut(inve) {
-			'invput: loop {
-				match getch() {
-					'i' => rminv.push(ent),
-					'j' if ebag.len() > 0 =>
-						*invp = if *invp == ebag.len()-1 { 0 } else { *invp + 1 },
-					'k' if ebag.len() > 0 =>
-						*invp = if *invp == 0 { ebag.len()-1 } else { *invp - 1 },
-					'w' => {
-						match weapons.insert(inve, Weapon(ebag.remove(*invp))) {
-							InsertResult::Updated(Weapon(oldw)) => ebag.push(oldw),
-							_ => (),
-						}
-						if *invp == ebag.len() {
-							*invp = 0
-						}
-					},
-					'W' => {
-						weapons.remove(inve);
-					},
-					c if c >= '0' && c <= '9' => {
-						let v = (c as u32 as u8 - b'0') as usize;
-						if v < ebag.len() {
-							*invp = v
-						}
-					},
-					'\x1b' => (),
-					_ => continue 'invput,
-				};
-				break
-			}
-		} else {
-			rminv.push(ent);
-		}
-	}
-	for ent in rminv {
-		if let Some(inv) = inventory.get(ent) {
-			stasis.remove(inv.0);
-		}
-		inventory.remove(ent);
 	}
 	let mut rmpos = Vec::new();
 	for (ent, xyz) in grab {
