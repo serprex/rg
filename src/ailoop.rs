@@ -59,25 +59,20 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							ai.state = AiState::Player;
 						}
 					},
-					AiState::PlayerCasting(ref mut cast) => {
+					ref mut casting @ AiState::PlayerCasting(_) => {
 						let ch = getch();
 						if ch == ';' || ch == '\x1b' {
-							// Lexical lifetimes & lack of x@pat matching make me do this
-							todos.push((ent, Box::new(|e, w| {
-								if let Some(ref mut ai) = w.write::<Ai>().get_mut(e) {
-									ai.state = AiState::Player;
-								}
-							})));
+							*casting = AiState::Player;
 						} else {
-							cast.push(ch);
-							if cast == "blink" {
-								todos.push((ent, Box::new(actions::blink)));
-								todos.push((ent, Box::new(|e, w| {
-									if let Some(ref mut ai) = w.write::<Ai>().get_mut(e) {
-										ai.state = AiState::Player;
-									}
-								})));
+							if let AiState::PlayerCasting(ref mut cast) = *casting {
+								cast.push(ch);
+								if cast == "blink" {
+									todos.push((ent, Box::new(actions::blink)));
+								} else {
+									continue;
+								}
 							}
+							*casting = AiState::Player;
 						}
 					},
 					AiState::Player => 'playerinput: loop {
