@@ -15,7 +15,6 @@ mod moveloop;
 mod position;
 mod render;
 mod roomgen;
-mod super_sparse_storage;
 mod termjuggler;
 mod util;
 
@@ -39,8 +38,7 @@ fn main(){
 	let mut rng = XorShiftRng::rand(&mut rand::thread_rng());
 	let mut w = World::new();
 	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
-		WDirection, Bow, Heal, Casting,
-		Bag, Armor, Weapon, Head, Shield, Solid, Spell,
+		Bow, Heal, Bag, Armor, Weapon, Head, Shield, Solid, Spell,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());

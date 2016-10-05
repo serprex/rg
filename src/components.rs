@@ -3,7 +3,6 @@ use fnv::FnvHashMap;
 use specs::{World, Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
 use util::Char;
-use super_sparse_storage::SuperSparseStorage;
 
 macro_rules! impl_storage {
 	($storage: ident, $($comp: ty),*) => {
@@ -37,17 +36,18 @@ pub enum Dir {
 	H, J, K, L
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum AiState {
 	Random,
 	Aggro(Entity),
 	Scared(Entity),
 	Player,
 	PlayerInventory(usize),
+	PlayerCasting(String),
 	Melee(u8, i16),
 	Missile(Dir, i16),
 }
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct Ai {
 	pub state: AiState,
 	pub speed: u8,
@@ -130,9 +130,6 @@ pub struct Spell(pub Action);
 pub struct Casting(pub String);
 
 #[derive(Copy, Clone)]
-pub struct WDirection(pub Dir);
-
-#[derive(Copy, Clone)]
 pub struct Heal(pub i16);
 
 #[derive(Clone)]
@@ -148,13 +145,12 @@ pub struct Walls(pub FnvHashMap<[i16; 3], Char>);
 pub struct Todo(pub Vec<(Entity, Action)>);
 
 impl_storage!(VecStorage, Chr, Ai, Race);
-impl_storage!(HashMapStorage, Portal, Weight, Strength,
+impl_storage!(HashMapStorage, NPos, Portal, Weight, Strength,
 	Bow, Heal, Mortal,
 	Armor, Weapon, Shield, Head, Bag, Spell,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 impl_storage!(NullStorage, Solid, Pos);
-impl_storage!(HashMapStorage, NPos, WDirection, Casting);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {

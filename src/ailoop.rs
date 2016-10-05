@@ -7,8 +7,8 @@ use actions;
 use position::Possy;
 
 pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
-	let (mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, weight, strength, mut weapons, mut casting, ents) =
-		(w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.read::<Weight>(), w.read::<Strength>(), w.write::<Weapon>(), w.write::<Casting>(), w.entities());
+	let (mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, weight, strength, mut weapons, ents) =
+		(w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.read::<Weight>(), w.read::<Strength>(), w.write::<Weapon>(), w.entities());
 	let mut possy = w.write_resource::<Possy>();
 	let mut newent: Vec<(Entity, Chr, Ai, [i16; 3])> = Vec::new();
 	let mut grab: Vec<(Entity, [i16; 3])> = Vec::new();
@@ -59,61 +59,57 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							ai.state = AiState::Player;
 						}
 					},
-					AiState::Player => 'playerinput: loop {
+					AiState::PlayerCasting(ref mut cast) => {
 						let ch = getch();
-						let mut rmcast = false;
-						let mut wassomecast = false; // Lexical lifetimes I condemn you
-						if let Some(&mut Casting(ref mut cast)) = casting.get_mut(ent) {
-							wassomecast = true;
-							if ch == ';' || ch == '\x1b' {
-								rmcast = true;
-							} else {
-								cast.push(ch);
-								if cast == "blink" {
-									todos.push((ent, Box::new(actions::blink)));
-									rmcast = true;
+						if ch == ';' || ch == '\x1b' {
+							// Lexical lifetimes & lack of x@pat matching make me do this
+							todos.push((ent, Box::new(|e, w| {
+								if let Some(ref mut ai) = w.write::<Ai>().get_mut(e) {
+									ai.state = AiState::Player;
 								}
+							})));
+						} else {
+							cast.push(ch);
+							if cast == "blink" {
+								todos.push((ent, Box::new(actions::blink)));
+								todos.push((ent, Box::new(|e, w| {
+									if let Some(ref mut ai) = w.write::<Ai>().get_mut(e) {
+										ai.state = AiState::Player;
+									}
+								})));
 							}
 						}
-						if rmcast { casting.remove(ent); }
-						if !wassomecast {
-							match char_as_dir(ch) {
-								Ok(d) => xy_incr_dir(&mut npos, d),
-								Err('p') => {
-									match char_as_dir(getch()) {
-										Ok(d) => grab.push((ent, xyz_plus_dir(pos, d))),
-										_ => continue 'playerinput,
-									}
-								},
-								Err('i') => {
-									ai.state = AiState::PlayerInventory(0);
-								},
-								Err('a') => {
-									match char_as_dir(getch()) {
-										Ok(d) => {
-											let mut wdir = w.write::<WDirection>();
-											wdir.insert(ent, WDirection(d));
-											todos.push((ent, Box::new(actions::attack)));
-										},
-										_ => continue 'playerinput,
-									}
-								},
-								Err('s') => {
-									match char_as_dir(getch()) {
-										Ok(d) => {
-											let mut wdir = w.write::<WDirection>();
-											wdir.insert(ent, WDirection(d));
-											todos.push((ent, Box::new(actions::shoot)));
-										},
-										_ => continue 'playerinput,
-									}
-								},
-								Err('d') => {
-									casting.insert(ent, Casting(String::new()));
-								},
-								Err(c) if c >= '0' && c <= '9' => ai.tick = c as u32 as u8 - b'0',
-								_ => (),
-							}
+					},
+					AiState::Player => 'playerinput: loop {
+						let ch = getch();
+						match char_as_dir(ch) {
+							Ok(d) => xy_incr_dir(&mut npos, d),
+							Err('p') => {
+								match char_as_dir(getch()) {
+									Ok(d) => grab.push((ent, xyz_plus_dir(pos, d))),
+									_ => continue 'playerinput,
+								}
+							},
+							Err('i') => {
+								ai.state = AiState::PlayerInventory(0);
+							},
+							Err('a') => {
+								match char_as_dir(getch()) {
+									Ok(d) => todos.push((ent, Box::new(move|w, e| actions::attack(d, w, e)))),
+									_ => continue 'playerinput,
+								}
+							},
+							Err('s') => {
+								match char_as_dir(getch()) {
+									Ok(d) => todos.push((ent, Box::new(move|w, e| actions::shoot(d, w, e)))),
+									_ => continue 'playerinput,
+								}
+							},
+							Err('d') => {
+								ai.state = AiState::PlayerCasting(String::new());
+							},
+							Err(c) if c >= '0' && c <= '9' => ai.tick = c as u32 as u8 - b'0',
+							_ => (),
 						}
 						break
 					},
