@@ -43,12 +43,17 @@ fn main(){
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());
 	w.add_resource(Todo::default());
-	w.create_now()
+	let raffclaw = w.create_now()
 		.with(Chr(Char::from('x')))
 		.with(Weight(3))
 		.with(Atk::<Weapon>::new(1, 1, -2))
 		.with(NPos([4, 8, 0]))
 		.with(Pos)
+		.build();
+	let leylabow = w.create_now()
+		.with(Weight(1))
+		.with(Bow(1, 1))
+		.with(Chr(Char::from('j')))
 		.build();
 	w.create_now()
 		.with(Chr(Char::from('b')))
@@ -71,23 +76,25 @@ fn main(){
 		.build();
 	w.create_now()
 		.with(Chr(Char::from('r')))
-		.with(NPos([10, 6, 0]))
+		.with(NPos([20, 6, 0]))
 		.with(Pos)
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 12))
 		.with(Mortal(4))
 		.with(Weight(10))
 		.with(Race::Raffbarf)
+		.with(Weapon(raffclaw))
 		.build();
 	w.create_now()
 		.with(Chr(Char::from('k')))
-		.with(NPos([20, 8, 0]))
+		.with(NPos([10, 8, 0]))
 		.with(Pos)
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 8))
 		.with(Mortal(2))
 		.with(Weight(20))
 		.with(Race::Leylapan)
+		.with(Weapon(leylabow))
 		.build();
 	w.create_now()
 		.with(Chr(Char::from('!')))

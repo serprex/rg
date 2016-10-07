@@ -79,3 +79,30 @@ pub fn blink(src: Entity, w: &mut World) {
 		npos.insert(src, NPos([rng.gen_range(0, 40), rng.gen_range(0, 40), pxy[2]]));
 	}
 }
+
+pub fn grab(xyz: [i16; 3], src: Entity, w: &mut World) {
+	let strength = w.read::<Strength>();
+	let weight = w.read::<Weight>();
+	let mut bag = w.write::<Bag>();
+	let mut cpos = w.write::<Pos>();
+	let possy = w.read_resource::<Possy>();
+	let ents = w.entities();
+	let mut rmpos = Vec::new();
+	if let (Some(&Strength(strg)), Some(&mut Bag(ref mut ebag))) = (strength.get(src), bag.get_mut(src)) {
+		let mut totwei = 0;
+		for &Weight(wei) in ebag.iter().filter_map(|&e| weight.get(e)) {
+			totwei += wei as i32;
+		}
+		for (_, &Weight(wei), ent) in (&cpos, &weight, &ents).iter() {
+			if let Some(pos) = possy.get_pos(ent) {
+				if pos == xyz && totwei + wei as i32 <= strg as i32 {
+					ebag.push(ent);
+					rmpos.push(ent);
+				}
+			}
+		}
+	}
+	for ent in rmpos {
+		cpos.remove(ent);
+	}
+}

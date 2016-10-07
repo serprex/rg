@@ -7,11 +7,10 @@ use actions;
 use position::Possy;
 
 pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
-	let (mut cpos, mut cnpos, mut cai, mut crace, mut cch, mut bag, weight, strength, mut weapons, ents) =
-		(w.write::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.write::<Race>(), w.write::<Chr>(), w.write::<Bag>(), w.read::<Weight>(), w.read::<Strength>(), w.write::<Weapon>(), w.entities());
-	let mut possy = w.write_resource::<Possy>();
-	let mut newent: Vec<(Entity, Chr, Ai, [i16; 3])> = Vec::new();
-	let mut grab: Vec<(Entity, [i16; 3])> = Vec::new();
+	let (cpos, mut cnpos, mut cai, crace) =
+		(w.read::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.read::<Race>());
+	let possy = w.read_resource::<Possy>();
+	let ents = w.entities();
 	let Todo(ref mut todos) = *w.write_resource::<Todo>();
 	for (_, mut ai, &race, ent) in (&cpos, &mut cai, &crace, &ents).iter() {
 		if let Some(pos) = possy.get_pos(ent) {
@@ -21,6 +20,8 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 				match ai.state {
 					AiState::PlayerInventory(invp) => {
 						ai.tick = 1;
+						let mut bag = w.write::<Bag>();
+						let mut weapons = w.write::<Weapon>();
 						if let Some(&mut Bag(ref mut ebag)) = bag.get_mut(ent) {
 							'invput: loop {
 								match getch() {
@@ -81,7 +82,10 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							Ok(d) => xy_incr_dir(&mut npos, d),
 							Err('p') => {
 								match char_as_dir(getch()) {
-									Ok(d) => grab.push((ent, xyz_plus_dir(pos, d))),
+									Ok(d) => {
+										let gp = xyz_plus_dir(pos, d);
+										todos.push((ent, Box::new(move|e, w| actions::grab(gp, e, w))));
+									},
 									_ => continue 'playerinput,
 								}
 							},
@@ -90,13 +94,13 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							},
 							Err('a') => {
 								match char_as_dir(getch()) {
-									Ok(d) => todos.push((ent, Box::new(move|w, e| actions::attack(d, w, e)))),
+									Ok(d) => todos.push((ent, Box::new(move|e, w| actions::attack(d, e, w)))),
 									_ => continue 'playerinput,
 								}
 							},
 							Err('s') => {
 								match char_as_dir(getch()) {
-									Ok(d) => todos.push((ent, Box::new(move|w, e| actions::shoot(d, w, e)))),
+									Ok(d) => todos.push((ent, Box::new(move|e, w| actions::shoot(d, e, w)))),
 									_ => continue 'playerinput,
 								}
 							},
@@ -182,13 +186,10 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 											};
 											dnum += 1
 										}
-										if dnum > 0 {
-											let fdir = *rng.choose(&dirs[..dnum]).unwrap();
-											let bp = xyz_plus_dir(pos, fdir);
-											newent.push((w.create_later(), Chr(Char::from('j')), Ai::new(AiState::Missile(fdir, 1), 2), bp));
+										if let Some(&fdir) = rng.choose(&dirs[..dnum]) {
+											todos.push((ent, Box::new(move|e, w| actions::shoot(fdir, e, w))));
 											let mdir = if dnum == 2 {
-												if dirs[0] == fdir { dirs[1] }
-												else { dirs[0] }
+												dirs[if dirs[0] == fdir { 1 } else { 0 }]
 											} else {
 												match fdir {
 													Dir::L => Dir::H,
@@ -210,12 +211,9 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 									_ => {
 										let mut xxyy = pos;
 										let mut attacking = false;
-										for &choice in &[[pos[0]-1, pos[1], pos[2]],
-										[pos[0]+1, pos[1], pos[2]],
-										[pos[0], pos[1]-1, pos[2]],
-										[pos[0], pos[1]+1, pos[2]]] {
-											if choice == fxy {
-												newent.push((w.create_later(), Chr(Char::from('x')), Ai::new(AiState::Melee(2, 2), 1), choice));
+										for &dir in &[Dir::L, Dir::H, Dir::J, Dir::K] {
+											if xyz_plus_dir(pos, dir) == fxy {
+												todos.push((ent, Box::new(move|e, w| actions::attack(dir, e, w))));
 												attacking = true;
 												break
 											}
@@ -269,32 +267,5 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 				ai.tick -= 1
 			}
 		}
-	}
-	let mut rmpos = Vec::new();
-	for (ent, xyz) in grab {
-		if let (Some(&Strength(strg)), Some(&mut Bag(ref mut ebag))) = (strength.get(ent), bag.get_mut(ent)) {
-			let mut totwei = 0;
-			for &e in ebag.iter() {
-				if let Some(&Weight(wei)) = weight.get(e) {
-					totwei += wei as i32;
-				}
-			}
-			for (_, &Weight(wei), ent) in (&cpos, &weight, &ents).iter() {
-				let pos = possy.get_pos(ent).unwrap();
-				if pos == xyz && totwei + wei as i32 <= strg as i32 {
-					ebag.push(ent);
-					rmpos.push(ent);
-				}
-			}
-		}
-	}
-	for ent in rmpos {
-		cpos.remove(ent);
-	}
-	for (ent, newch, newai, newpos) in newent {
-		cch.insert(ent, newch);
-		cai.insert(ent, newai);
-		possy.set_pos(ent, newpos);
-		crace.insert(ent, Race::None);
 	}
 }
