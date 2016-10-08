@@ -68,7 +68,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							if let AiState::PlayerCasting(ref mut cast) = *casting {
 								cast.push(ch);
 								if cast == "blink" {
-									todos.push((ent, Box::new(actions::blink)));
+									todos.push(Box::new(move|w| actions::blink(ent, w)));
 								} else {
 									continue;
 								}
@@ -84,7 +84,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 								match char_as_dir(getch()) {
 									Ok(d) => {
 										let gp = xyz_plus_dir(pos, d);
-										todos.push((ent, Box::new(move|e, w| actions::grab(gp, e, w))));
+										todos.push(Box::new(move|w| actions::grab(gp, ent, w)));
 									},
 									_ => continue 'playerinput,
 								}
@@ -94,13 +94,13 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							},
 							Err('a') => {
 								match char_as_dir(getch()) {
-									Ok(d) => todos.push((ent, Box::new(move|e, w| actions::attack(d, e, w)))),
+									Ok(d) => todos.push(Box::new(move|w| actions::attack(d, ent, w))),
 									_ => continue 'playerinput,
 								}
 							},
 							Err('s') => {
 								match char_as_dir(getch()) {
-									Ok(d) => todos.push((ent, Box::new(move|e, w| actions::shoot(d, e, w)))),
+									Ok(d) => todos.push(Box::new(move|w| actions::shoot(d, ent, w))),
 									_ => continue 'playerinput,
 								}
 							},
@@ -187,7 +187,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 											dnum += 1
 										}
 										if let Some(&fdir) = rng.choose(&dirs[..dnum]) {
-											todos.push((ent, Box::new(move|e, w| actions::shoot(fdir, e, w))));
+											todos.push(Box::new(move|w| actions::shoot(fdir, ent, w)));
 											let mdir = if dnum == 2 {
 												dirs[if dirs[0] == fdir { 1 } else { 0 }]
 											} else {
@@ -213,7 +213,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 										let mut attacking = false;
 										for &dir in &[Dir::L, Dir::H, Dir::J, Dir::K] {
 											if xyz_plus_dir(pos, dir) == fxy {
-												todos.push((ent, Box::new(move|e, w| actions::attack(dir, e, w))));
+												todos.push(Box::new(move|w| actions::attack(dir, ent, w)));
 												attacking = true;
 												break
 											}

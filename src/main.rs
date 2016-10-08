@@ -38,7 +38,7 @@ fn main(){
 	let mut rng = XorShiftRng::rand(&mut rand::thread_rng());
 	let mut w = World::new();
 	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
-		Bow, Heal, Bag, Armor, Weapon, Head, Shield, Solid, Spell,
+		Bow, Heal, Bag, Armor, Weapon, Head, Shield, Solid,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());
@@ -146,8 +146,8 @@ fn main(){
 				let todo = todos.drain(..).collect::<Vec<_>>();
 				todo // stupid lifetime inference
 			};
-			for (ent, action) in todo {
-				action(ent, &mut w)
+			for action in todo {
+				action(&mut w);
 			}
 		}
 		moveloop::moveloop(&mut w);

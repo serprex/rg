@@ -5,14 +5,22 @@ use components::*;
 use position::Possy;
 pub fn moveloop(w: &mut World) {
 	{
-	let (npos, mut mort, portal, mut ai, mut solid, ents) =
-		(w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>(), w.entities());
+	let (npos, mut mort, portal, mut ai, mut solid) =
+		(w.read::<NPos>(), w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>());
+	let crace = w.read::<Race>();
 	let Walls(ref walls) = *w.read_resource::<Walls>();
 	let mut possy = w.write_resource::<Possy>();
+	let ents = w.entities();
+	let mut rmai = SmallVec::<[Entity; 2]>::new();
 
 	'newposloop:
 	for (&NPos(n), ent) in (&npos, &ents).iter() {
 		if walls.contains_key(&n) {
+			if let Some(&race) = crace.get(ent) {
+				if race == Race::None {
+					w.delete_later(ent)
+				}
+			}
 			continue 'newposloop
 		}
 		for &e in possy.npos_map(&npos, &ents).get_ents(n).into_iter() {
@@ -23,7 +31,6 @@ pub fn moveloop(w: &mut World) {
 		possy.set_pos(ent, n);
 	}
 
-	let mut rmai = SmallVec::<[Entity; 2]>::new();
 	let mut spos = SmallVec::<[(Entity, [i16; 3]); 2]>::new();
 	for (_xyz, col) in possy.npos_map(&npos, &ents).collisions() {
 		for e in col.iter().cloned() {
