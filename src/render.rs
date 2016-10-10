@@ -43,7 +43,7 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) {
 						curse.printnows(40, 1, "Empty", x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
 					} else {
 						for (idx, &item) in bag.iter().enumerate() {
-							let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
+							let ch = if let Some(&Chr(ch)) = chr.get(item) { ch.get_char() } else { ' ' };
 							curse.printnows(40, 1 + idx as u16,
 								&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
 								x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
@@ -58,5 +58,5 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) {
 			}
 		}
 	}
-	curse.perframe_refresh_then_clear(Char::from(' ')).unwrap();
+	curse.perframe_refresh_then_clear(Char::from(' ')).ok();
 }

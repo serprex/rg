@@ -10,6 +10,7 @@ pub fn moveloop(w: &mut World) {
 	let crace = w.read::<Race>();
 	let Walls(ref walls) = *w.read_resource::<Walls>();
 	let mut possy = w.write_resource::<Possy>();
+	possy.gc(w);
 	let ents = w.entities();
 	let mut rmai = SmallVec::<[Entity; 2]>::new();
 
@@ -23,7 +24,7 @@ pub fn moveloop(w: &mut World) {
 			}
 			continue 'newposloop
 		}
-		for &e in possy.npos_map(&npos, &ents).get_ents(n).into_iter() {
+		for &e in possy.npos_map(&npos, &ents).get_ents(n).iter() {
 			if e != ent && solid.get(e).is_some() {
 				continue 'newposloop
 			}
