@@ -41,8 +41,8 @@ impl<'a, 'b, 'c, A, D> PossyNpos<'a, 'b, 'c, A, D>
 			self.possy.get_pos(e)
 		}
 	}
-	pub fn get_ents(&'a self, pos: [i16; 3]) -> Cow<[Entity]> {
-		let mut sv = self.possy.get_ents(pos).map(Cow::Borrowed).unwrap_or_else(|| Cow::Owned(Vec::new()));
+	pub fn get_ents(&self, pos: [i16; 3]) -> Cow<[Entity]> {
+		let mut sv = Cow::Borrowed(self.possy.get_ents(pos));
 		let len0 = sv.len();
 		let mut rme = Vec::new();
 		for (&NPos(np), e) in (self.npos, self.ents).iter() {
@@ -134,13 +134,15 @@ impl Possy {
 			}
 		}
 	}
-	pub fn get_ents(&self, pos: [i16; 3]) -> Option<&[Entity]> {
-		self.floors.get(&pos[2])
-			.and_then(|floor| floor.get(&pos[..2]))
-			.map(|sv| &sv[..])
+	pub fn get_ents(&self, pos: [i16; 3]) -> &[Entity] {
+		if let Some(sv) = self.floors.get(&pos[2]).and_then(|floor| floor.get(&pos[..2])) {
+			&sv[..]
+		} else {
+			&[]
+		}
 	}
 	pub fn contains(&self, pos: [i16; 3]) -> bool {
-		self.get_ents(pos).is_some()
+		!self.get_ents(pos).is_empty()
 	}
 	pub fn set_pos(&mut self, e: Entity, pos: [i16; 3]) {
 		let oldpos = match self.e2p.entry(e) {

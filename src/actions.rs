@@ -92,14 +92,12 @@ pub fn grab(xyz: [i16; 3], src: Entity, w: &mut World) {
 		for &Weight(wei) in ebag.iter().filter_map(|&e| weight.get(e)) {
 			totwei += wei as i32;
 		}
-		if let Some(xyzents) = possy.get_ents(xyz) {
-			for &ent in xyzents.iter() {
-				if let (Some(&Weight(wei)), Some(_)) = (weight.get(ent), cpos.get(ent)) {
-					if totwei + wei as i32 <= strg as i32 {
-						ebag.push(ent);
-						rmpos.push(ent);
-						totwei += wei as i32;
-					}
+		for &ent in possy.get_ents(xyz).iter() {
+			if let (Some(&Weight(wei)), Some(_)) = (weight.get(ent), cpos.get(ent)) {
+				if totwei + wei as i32 <= strg as i32 {
+					ebag.push(ent);
+					rmpos.push(ent);
+					totwei += wei as i32;
 				}
 			}
 		}
