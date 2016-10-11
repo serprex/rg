@@ -1,8 +1,88 @@
 use rand::{self, Rng};
 use specs::*;
+use smallvec::SmallVec;
+
 use components::*;
 use util::*;
 use position::Possy;
+
+/*
+pub fn move(np: [i16; 2], src: Entity, w: &mut World) {
+
+}*/
+
+pub fn movedir(dir: Dir, src: Entity, w: &mut World) {
+	let mut possy = w.write_resource::<Possy>();
+	let crace = w.read::<Race>();
+	let (mut mort, portal, mut ai, mut solid) =
+		(w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>());
+	if let Some(pos) = possy.get_pos(src) {
+		let Walls(ref walls) = *w.read_resource::<Walls>();
+		let np = xyz_plus_dir(pos, dir);
+		if walls.contains_key(&np) {
+			if let Some(&race) = crace.get(src) {
+				if race == Race::None {
+					w.delete_later(src)
+				}
+			}
+			return
+		}
+		for &e in possy.get_ents(np).iter() {
+			if solid.get(e).is_some() {
+				return
+			}
+		}
+		possy.set_pos(src, np);
+	}
+	let mut rmai = SmallVec::<[Entity; 2]>::new();
+	let mut spos = SmallVec::<[(Entity, [i16; 3]); 2]>::new();
+	for &xyz in possy.collisions.iter() {
+		let col = possy.get_ents(xyz);
+		for e in col.iter().cloned() {
+			for ce in col.iter().cloned().filter(|&ce| ce != e) {
+				if let Some(&Portal(porx)) = portal.get(e) {
+					spos.push((ce, porx));
+				}
+				if let Some(aie) = ai.get(e) {
+					match aie.state {
+						AiState::Missile(_, dmg) => {
+							if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
+								if *mce <= dmg {
+									*mce = 0;
+									solid.remove(ce);
+									rmai.push(ce);
+								} else {
+									*mce -= dmg;
+								}
+							}
+							if let Some(_) = solid.get(ce) {
+								w.delete_later(e)
+							}
+						},
+						AiState::Melee(_, dmg) => {
+							if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
+								if *mce <= dmg {
+									*mce = 0;
+									solid.remove(ce);
+									rmai.push(ce);
+								} else {
+									*mce -= dmg;
+								}
+							}
+						},
+						_ => (),
+					}
+				}
+			}
+		}
+	}
+	for e in rmai {
+		ai.remove(e);
+	}
+	for (e, p) in spos {
+		possy.set_pos(e, p);
+	}
+}
 
 pub fn attack(dir: Dir, src: Entity, w: &mut World) {
 	let weapons = w.read::<Weapon>();
@@ -34,6 +114,11 @@ pub fn attack(dir: Dir, src: Entity, w: &mut World) {
 			}
 		}
 	}
+}
+
+pub fn lunge(dir: Dir, src: Entity, w: &mut World) {
+	movedir(dir, src, w);
+	attack(dir, src, w);
 }
 
 pub fn shoot(dir: Dir, src: Entity, w: &mut World) {
@@ -72,11 +157,10 @@ pub fn heal(src: Entity, w: &mut World) {
 }
 
 pub fn blink(src: Entity, w: &mut World) {
-	let mut npos = w.write::<NPos>();
-	let pos = w.read_resource::<Possy>();
-	if let Some(pxy) = pos.get_pos(src) {
+	let mut possy = w.write_resource::<Possy>();
+	if let Some(pxy) = possy.get_pos(src) {
 		let mut rng = rand::thread_rng();
-		npos.insert(src, NPos([rng.gen_range(0, 40), rng.gen_range(0, 40), pxy[2]]));
+		possy.set_pos(src, [rng.gen_range(0, 40), rng.gen_range(0, 40), pxy[2]]);
 	}
 }
 

@@ -11,7 +11,6 @@ mod components;
 mod genroom_forest;
 mod genroom_greedy;
 mod greedgrow;
-mod moveloop;
 mod position;
 mod render;
 mod roomgen;
@@ -37,36 +36,35 @@ macro_rules! w_register {
 fn main(){
 	let mut rng = XorShiftRng::rand(&mut rand::thread_rng());
 	let mut w = World::new();
-	w_register!(w, Pos, NPos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
+	w_register!(w, Pos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
 		Bow, Heal, Bag, Armor, Weapon, Head, Shield, Solid,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());
 	w.add_resource(Todo::default());
+	let mut possy = Possy::new();
 	let raffclaw = w.create_now()
 		.with(Chr(Char::from('x')))
 		.with(Weight(3))
 		.with(Atk::<Weapon>::new(1, 1, -2))
-		.with(NPos([4, 8, 0]))
 		.with(Pos)
 		.build();
+	possy.set_pos(raffclaw, [4, 8, 0]);
 	let leylabow = w.create_now()
 		.with(Weight(1))
 		.with(Bow(1, 1))
 		.with(Chr(Char::from('j')))
 		.build();
-	w.create_now()
+	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('b')))
 		.with(Weight(2))
 		.with(Bow(4, 1))
-		.with(NPos([2, 5, 0]))
 		.with(Pos)
-		.build();
+		.build(), [2, 5, 0]);
 	let player = w.create_now()
 		.with(Ai::new(AiState::Player, 10))
 		.with(Bag(Vec::new()))
 		.with(Chr(Char::from('@')))
-		.with(NPos([4, 4, 0]))
 		.with(Pos)
 		.with(Solid)
 		.with(Mortal(20))
@@ -74,9 +72,9 @@ fn main(){
 		.with(Strength(10))
 		.with(Weight(30))
 		.build();
-	w.create_now()
+	possy.set_pos(player, [4, 4, 0]);
+	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('r')))
-		.with(NPos([20, 6, 0]))
 		.with(Pos)
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 12))
@@ -84,10 +82,9 @@ fn main(){
 		.with(Weight(10))
 		.with(Race::Raffbarf)
 		.with(Weapon(raffclaw))
-		.build();
-	w.create_now()
+		.build(), [20, 6, 0]);
+	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('k')))
-		.with(NPos([10, 8, 0]))
 		.with(Pos)
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 8))
@@ -95,26 +92,21 @@ fn main(){
 		.with(Weight(20))
 		.with(Race::Leylapan)
 		.with(Weapon(leylabow))
-		.build();
-	w.create_now()
+		.build(), [10, 8, 0]);
+	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('!')))
-		.with(NPos([8, 8, 0]))
 		.with(Pos)
 		.with(Atk::<Weapon>::new(2, 3, 2))
 		.with(Weight(5))
-		.build();
-	w.create_now()
+		.build(), [8, 8, 0]);
+	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('#')))
-		.with(NPos([8, 10, 0]))
 		.with(Pos)
 		.with(Solid)
 		.with(Def::<Armor>::new(2))
 		.with(Weight(5))
-		.build();
-	{
-		let possy = Possy::new(&mut w);
-		w.add_resource(possy);
-	}
+		.build(), [8, 10, 0]);
+	w.add_resource(possy);
 	{
 	let rrg = genroom_greedy::GreedyRoomGen::default();
 	let frg = genroom_forest::ForestRoomGen::default();
@@ -150,6 +142,7 @@ fn main(){
 				action(&mut w);
 			}
 		}
-		moveloop::moveloop(&mut w);
+		let mut possy = w.write_resource::<Possy>();
+		possy.gc(&w);
 	}
 }

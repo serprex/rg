@@ -7,15 +7,15 @@ use actions;
 use position::Possy;
 
 pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
-	let (cpos, mut cnpos, mut cai, crace) =
-		(w.read::<Pos>(), w.write::<NPos>(), w.write::<Ai>(), w.read::<Race>());
+	let cpos = w.read::<Pos>();
+	let crace = w.read::<Race>();
+	let mut cai = w.write::<Ai>();
 	let possy = w.read_resource::<Possy>();
 	let ents = w.entities();
 	let Todo(ref mut todos) = *w.write_resource::<Todo>();
 	for (_, mut ai, &race, ent) in (&cpos, &mut cai, &crace, &ents).iter() {
 		if let Some(pos) = possy.get_pos(ent) {
 			if ai.tick == 0 {
-				let mut npos = pos;
 				ai.tick = ai.speed;
 				match ai.state {
 					AiState::PlayerInventory(invp) => {
@@ -77,9 +77,10 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 						}
 					},
 					AiState::Player => 'playerinput: loop {
-						let ch = getch();
-						match char_as_dir(ch) {
-							Ok(d) => xy_incr_dir(&mut npos, d),
+						match char_as_dir(getch()) {
+							Ok(d) => {
+								todos.push(Box::new(move|w| actions::movedir(d, ent, w)));
+							},
 							Err('p') => {
 								match char_as_dir(getch()) {
 									Ok(d) => {
@@ -98,6 +99,12 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 									_ => continue 'playerinput,
 								}
 							},
+							Err('q') => {
+								match char_as_dir(getch()) {
+									Ok(d) => todos.push(Box::new(move|w| actions::lunge(d, ent, w))),
+									_ => continue 'playerinput,
+								}
+							},
 							Err('s') => {
 								match char_as_dir(getch()) {
 									Ok(d) => todos.push(Box::new(move|w| actions::shoot(d, ent, w))),
@@ -113,21 +120,21 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 						break
 					},
 					AiState::Random => {
-						let mut choices: [[i16; 3]; 6] = unsafe { mem::uninitialized() };
-						choices[0] = pos;
-						choices[1] = pos;
+						let mut choices: [Option<Dir>; 6] = unsafe { mem::uninitialized() };
+						choices[0] = None;
+						choices[1] = None;
 						let mut chs = 2;
-						for choice in &[[pos[0]-1, pos[1], pos[2]],
-						[pos[0]+1, pos[1], pos[2]],
-						[pos[0], pos[1]-1, pos[2]],
-						[pos[0], pos[1]+1, pos[2]]] {
-							if !possy.contains(*choice) {
-								choices[chs] = *choice;
+						for &dir in &[Dir::L, Dir::H, Dir::J, Dir::K] {
+							let choice = xyz_plus_dir(pos, dir);
+							if !possy.contains(choice) {
+								choices[chs] = Some(dir);
 								chs += 1;
 							}
 						}
-						npos = *rng.choose(&choices[..chs]).unwrap();
-						let near = possy.get_within(npos, 5);
+						if let Some(&Some(dir)) = rng.choose(&choices[..chs]) {
+							todos.push(Box::new(move|w| actions::movedir(dir, ent, w)));
+						}
+						let near = possy.get_within(pos, 5);
 						for (e2, _) in near {
 							if ent != e2 {
 								if let Some(&race2) = crace.get(e2) {
@@ -142,22 +149,21 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 						match possy.get_pos(foe) {
 							None => ai.state = AiState::Random,
 							Some(fxy) => {
-								let mut choices: [[i16; 3]; 4] = unsafe { mem::uninitialized() };
+								let mut choices: [Dir; 4] = unsafe { mem::uninitialized() };
 								let mut chs = 0;
 								let dist = (pos[0] - fxy[0]).abs() + (pos[1] - fxy[1]).abs();
-								for choice in &[[pos[0]-1, pos[1], pos[2]],
-								[pos[0]+1, pos[1], pos[2]],
-								[pos[0], pos[1]-1, pos[2]],
-								[pos[0], pos[1]+1, pos[2]]] {
-									if (pos[0] - fxy[0]).abs() + (pos[1] - fxy[1]).abs() > dist && !possy.contains(*choice) {
-										choices[chs] = *choice;
+								for &dir in &[Dir::L, Dir::H, Dir::J, Dir::K] {
+									let choice = xyz_plus_dir(pos, dir);
+									if (pos[0] - fxy[0]).abs() + (pos[1] - fxy[1]).abs() > dist && !possy.contains(choice) {
+										choices[chs] = dir;
 										chs += 1;
 									}
 								}
 								if chs == 0 {
 									ai.state = AiState::Aggro(foe)
 								} else {
-									npos = *rng.choose(&choices[..chs]).unwrap()
+									let dir = *rng.choose(&choices[..chs]).unwrap();
+									todos.push(Box::new(move|w| actions::movedir(dir, ent, w)));
 								}
 							}
 						}
@@ -202,7 +208,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 											if possy.contains(nxy) {
 												ai.state = AiState::Scared(foe)
 											} else {
-												npos = nxy
+												todos.push(Box::new(move|w| actions::movedir(mdir, ent, w)));
 											}
 										} else {
 											ai.state = AiState::Scared(foe)
@@ -238,7 +244,15 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 											}
 											if xxyy == fxy {
 												let co = if pos[0] != fxy[0] && rng.gen() { 0 } else { 1 };
-												npos[co] += cmpi(pos[co], fxy[co], 1, 0, -1);
+												if let Some(dir) = match (co, cmpi(pos[co], fxy[co], 1, 0, -1)) {
+													(0, -1) => Some(Dir::H),
+													(0, 1) => Some(Dir::L),
+													(1, -1) => Some(Dir::K),
+													(1, 1) => Some(Dir::J),
+													 _ => None,
+												} {
+													todos.push(Box::new(move|w| actions::movedir(dir, ent, w)));
+												}
 											} else {
 												ai.state = AiState::Random
 											}
@@ -249,7 +263,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 						}
 					},
 					AiState::Missile(dir, _) => {
-						xy_incr_dir(&mut npos, dir);
+						todos.push(Box::new(move|w| actions::movedir(dir, ent, w)));
 					},
 					AiState::Melee(ref mut dur, _) => {
 						if *dur == 0 {
@@ -259,9 +273,6 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 						}
 					},
 					//_ => (),
-				}
-				if npos != pos {
-					cnpos.insert(ent, NPos(npos));
 				}
 			} else {
 				ai.tick -= 1

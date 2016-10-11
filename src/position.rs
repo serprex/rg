@@ -1,12 +1,10 @@
-use std::borrow::Cow;
 use std::collections::hash_map::Entry;
-use std::ops::Deref;
 
 use fnv::{FnvHashMap, FnvHashSet};
 use smallvec::SmallVec;
-use specs::{World, Entities, Entity, Join, Storage, Allocator, MaskedStorage};
+use specs::{Entity, World};
 
-use components::{Pos, NPos};
+use components::Pos;
 
 #[derive(Default)]
 pub struct Possy {
@@ -15,78 +13,9 @@ pub struct Possy {
 	pub collisions: FnvHashSet<[i16; 3]>,
 }
 
-pub struct PossyNpos<'a, 'b, 'c, A, D>
-	where A: 'b + Deref<Target = Allocator>,
-		D: 'b + Deref<Target = MaskedStorage<NPos>>
-{
-	possy: &'a Possy,
-	npos: &'b Storage<NPos, A, D>,
-	ents: &'c Entities<'c>
-}
-impl<'a, 'b, 'c, A, D> PossyNpos<'a, 'b, 'c, A, D>
-	where A: Deref<Target = Allocator>,
-		D: Deref<Target = MaskedStorage<NPos>>
-{
-	pub fn new(possy: &'a Possy, npos: &'b Storage<NPos, A, D>, ents: &'c Entities<'c>) -> Self {
-		PossyNpos {
-			possy: possy,
-			npos: npos,
-			ents: ents,
-		}
-	}
-	pub fn get_pos(&self, e: Entity) -> Option<[i16; 3]> {
-		if let Some(&NPos(p)) = self.npos.get(e) {
-			Some(p)
-		} else {
-			self.possy.get_pos(e)
-		}
-	}
-	pub fn get_ents(&self, pos: [i16; 3]) -> Cow<[Entity]> {
-		let mut sv = Cow::Borrowed(self.possy.get_ents(pos));
-		let len0 = sv.len();
-		let mut rme = Vec::new();
-		for (&NPos(np), e) in (self.npos, self.ents).iter() {
-			for idx in 0..len0 {
-				if sv[idx] == e {
-					rme.push(idx)
-				}
-			}
-			if np == pos {
-				sv.to_mut().push(e);
-			}
-		}
-		rme.sort_by(|a, b| b.cmp(a));
-		for idx in rme {
-			sv.to_mut().remove(idx);
-		}
-		sv
-	}
-	pub fn collisions(&self) -> Vec<([i16; 3], Cow<[Entity]>)> {
-		self.npos.iter()
-			.map(|&NPos(p)| p)
-			.filter(|p| !self.possy.collisions.contains(p))
-			.chain(self.possy.collisions.iter().cloned())
-			.map(|p| (p, self.get_ents(p)))
-			.filter(|&(_, ref ents)| ents.len() > 1)
-			.collect::<Vec<_>>()
-	}
-}
-
 impl Possy {
-	pub fn new(w: &mut World) -> Possy {
-		let mut poss: Possy = Default::default();
-		let mut npos = w.write::<NPos>();
-		for (&NPos(p), e) in (&npos, &w.entities()).iter() {
-			poss.set_pos(e, p);
-		}
-		npos.clear();
-		poss
-	}
-	pub fn npos_map<'a, 'b, 'c, A, D>(&'a self, s: &'b Storage<NPos, A, D>, ents: &'c Entities<'c>) -> PossyNpos<'a, 'b, 'c, A, D>
-		where A: Deref<Target = Allocator>,
-			D: Deref<Target = MaskedStorage<NPos>>
-	{
-		PossyNpos::new(self, s, ents)
+	pub fn new() -> Possy {
+		Default::default()
 	}
 	pub fn get_pos(&self, e: Entity) -> Option<[i16; 3]> {
 		self.e2p.get(&e).map(|&x| x)

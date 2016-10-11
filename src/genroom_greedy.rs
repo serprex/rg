@@ -63,12 +63,13 @@ impl RoomGen for GreedyRoomGen {
 				let r = rxy[aidx];
 				let x = rng.gen_range(r[0]+1, r[2]);
 				let y = rng.gen_range(r[1]+1, r[3]);
-				room.create_now()
+				let e = room.create_now()
 					.with(Chr(Char::from('\\')))
-					.with(NPos([xyz[0]+x,xyz[1]+y,xyz[2]]))
 					.with(Pos)
 					.with(Portal([xyz[0]+x,xyz[1],xyz[2]+1]))
 					.build();
+				let mut possy = room.write_resource::<Possy>();
+				possy.set_pos(e, [xyz[0]+x,xyz[1]+y,xyz[2]]);
 				break
 			}
 		}

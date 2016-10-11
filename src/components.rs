@@ -21,9 +21,6 @@ pub struct Chr(pub Char);
 pub struct Pos;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-pub struct NPos(pub [i16; 3]);
-
-#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Race {
 	Wazzlefu,
 	Raffbarf,
@@ -143,7 +140,7 @@ pub struct Walls(pub FnvHashMap<[i16; 3], Char>);
 pub struct Todo(pub Vec<Action>);
 
 impl_storage!(VecStorage, Chr, Ai, Race);
-impl_storage!(HashMapStorage, NPos, Portal, Weight, Strength,
+impl_storage!(HashMapStorage, Portal, Weight, Strength,
 	Bow, Heal, Mortal,
 	Armor, Weapon, Shield, Head, Bag,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,

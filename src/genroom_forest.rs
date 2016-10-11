@@ -4,6 +4,7 @@ use specs::World;
 
 use roomgen::RoomGen;
 use components::*;
+use position::Possy;
 use util::Char;
 use x1b::RGB4;
 
@@ -43,10 +44,9 @@ impl RoomGen for ForestRoomGen {
 						else { (RGB4::Green, RGB4::LightGreen) };
 					walls.insert([x, y, xyz[2]], Char::new_with_color('*', fg, bg));
 				} else if r - self.trees < self.raff {
-					room.create_now()
+					let e = room.create_now()
 						.with(Chr(Char::from('r')))
 						.with(Solid)
-						.with(NPos([x, y, xyz[2]]))
 						.with(Pos)
 						.with(Ai::new(AiState::Random, raffspeed.ind_sample(rng)))
 						.with(Race::Raffbarf)
@@ -54,6 +54,8 @@ impl RoomGen for ForestRoomGen {
 						.with(Weight(10))
 						.with(Weapon(raffclaw))
 						.build();
+					let mut possy = room.write_resource::<Possy>();
+					possy.set_pos(e, [x, y, xyz[2]]);
 				}
 			}
 		}
