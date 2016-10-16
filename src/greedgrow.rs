@@ -1,14 +1,17 @@
+use fnv::FnvHashSet;
 use rand::Rng;
 use rand::distributions::{IndependentSample, Range};
 
+use adjacency::{Adjacency, AdjacencySet};
 use util::rectoverinc;
 
 /* Given a set of rects, grow them as much as possible
    Return adjacency matrix */
-pub fn grow<R: Rng>(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h: i16) -> Vec<bool> {
+pub fn grow<R: Rng>(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h: i16)
+-> AdjacencySet {
 	let bet4 = Range::new(0, 4);
 	let rc = rxy.len();
-	let mut adjacent = vec![false; rc*rc];
+	let mut adjacent = AdjacencySet::default();
 	let mut done = [false; 4];
 	loop {
 		let mut cangrow: Vec<bool> = Vec::with_capacity(rc);
@@ -34,8 +37,7 @@ pub fn grow<R: Rng>(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h:
 			for (j, rect2) in rxy.iter().enumerate() {
 				if i != j && rectoverinc(newrect, *rect2){
 					grow = false;
-					adjacent[i+j*rc] = true;
-					adjacent[i*rc+j] = true;
+					adjacent.insert(i, j);
 				}
 			}
 			cangrow.push(grow)
@@ -51,6 +53,32 @@ pub fn grow<R: Rng>(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h:
 				2|3 => 1,
 				_ => unreachable!(),
 			}
+		}
+	}
+}
+
+pub fn doors<R: Rng, A: Adjacency>(rng: &mut R, adj: &A, rc: usize)
+-> Vec<(usize, usize)> {
+	let mut ret = Vec::with_capacity(rc);
+	if rc == 0 { return ret }
+	let mut nzgrps: FnvHashSet<usize> = (1..rc).into_iter().collect();
+	let mut zgrps: FnvHashSet<usize> = FnvHashSet::with_capacity_and_hasher(rc, Default::default());
+	zgrps.insert(0);
+	loop {
+		let nthzi = rng.gen_range(0, zgrps.len());
+		let &iszi = zgrps.iter().skip(nthzi).next().unwrap();
+		let adjs = (0..rc).into_iter()
+			.filter(|&i| adj.contains(i, iszi))
+			.collect::<Vec<_>>();
+		if let Some(&aidx) = rng.choose(&adjs) {
+			ret.push((iszi, aidx));
+			zgrps.insert(aidx);
+			nzgrps.remove(&aidx);
+			if nzgrps.is_empty() {
+				return ret
+			}
+		} else {
+			return ret
 		}
 	}
 }

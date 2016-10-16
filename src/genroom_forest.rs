@@ -26,7 +26,7 @@ impl Default for ForestRoomGen {
 }
 
 impl RoomGen for ForestRoomGen {
-	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, room: &mut World) {
+	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &[[i16; 2]], room: &mut World) {
 		let range = Range::new(0, self.trees + self.raff + self.null);
 		let raffspeed = Range::new(8, 14);
 		let raffclaw = room.create_now()

@@ -6,6 +6,7 @@ extern crate fnv;
 extern crate smallvec;
 
 mod actions;
+mod adjacency;
 mod ailoop;
 mod components;
 mod genroom_forest;
@@ -119,10 +120,10 @@ fn main(){
 			frg.generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0], fxy[3]-fxy[1], &mut w)
 		}
 	}*/
-	rrg.generate(&mut rng, [0, 0, 0], 40, 40, &mut w);
-	rrg.generate(&mut rng, [-10, -10, 1], 60, 60, &mut w);
-	frg.generate(&mut rng, [0, 0, 2], 40, 80, &mut w);
-	frg.generate(&mut rng, [0, 0, 3], 40, 80, &mut w);
+	rrg.generate(&mut rng, [0, 0, 0], 40, 40, &[], &mut w);
+	frg.generate(&mut rng, [-10, -10, 1], 60, 60, &[], &mut w);
+	frg.generate(&mut rng, [0, 0, 2], 40, 80, &[], &mut w);
+	frg.generate(&mut rng, [0, 0, 3], 40, 80, &[], &mut w);
 	}
 	let mut curse = x1b::Curse::<x1b::RGB4>::new(80, 60);
 	let _lock = TermJuggler::new();
