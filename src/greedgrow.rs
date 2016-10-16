@@ -1,3 +1,5 @@
+use std::cmp;
+
 use fnv::FnvHashSet;
 use rand::Rng;
 use rand::distributions::{IndependentSample, Range};
@@ -57,7 +59,7 @@ pub fn grow<R: Rng>(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h:
 	}
 }
 
-pub fn doors<R: Rng, A: Adjacency>(rng: &mut R, adj: &A, rc: usize)
+pub fn joinlist<R: Rng, A: Adjacency>(rng: &mut R, adj: &A, rc: usize)
 -> Vec<(usize, usize)> {
 	let mut ret = Vec::with_capacity(rc);
 	if rc == 0 { return ret }
@@ -81,4 +83,29 @@ pub fn doors<R: Rng, A: Adjacency>(rng: &mut R, adj: &A, rc: usize)
 			return ret
 		}
 	}
+}
+
+pub fn doors<R: Rng, D>(rng: &mut R, connset: D, rxy: &[[i16; 4]])
+-> (Vec<[i16; 2]>, usize)
+where D: Iterator<Item = (usize, usize)>
+{
+	let mut lastaidx = 0;
+	let mut ret = Vec::new();
+	for (iszi, aidx) in connset {
+		lastaidx = aidx;
+		let r1 = rxy[iszi];
+		let r2 = rxy[aidx];
+		for &(r1i, r2i, mxi, mni) in &[(0, 2, 1, 3), (2, 0, 1, 3), (1, 3, 0, 2), (3, 1, 0, 2)] {
+			if r1[r1i] == r2[r2i] {
+				let mn = cmp::max(r1[mxi], r2[mxi])+1;
+				let mx = cmp::min(r1[mni], r2[mni]);
+				if mn != mx {
+					let mnx = rng.gen_range(mn, mx);
+					ret.push(if mxi == 1 { [r1[r1i],mnx] } else { [mnx,r1[r1i]] });
+				}
+				break
+			}
+		}
+	}
+	(ret, lastaidx)
 }

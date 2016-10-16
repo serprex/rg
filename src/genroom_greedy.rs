@@ -1,4 +1,3 @@
-use std::cmp;
 use fnv::FnvHashSet;
 use rand::Rng;
 use rand::distributions::{IndependentSample, Range};
@@ -32,24 +31,10 @@ impl RoomGen for GreedyRoomGen {
 		}
 		let adjacent = greedgrow::grow(rng, &mut rxy, xyz[0], xyz[1], w, h);
 		let mut doors: FnvHashSet<[i16; 2]> = exits.iter().cloned().collect();
-		let connset = greedgrow::doors(rng, &adjacent, rc);
-		let mut lastaidx = 0;
-		'doorloop:
-		for (iszi, aidx) in connset.into_iter() {
-			lastaidx = aidx;
-			let r1 = rxy[iszi];
-			let r2 = rxy[aidx];
-			for &(r1i, r2i, mxi, mni) in &[(0, 2, 1, 3), (2, 0, 1, 3), (1, 3, 0, 2), (3, 1, 0, 2)] {
-				if r1[r1i] == r2[r2i] {
-					let mn = cmp::max(r1[mxi], r2[mxi])+1;
-					let mx = cmp::min(r1[mni], r2[mni]);
-					if mn != mx {
-						let mnx = rng.gen_range(mn, mx);
-						doors.insert(if mxi == 1 { [r1[r1i],mnx] } else { [mnx,r1[r1i]] });
-					}
-					break
-				}
-			}
+		let connset = greedgrow::joinlist(rng, &adjacent, rc);
+		let (doorset, lastaidx) = greedgrow::doors(rng, connset.into_iter(), &rxy);
+		for xy in doorset {
+			doors.insert(xy);
 		}
 		{
 			let r = rxy[lastaidx];
