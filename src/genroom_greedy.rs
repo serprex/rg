@@ -43,7 +43,7 @@ impl RoomGen for GreedyRoomGen {
 			let e = room.create_now()
 				.with(Chr(Char::from('\\')))
 				.with(Pos)
-				.with(Portal([xyz[0]+x,xyz[1],xyz[2]+1]))
+				.with(Portal([xyz[0]+x,xyz[1]+y,xyz[2]+1]))
 				.build();
 			let mut possy = room.write_resource::<Possy>();
 			possy.set_pos(e, [xyz[0]+x,xyz[1]+y,xyz[2]]);
@@ -56,10 +56,7 @@ impl RoomGen for GreedyRoomGen {
 		}
 		let Walls(ref mut walls) = *room.write_resource::<Walls>();
 		let mut add_wall = |xy: [i16; 2], ch: char| {
-			if !doors.contains(&xy) {
-				doors.insert(xy);
-				walls.insert([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]], Char::from(ch));
-			}
+			walls.insert([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]], Char::from(ch));
 		};
 		for xywh in rxy {
 			for x in xywh[0]..xywh[2]+1 {
