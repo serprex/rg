@@ -6,34 +6,41 @@ use components::*;
 use util::*;
 use position::Possy;
 
-/*
-pub fn move(np: [i16; 2], src: Entity, w: &mut World) {
-
-}*/
-
 pub fn movedir(dir: Dir, src: Entity, w: &mut World) {
+	let np;
+	{
+	let mut possy = w.write_resource::<Possy>();
+	np = possy.get_pos(src).map(|pos| xyz_plus_dir(pos, dir));
+	}
+	if let Some(np) = np {
+		moveto(np, src, w)
+	}
+}
+
+pub fn moveto(np: [i16; 3], src: Entity, w: &mut World) {
 	let mut possy = w.write_resource::<Possy>();
 	let crace = w.read::<Race>();
-	let (mut mort, portal, mut ai, mut solid) =
-		(w.write::<Mortal>(), w.read::<Portal>(), w.write::<Ai>(), w.write::<Solid>());
-	if let Some(pos) = possy.get_pos(src) {
-		let Walls(ref walls) = *w.read_resource::<Walls>();
-		let np = xyz_plus_dir(pos, dir);
-		if walls.contains_key(&np) {
-			if let Some(&race) = crace.get(src) {
-				if race == Race::None {
-					w.delete_later(src)
-				}
+	let mut mort = w.write::<Mortal>();
+	let portal = w.read::<Portal>();
+	let mut ai = w.write::<Ai>();
+	let mut solid = w.write::<Solid>();
+	let Walls(ref walls) = *w.read_resource::<Walls>();
+	if walls.contains_key(&np) {
+		if let Some(&race) = crace.get(src) {
+			if race == Race::None {
+				w.delete_later(src)
 			}
-			return
 		}
+		return
+	}
+	if solid.get(src).is_some() {
 		for &e in possy.get_ents(np).iter() {
 			if solid.get(e).is_some() {
 				return
 			}
 		}
-		possy.set_pos(src, np);
 	}
+	possy.set_pos(src, np);
 	let mut rmai = SmallVec::<[Entity; 2]>::new();
 	let mut spos = SmallVec::<[(Entity, [i16; 3]); 2]>::new();
 	for &xyz in possy.collisions.iter() {
@@ -55,7 +62,7 @@ pub fn movedir(dir: Dir, src: Entity, w: &mut World) {
 									*mce -= dmg;
 								}
 							}
-							if let Some(_) = solid.get(ce) {
+							if solid.get(ce).is_some() {
 								w.delete_later(e)
 							}
 						},
@@ -102,7 +109,6 @@ pub fn attack(dir: Dir, src: Entity, w: &mut World) {
 				cai.insert(newent, Ai::new(AiState::Melee(wstats.dur, wstats.dmg), 1));
 				cp.insert(newent, Pos);
 				crace.insert(newent, Race::None);
-				cpos.set_pos(newent, bp);
 				if let Some(mut ai) = cai.get_mut(src) {
 					ai.tick = if wstats.spd < 0 {
 						let spd = (-wstats.spd) as u8;
@@ -111,6 +117,8 @@ pub fn attack(dir: Dir, src: Entity, w: &mut World) {
 						ai.tick + wstats.spd as u8
 					};
 				}
+				let Todo(ref mut todos) = *w.write_resource::<Todo>();
+				todos.push(Box::new(move|w| moveto(bp, newent, w)));
 			}
 		}
 	}
@@ -139,7 +147,8 @@ pub fn shoot(dir: Dir, src: Entity, w: &mut World) {
 					cai.insert(newent, Ai::new(AiState::Missile(dir, dmg), spd));
 					cp.insert(newent, Pos);
 					crace.insert(newent, Race::None);
-					cpos.set_pos(newent, bp);
+					let Todo(ref mut todos) = *w.write_resource::<Todo>();
+					todos.push(Box::new(move|w| moveto(bp, newent, w)));
 				}
 			}
 		}

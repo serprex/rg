@@ -19,7 +19,7 @@ mod termjuggler;
 mod util;
 
 use std::sync::atomic::Ordering;
-use rand::{Rand, XorShiftRng};
+use rand::{Rand, Rng, XorShiftRng};
 use specs::*;
 
 use components::*;
@@ -111,25 +111,23 @@ fn main(){
 	{
 	let rrg = genroom_greedy::GreedyRoomGen::default();
 	let frg = genroom_forest::ForestRoomGen::default();
-	let mut f1 = [[20, 10, 22, 12], [30, 32, 20, 22], [20, 30, 24, 36], [50, 50, 55, 55], [60, 50, 62, 52], [80, 60, 82, 70], [90, 90, 95, 105]];
+	let mut f1 = [[10, 10, 22, 12], [30, 32, 20, 22], [20, 30, 24, 36], [50, 50, 55, 55], [60, 50, 62, 52], [80, 60, 82, 70], [90, 90, 95, 105]];
 	let fadj = greedgrow::grow(&mut rng, &mut f1, 0, 0, 120, 120);
-	/*for fxy in f1.iter() {
+	let fjlist = greedgrow::joinlist(&mut rng, &fadj, f1.len());
+	let (exits, _) = greedgrow::doors(&mut rng, fjlist.into_iter(), &f1);
+	for fxy in f1.iter() {
 		if rng.gen() {
-			rrg.generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0], fxy[3]-fxy[1], &mut w)
+			rrg.generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0]+1, fxy[3]-fxy[1]+1, &exits, &mut w)
 		} else {
-			frg.generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0], fxy[3]-fxy[1], &mut w)
+			frg.generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0]+1, fxy[3]-fxy[1]+1, &exits, &mut w)
 		}
-	}*/
+	}
 	rrg.generate(&mut rng, [0, 0, 0], 40, 40, &[], &mut w);
-	frg.generate(&mut rng, [-10, -10, 1], 60, 60, &[], &mut w);
-	frg.generate(&mut rng, [0, 0, 2], 40, 80, &[], &mut w);
-	frg.generate(&mut rng, [0, 0, 3], 40, 80, &[], &mut w);
 	}
 	let mut curse = x1b::Curse::<x1b::RGB4>::new(80, 60);
 	let _lock = TermJuggler::new();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		render::render(player, &mut w, &mut curse);
-		w.maintain();
 		ailoop::ailoop(&mut rng, &mut w);
 		loop {
 			w.maintain();

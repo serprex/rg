@@ -19,7 +19,7 @@ impl Default for GreedyRoomGen {
 impl RoomGen for GreedyRoomGen {
 	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &[[i16; 2]], room: &mut World) {
 		let rc = self.0;
-		if w<2 || h<2 { return }
+		if w<3 || h<3 { return }
 		let betwh = Range::new(0, (w-2)*(h-2));
 		let mut rxy = Vec::with_capacity(rc);
 		while rxy.len() < rc {
@@ -56,7 +56,9 @@ impl RoomGen for GreedyRoomGen {
 		}
 		let Walls(ref mut walls) = *room.write_resource::<Walls>();
 		let mut add_wall = |xy: [i16; 2], ch: char| {
-			walls.insert([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]], Char::from(ch));
+			if !doors.contains(&xy) {
+				walls.insert([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]], Char::from(ch));
+			}
 		};
 		for xywh in rxy {
 			for x in xywh[0]..xywh[2]+1 {
