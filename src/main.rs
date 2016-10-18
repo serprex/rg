@@ -111,7 +111,7 @@ fn main(){
 	{
 	let rrg = genroom_greedy::GreedyRoomGen::default();
 	let frg = genroom_forest::ForestRoomGen::default();
-	let mut f1 = [[10, 10, 22, 12], [30, 32, 20, 22], [20, 30, 24, 36], [50, 50, 55, 55], [60, 50, 62, 52], [80, 60, 82, 70], [90, 90, 95, 105]];
+	let mut f1 = [[10, 10, 22, 12], [20, 22, 30, 32], [35, 20, 24, 36], [50, 50, 55, 55], [60, 50, 62, 52], [80, 60, 82, 70], [90, 90, 95, 105]];
 	let fadj = greedgrow::grow(&mut rng, &mut f1, 0, 0, 120, 120);
 	let fjlist = greedgrow::joinlist(&mut rng, &fadj, f1.len());
 	let (exits, _) = greedgrow::doors(&mut rng, fjlist.into_iter(), &f1);
