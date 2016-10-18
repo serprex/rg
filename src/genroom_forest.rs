@@ -77,7 +77,7 @@ impl RoomGen for ForestRoomGen {
 				}
 			}
 		}
-		loop {
+		while let Some(&(x, y)) = {
 			candy.clear();
 			while let Some(xy) = ffs.pop() {
 				xys.insert(xy);
@@ -113,21 +113,19 @@ impl RoomGen for ForestRoomGen {
 					}
 				}
 			}
-			if let Some(&(x, y)) = rng.choose(&candy) {
-				walls.remove(&[x, y, xyz[2]]);
-				for &(xd, yd, b) in &[
-					(1, 0, x + 1 < xyz[0] + w),
-					(0, 1, y + 1 < xyz[1] + h),
-					(-1, 0, x - 1 >= xyz[0]),
-					(0, -1, y - 1 >= xyz[1]),
-				] {
-					if b && !xys.contains(&[x+xd, y+yd]) && !walls.contains_key(&[x+xd, y+yd, xyz[2]])
-					{
-						ffs.push([x+xd, y+yd]);
-					}
+			rng.choose(&candy)
+		} {
+			walls.remove(&[x, y, xyz[2]]);
+			for &(xd, yd, b) in &[
+				(1, 0, x + 1 < xyz[0] + w),
+				(0, 1, y + 1 < xyz[1] + h),
+				(-1, 0, x - 1 >= xyz[0]),
+				(0, -1, y - 1 >= xyz[1]),
+			] {
+				if b && !xys.contains(&[x+xd, y+yd]) && !walls.contains_key(&[x+xd, y+yd, xyz[2]])
+				{
+					ffs.push([x+xd, y+yd]);
 				}
-			} else {
-				break
 			}
 		}
 	}
