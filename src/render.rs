@@ -8,7 +8,6 @@ use util::Char;
 pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) {
 	let possy = w.read_resource::<Possy>();
 	if let Some(plpos) = possy.get_pos(player) {
-		let pos = w.read::<Pos>();
 		let cai = w.read::<Ai>();
 		let chr = w.read::<Chr>();
 		let weapons = w.read::<Weapon>();
@@ -27,7 +26,7 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) {
 			}
 		}
 		}
-		for (_, &Chr(ch), e) in (&pos, &chr, &w.entities()).iter() {
+		for (&Chr(ch), e) in (&chr, &w.entities()).iter() {
 			if let Some(a) = possy.get_pos(e) {
 				let x = a[0] - pxy[0] + 6;
 				let y = a[1] - pxy[1] + 6;

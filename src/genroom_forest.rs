@@ -51,7 +51,6 @@ impl RoomGen for ForestRoomGen {
 					let e = room.create_now()
 						.with(Chr(Char::from('r')))
 						.with(Solid)
-						.with(Pos)
 						.with(Ai::new(AiState::Random, raffspeed.ind_sample(rng)))
 						.with(Race::Raffbarf)
 						.with(Mortal(4))

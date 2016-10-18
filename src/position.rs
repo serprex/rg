@@ -4,8 +4,6 @@ use fnv::{FnvHashMap, FnvHashSet};
 use smallvec::SmallVec;
 use specs::{Entity, World};
 
-use components::Pos;
-
 #[derive(Default)]
 pub struct Possy {
 	pub floors: FnvHashMap<i16, FnvHashMap<[i16; 2], SmallVec<[Entity; 1]>>>,
@@ -21,20 +19,23 @@ impl Possy {
 		self.e2p.get(&e).map(|&x| x)
 	}
 	pub fn gc(&mut self, w: &World) {
-		let pos = w.read::<Pos>();
 		let mut rme = Vec::new();
 		for (&k, &p) in self.e2p.iter() {
-			if pos.get(k).is_none() {
+			if !w.is_alive(k) {
 				rme.push((k, p));
 			}
 		}
 		for (k, p) in rme.into_iter() {
-			self.e2p.remove(&k);
+			self.remove(k);
+		}
+	}
+	pub fn remove(&mut self, ent: Entity) {
+		if let Some(p) = self.e2p.remove(&ent) {
 			if let Some(floor) = self.floors.get_mut(&p[2]) {
 				if let Some(sv) = floor.get_mut(&p[..2]) {
 					let mut idx: usize = unsafe { ::std::mem::uninitialized() };
 					for (i, &ie) in sv.iter().enumerate() {
-						if k == ie {
+						if ent == ie {
 							idx = i;
 							break
 						}
@@ -48,19 +49,18 @@ impl Possy {
 		let x = xyz[0];
 		let y = xyz[1];
 		let z = xyz[2];
-		match self.floors.get(&z) {
-			None => Vec::new(),
-			Some(floor) => {
-				let mut ents = Vec::new();
-				for (&k, v) in floor.iter() {
-					if (k[0] - x).abs() < r && (k[1] - y).abs() < r {
-						for &e in v.iter() {
-							ents.push((e, k))
-						}
+		if let Some(floor) = self.floors.get(&z) {
+			let mut ents = Vec::new();
+			for (&k, v) in floor.iter() {
+				if (k[0] - x).abs() < r && (k[1] - y).abs() < r {
+					for &e in v.iter() {
+						ents.push((e, k))
 					}
 				}
-				ents
 			}
+			ents
+		} else {
+			Vec::new()
 		}
 	}
 	pub fn get_ents(&self, pos: [i16; 3]) -> &[Entity] {

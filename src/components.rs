@@ -17,9 +17,6 @@ pub type Action = Box<Fn(&mut World) + Send + Sync>;
 #[derive(Copy, Clone)]
 pub struct Chr(pub Char);
 
-#[derive(Copy, Clone, Default)]
-pub struct Pos;
-
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Race {
 	Wazzlefu,
@@ -145,7 +142,7 @@ impl_storage!(HashMapStorage, Portal, Weight, Strength,
 	Armor, Weapon, Shield, Head, Bag,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
-impl_storage!(NullStorage, Solid, Pos);
+impl_storage!(NullStorage, Solid);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {

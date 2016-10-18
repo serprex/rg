@@ -18,6 +18,7 @@ mod roomgen;
 mod termjuggler;
 mod util;
 
+use std::mem;
 use std::sync::atomic::Ordering;
 use rand::{Rand, Rng, XorShiftRng};
 use specs::*;
@@ -37,7 +38,7 @@ macro_rules! w_register {
 fn main(){
 	let mut rng = XorShiftRng::rand(&mut rand::thread_rng());
 	let mut w = World::new();
-	w_register!(w, Pos, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
+	w_register!(w, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
 		Bow, Heal, Bag, Armor, Weapon, Head, Shield, Solid,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
@@ -48,7 +49,6 @@ fn main(){
 		.with(Chr(Char::from('x')))
 		.with(Weight(3))
 		.with(Atk::<Weapon>::new(1, 1, -2))
-		.with(Pos)
 		.build();
 	possy.set_pos(raffclaw, [4, 8, 0]);
 	let leylabow = w.create_now()
@@ -60,13 +60,11 @@ fn main(){
 		.with(Chr(Char::from('b')))
 		.with(Weight(2))
 		.with(Bow(4, 1))
-		.with(Pos)
 		.build(), [2, 5, 0]);
 	let player = w.create_now()
 		.with(Ai::new(AiState::Player, 10))
 		.with(Bag(Vec::new()))
 		.with(Chr(Char::from('@')))
-		.with(Pos)
 		.with(Solid)
 		.with(Mortal(20))
 		.with(Race::Wazzlefu)
@@ -76,7 +74,6 @@ fn main(){
 	possy.set_pos(player, [4, 4, 0]);
 	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('r')))
-		.with(Pos)
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 12))
 		.with(Mortal(4))
@@ -86,7 +83,6 @@ fn main(){
 		.build(), [20, 6, 0]);
 	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('k')))
-		.with(Pos)
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 8))
 		.with(Mortal(2))
@@ -96,13 +92,11 @@ fn main(){
 		.build(), [10, 8, 0]);
 	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('!')))
-		.with(Pos)
 		.with(Atk::<Weapon>::new(2, 3, 2))
 		.with(Weight(5))
 		.build(), [8, 8, 0]);
 	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('#')))
-		.with(Pos)
 		.with(Solid)
 		.with(Def::<Armor>::new(2))
 		.with(Weight(5))
@@ -134,8 +128,7 @@ fn main(){
 			let todo = {
 				let Todo(ref mut todos) = *w.write_resource::<Todo>();
 				if todos.is_empty() { break }
-				let todo = todos.drain(..).collect::<Vec<_>>();
-				todo // stupid lifetime inference
+				mem::replace(todos, Vec::new())
 			};
 			for action in todo {
 				action(&mut w);

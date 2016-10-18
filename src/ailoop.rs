@@ -7,13 +7,12 @@ use actions;
 use position::Possy;
 
 pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
-	let cpos = w.read::<Pos>();
 	let crace = w.read::<Race>();
 	let mut cai = w.write::<Ai>();
 	let possy = w.read_resource::<Possy>();
 	let ents = w.entities();
 	let Todo(ref mut todos) = *w.write_resource::<Todo>();
-	for (_, mut ai, &race, ent) in (&cpos, &mut cai, &crace, &ents).iter() {
+	for (mut ai, &race, ent) in (&mut cai, &crace, &ents).iter() {
 		if let Some(pos) = possy.get_pos(ent) {
 			if ai.tick == 0 {
 				ai.tick = ai.speed;

@@ -95,8 +95,7 @@ pub fn attack(dir: Dir, src: Entity, w: &mut World) {
 	let weapons = w.read::<Weapon>();
 	let mut cch = w.write::<Chr>();
 	let mut cai = w.write::<Ai>();
-	let mut cpos = w.write_resource::<Possy>();
-	let mut cp = w.write::<Pos>();
+	let cpos = w.read_resource::<Possy>();
 	let mut crace = w.write::<Race>();
 	let watk = w.read::<Atk<Weapon>>();
 	if let Some(&Weapon(went)) = weapons.get(src) {
@@ -107,7 +106,6 @@ pub fn attack(dir: Dir, src: Entity, w: &mut World) {
 				let newent = w.create_later();
 				cch.insert(newent, wch);
 				cai.insert(newent, Ai::new(AiState::Melee(wstats.dur, wstats.dmg), 1));
-				cp.insert(newent, Pos);
 				crace.insert(newent, Race::None);
 				if let Some(mut ai) = cai.get_mut(src) {
 					ai.tick = if wstats.spd < 0 {
@@ -133,8 +131,7 @@ pub fn shoot(dir: Dir, src: Entity, w: &mut World) {
 	let weapons = w.read::<Weapon>();
 	let bows = w.read::<Bow>();
 	let mut cch = w.write::<Chr>();
-	let mut cpos = w.write_resource::<Possy>();
-	let mut cp = w.write::<Pos>();
+	let cpos = w.read_resource::<Possy>();
 	let mut crace = w.write::<Race>();
 	let mut cai = w.write::<Ai>();
 	if let Some(&Weapon(went)) = weapons.get(src) {
@@ -145,7 +142,6 @@ pub fn shoot(dir: Dir, src: Entity, w: &mut World) {
 					let newent = w.create_later();
 					cch.insert(newent, wch);
 					cai.insert(newent, Ai::new(AiState::Missile(dir, dmg), spd));
-					cp.insert(newent, Pos);
 					crace.insert(newent, Race::None);
 					let Todo(ref mut todos) = *w.write_resource::<Todo>();
 					todos.push(Box::new(move|w| moveto(bp, newent, w)));
@@ -178,15 +174,14 @@ pub fn grab(xyz: [i16; 3], src: Entity, w: &mut World) {
 	let mut bag = w.write::<Bag>();
 	if let (Some(&Strength(strg)), Some(&mut Bag(ref mut ebag))) = (strength.get(src), bag.get_mut(src)) {
 		let weight = w.read::<Weight>();
-		let mut cpos = w.write::<Pos>();
-		let possy = w.read_resource::<Possy>();
+		let mut possy = w.write_resource::<Possy>();
 		let mut rmpos = Vec::new();
 		let mut totwei = 0;
 		for &Weight(wei) in ebag.iter().filter_map(|&e| weight.get(e)) {
 			totwei += wei as i32;
 		}
 		for &ent in possy.get_ents(xyz).iter() {
-			if let (Some(&Weight(wei)), Some(_)) = (weight.get(ent), cpos.get(ent)) {
+			if let Some(&Weight(wei)) = weight.get(ent) {
 				if totwei + wei as i32 <= strg as i32 {
 					ebag.push(ent);
 					rmpos.push(ent);
@@ -195,7 +190,7 @@ pub fn grab(xyz: [i16; 3], src: Entity, w: &mut World) {
 			}
 		}
 		for ent in rmpos {
-			cpos.remove(ent);
+			possy.remove(ent);
 		}
 	}
 }
