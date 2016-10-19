@@ -1,3 +1,5 @@
+use std::io;
+
 use specs::{Entity, Join, World};
 use x1b::{self, RGB4};
 
@@ -5,12 +7,11 @@ use components::*;
 use position::Possy;
 use util::Char;
 
-pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) {
+pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) -> io::Result<()> {
 	let possy = w.read_resource::<Possy>();
 	if let Some(plpos) = possy.get_pos(player) {
 		let cai = w.read::<Ai>();
 		let chr = w.read::<Chr>();
-		let weapons = w.read::<Weapon>();
 		let cbag = w.read::<Bag>();
 		let pxy = plpos;
 		{
@@ -49,13 +50,20 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) {
 						}
 					}
 				}
+				let weapons = w.read::<Weapon>();
+				let armors = w.read::<Armor>();
 				if let Some(&Weapon(item)) = weapons.get(player) {
 					let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
-					curse.printnows(60, 1, &format!("Weapon: {}", ch),
+					curse.printnows(60, 1, &format!("Weapon {}", ch),
+						x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+				}
+				if let Some(&Armor(item)) = armors.get(player) {
+					let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
+					curse.printnows(61, 2, &format!("Armor {}", ch),
 						x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
 				}
 			}
 		}
 	}
-	curse.perframe_refresh_then_clear(Char::from(' ')).ok();
+	curse.perframe_refresh_then_clear(Char::from(' '))
 }

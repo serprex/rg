@@ -3,11 +3,11 @@ use rand::Rng;
 use rand::distributions::{IndependentSample, Range};
 use specs::World;
 
-use roomgen::RoomGen;
-use components::*;
-use util::{rectover, Char};
-use greedgrow;
-use position::Possy;
+use super::RoomGen;
+use super::super::components::*;
+use super::super::util::{rectover, Char};
+use super::super::greedgrow;
+use super::super::position::Possy;
 
 #[derive(Copy, Clone)]
 pub struct GreedyRoomGen(pub usize);

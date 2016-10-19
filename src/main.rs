@@ -9,12 +9,10 @@ mod actions;
 mod adjacency;
 mod ailoop;
 mod components;
-mod genroom_forest;
-mod genroom_greedy;
+mod genroom;
 mod greedgrow;
 mod position;
 mod render;
-mod roomgen;
 mod termjuggler;
 mod util;
 
@@ -25,7 +23,7 @@ use specs::*;
 
 use components::*;
 use position::Possy;
-use roomgen::RoomGen;
+use genroom::RoomGen;
 use termjuggler::TermJuggler;
 use util::{Char, EXITGAME};
 
@@ -103,8 +101,8 @@ fn main(){
 		.build(), [8, 10, 0]);
 	w.add_resource(possy);
 	{
-	let rrg = genroom_greedy::GreedyRoomGen::default();
-	let frg = genroom_forest::ForestRoomGen::default();
+	let rrg = genroom::greedy::GreedyRoomGen::default();
+	let frg = genroom::forest::ForestRoomGen::default();
 	let mut f1 = [[10, 10, 22, 12], [20, 22, 30, 32], [35, 20, 24, 36], [50, 50, 55, 55], [60, 50, 62, 52], [80, 60, 82, 70], [90, 90, 95, 105]];
 	let fadj = greedgrow::grow(&mut rng, &mut f1, 0, 0, 120, 120);
 	let fjlist = greedgrow::joinlist(&mut rng, &fadj, f1.len());
@@ -121,7 +119,7 @@ fn main(){
 	let mut curse = x1b::Curse::<x1b::RGB4>::new(80, 60);
 	let _lock = TermJuggler::new();
 	while !EXITGAME.load(Ordering::Relaxed) {
-		render::render(player, &mut w, &mut curse);
+		render::render(player, &mut w, &mut curse).ok();
 		ailoop::ailoop(&mut rng, &mut w);
 		loop {
 			w.maintain();

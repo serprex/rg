@@ -3,11 +3,11 @@ use rand::Rng;
 use rand::distributions::{Range, IndependentSample};
 use specs::World;
 
-use roomgen::RoomGen;
-use components::*;
-use position::Possy;
-use util::Char;
-use x1b::RGB4;
+use super::RoomGen;
+use super::super::components::*;
+use super::super::position::Possy;
+use super::super::util::Char;
+use super::super::x1b::RGB4;
 
 #[derive(Copy, Clone)]
 pub struct ForestRoomGen {

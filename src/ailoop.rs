@@ -21,38 +21,51 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 						ai.tick = 1;
 						let mut bag = w.write::<Bag>();
 						let mut weapons = w.write::<Weapon>();
+						let mut armors = w.write::<Armor>();
 						if let Some(&mut Bag(ref mut ebag)) = bag.get_mut(ent) {
 							'invput: loop {
-								match getch() {
-									'i' => {
+								match (getch(), ebag.is_empty()) {
+									('i', _) => {
 										ai.state = AiState::Player;
 										ai.tick = 10;
 									},
-									'j' if ebag.len() > 0 =>
+									('j', false) =>
 										ai.state = AiState::PlayerInventory(if invp == ebag.len()-1 { 0 } else { invp + 1 }),
-									'k' if ebag.len() > 0 =>
+									('k', false) =>
 										ai.state = AiState::PlayerInventory(if invp == 0 { ebag.len()-1 } else { invp - 1 }),
-									'w' if ebag.len() > 0 => {
-										match weapons.insert(ent, Weapon(ebag.remove(invp))) {
-											InsertResult::Updated(Weapon(oldw)) => ebag.push(oldw),
-											_ => (),
+									('w', false) => {
+										if let InsertResult::Updated(Weapon(oldw)) = weapons.insert(ent, Weapon(ebag.remove(invp))) {
+											ebag.push(oldw);
 										}
 										if invp == ebag.len() {
 											ai.state = AiState::PlayerInventory(0);
 										}
 									},
-									'W' => {
+									('W', _) => {
 										if let Some(Weapon(went)) = weapons.remove(ent) {
 											ebag.push(went);
 										}
 									},
-									c if c >= '0' && c <= '9' => {
+									('a', false) => {
+										if let InsertResult::Updated(Armor(oldw)) = armors.insert(ent, Armor(ebag.remove(invp))) {
+											ebag.push(oldw);
+										}
+										if invp == ebag.len() {
+											ai.state = AiState::PlayerInventory(0);
+										}
+									},
+									('A', _) => {
+										if let Some(Armor(went)) = armors.remove(ent) {
+											ebag.push(went);
+										}
+									},
+									(c, _) if c >= '0' && c <= '9' => {
 										let v = (c as u32 as u8 - b'0') as usize;
 										if v < ebag.len() {
 											ai.state = AiState::PlayerInventory(v);
 										}
 									},
-									'\x1b' => (),
+									('\x1b', _) => (),
 									_ => continue 'invput,
 								};
 								break
