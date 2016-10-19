@@ -32,7 +32,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 										ai.state = AiState::PlayerInventory(if invp == ebag.len()-1 { 0 } else { invp + 1 }),
 									'k' if ebag.len() > 0 =>
 										ai.state = AiState::PlayerInventory(if invp == 0 { ebag.len()-1 } else { invp - 1 }),
-									'w' => {
+									'w' if ebag.len() > 0 => {
 										match weapons.insert(ent, Weapon(ebag.remove(invp))) {
 											InsertResult::Updated(Weapon(oldw)) => ebag.push(oldw),
 											_ => (),
@@ -42,7 +42,9 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 										}
 									},
 									'W' => {
-										weapons.remove(ent);
+										if let Some(Weapon(went)) = weapons.remove(ent) {
+											ebag.push(went);
+										}
 									},
 									c if c >= '0' && c <= '9' => {
 										let v = (c as u32 as u8 - b'0') as usize;
@@ -268,6 +270,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 						if *dur == 0 {
 							w.delete_later(ent)
 						} else {
+							todos.push(Box::new(move|w| actions::colcheck(ent, w)));
 							*dur -= 1
 						}
 					},

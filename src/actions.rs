@@ -7,12 +7,19 @@ use util::*;
 use position::Possy;
 
 pub fn movedir(dir: Dir, src: Entity, w: &mut World) {
-	let np;
-	{
-	let mut possy = w.write_resource::<Possy>();
-	np = possy.get_pos(src).map(|pos| xyz_plus_dir(pos, dir));
+	if let Some(np) = {
+		let possy = w.read_resource::<Possy>();
+		possy.get_pos(src).map(|pos| xyz_plus_dir(pos, dir))
+	} {
+		moveto(np, src, w)
 	}
-	if let Some(np) = np {
+}
+
+pub fn colcheck(src: Entity, w: &mut World) {
+	if let Some(np) = {
+		let possy = w.read_resource::<Possy>();
+		possy.get_pos(src)
+	} {
 		moveto(np, src, w)
 	}
 }
@@ -43,43 +50,38 @@ pub fn moveto(np: [i16; 3], src: Entity, w: &mut World) {
 	possy.set_pos(src, np);
 	let mut rmai = SmallVec::<[Entity; 2]>::new();
 	let mut spos = SmallVec::<[(Entity, [i16; 3]); 2]>::new();
-	for &xyz in possy.collisions.iter() {
-		let col = possy.get_ents(xyz);
-		for e in col.iter().cloned() {
-			for ce in col.iter().cloned().filter(|&ce| ce != e) {
-				if let Some(&Portal(porx)) = portal.get(e) {
-					spos.push((ce, porx));
-				}
-				if let Some(aie) = ai.get(e) {
-					match aie.state {
-						AiState::Missile(_, dmg) => {
-							if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
-								if *mce <= dmg {
-									*mce = 0;
-									solid.remove(ce);
-									rmai.push(ce);
-								} else {
-									*mce -= dmg;
-								}
-							}
-							if solid.get(ce).is_some() {
-								w.delete_later(e)
-							}
-						},
-						AiState::Melee(_, dmg) => {
-							if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
-								if *mce <= dmg {
-									*mce = 0;
-									solid.remove(ce);
-									rmai.push(ce);
-								} else {
-									*mce -= dmg;
-								}
-							}
-						},
-						_ => (),
+	for ce in possy.get_ents(np).iter().cloned().filter(|&ce| ce != src) {
+		if let Some(&Portal(porx)) = portal.get(ce) {
+			spos.push((src, porx));
+		}
+		if let Some(aie) = ai.get(src) {
+			match aie.state {
+				AiState::Missile(_, dmg) => {
+					if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
+						if *mce <= dmg {
+							*mce = 0;
+							solid.remove(ce);
+							rmai.push(ce);
+						} else {
+							*mce -= dmg;
+						}
 					}
-				}
+					if solid.get(ce).is_some() {
+						w.delete_later(src)
+					}
+				},
+				AiState::Melee(_, dmg) => {
+					if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
+						if *mce <= dmg {
+							*mce = 0;
+							solid.remove(ce);
+							rmai.push(ce);
+						} else {
+							*mce -= dmg;
+						}
+					}
+				},
+				_ => (),
 			}
 		}
 	}
@@ -162,11 +164,13 @@ pub fn heal(src: Entity, w: &mut World) {
 }
 
 pub fn blink(src: Entity, w: &mut World) {
-	let mut possy = w.write_resource::<Possy>();
-	if let Some(pxy) = possy.get_pos(src) {
+	let np = if let Some(pxy) = w.write_resource::<Possy>().get_pos(src) {
 		let mut rng = rand::thread_rng();
-		possy.set_pos(src, [rng.gen_range(0, 40), rng.gen_range(0, 40), pxy[2]]);
-	}
+		[rng.gen_range(0, 40), rng.gen_range(0, 40), pxy[2]]
+	} else {
+		return
+	};
+	moveto(np, src, w);
 }
 
 pub fn grab(xyz: [i16; 3], src: Entity, w: &mut World) {

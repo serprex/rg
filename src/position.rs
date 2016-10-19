@@ -20,12 +20,12 @@ impl Possy {
 	}
 	pub fn gc(&mut self, w: &World) {
 		let mut rme = Vec::new();
-		for (&k, &p) in self.e2p.iter() {
+		for &k in self.e2p.keys() {
 			if !w.is_alive(k) {
-				rme.push((k, p));
+				rme.push(k);
 			}
 		}
-		for (k, p) in rme.into_iter() {
+		for k in rme.into_iter() {
 			self.remove(k);
 		}
 	}
