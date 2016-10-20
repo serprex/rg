@@ -17,9 +17,13 @@ impl Default for GreedyRoomGen {
 	}
 }
 impl RoomGen for GreedyRoomGen {
-	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &[[i16; 2]], room: &mut World) {
-		let rc = self.0;
+	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
 		if w<3 || h<3 { return }
+		let mut rc = self.0;
+		while rc * 9 > w as usize * h as usize {
+			rc -= 1;
+		}
+		let rc = rc;
 		let betwh = Range::new(0, (w-2)*(h-2));
 		let mut rxy = Vec::with_capacity(rc);
 		while rxy.len() < rc {
@@ -30,7 +34,7 @@ impl RoomGen for GreedyRoomGen {
 				{ rxy.push(candy) }
 		}
 		let adjacent = greedgrow::grow(rng, &mut rxy, xyz[0], xyz[1], w, h);
-		let mut doors: FnvHashSet<[i16; 2]> = exits.iter().cloned().collect();
+		let mut doors: FnvHashSet<[i16; 2]> = exits.clone();
 		let connset = greedgrow::joinlist(rng, &adjacent, rc);
 		let (doorset, lastaidx) = greedgrow::doors(rng, connset.into_iter(), &rxy);
 		for xy in doorset {

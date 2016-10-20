@@ -1,3 +1,4 @@
+use fnv::FnvHashSet;
 use rand::Rng;
 use specs::World;
 use x1b::RGB4;
@@ -41,6 +42,6 @@ impl BezierRoomGen {
 }
 
 impl RoomGen for BezierRoomGen {
-	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &[[i16; 2]], room: &mut World) {
+	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
 	}
 }

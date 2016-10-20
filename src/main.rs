@@ -18,6 +18,7 @@ mod util;
 
 use std::mem;
 use std::sync::atomic::Ordering;
+use fnv::FnvHashSet;
 use rand::{Rand, Rng, XorShiftRng};
 use specs::*;
 
@@ -114,7 +115,7 @@ fn main(){
 			frg.generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0]+1, fxy[3]-fxy[1]+1, &exits, &mut w)
 		}
 	}
-	rrg.generate(&mut rng, [0, 0, 0], 40, 40, &[], &mut w);
+	rrg.generate(&mut rng, [0, 0, 0], 40, 40, &FnvHashSet::default(), &mut w);
 	}
 	let mut curse = x1b::Curse::<x1b::RGB4>::new(80, 60);
 	let _lock = TermJuggler::new();

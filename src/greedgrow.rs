@@ -86,11 +86,11 @@ pub fn joinlist<R: Rng, A: Adjacency>(rng: &mut R, adj: &A, rc: usize)
 }
 
 pub fn doors<R: Rng, D>(rng: &mut R, connset: D, rxy: &[[i16; 4]])
--> (Vec<[i16; 2]>, usize)
+-> (FnvHashSet<[i16; 2]>, usize)
 where D: Iterator<Item = (usize, usize)>
 {
 	let mut lastaidx = 0;
-	let mut ret = Vec::new();
+	let mut ret = FnvHashSet::default();
 	for (iszi, aidx) in connset {
 		lastaidx = aidx;
 		let r1 = rxy[iszi];
@@ -101,7 +101,7 @@ where D: Iterator<Item = (usize, usize)>
 				let mx = cmp::min(r1[mni], r2[mni]);
 				if mn != mx {
 					let mnx = rng.gen_range(mn, mx);
-					ret.push(if mxi == 1 { [r1[r1i],mnx] } else { [mnx,r1[r1i]] });
+					ret.insert(if mxi == 1 { [r1[r1i],mnx] } else { [mnx,r1[r1i]] });
 				}
 				break
 			}
