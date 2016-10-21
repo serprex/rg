@@ -38,7 +38,7 @@ fn main(){
 	let mut rng = XorShiftRng::rand(&mut rand::thread_rng());
 	let mut w = World::new();
 	w_register!(w, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
-		Bow, Heal, Bag, Armor, Weapon, Head, Shield, Solid,
+		Heal, Bag, Armor, Weapon, Head, Shield, Solid, Fragile,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());
@@ -52,14 +52,20 @@ fn main(){
 	possy.set_pos(raffclaw, [4, 8, 0]);
 	let leylabow = w.create_now()
 		.with(Weight(1))
-		.with(Bow(1, 1))
+		.with(Strength(1))
 		.with(Chr(Char::from('j')))
 		.build();
 	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('b')))
 		.with(Weight(2))
-		.with(Bow(4, 1))
+		.with(Strength(4))
 		.build(), [2, 5, 0]);
+	for _ in 0..10 {
+		possy.set_pos(w.create_now()
+			.with(Chr(Char::from('^')))
+			.with(Weight(3))
+			.build(), [3, 7, 0]);
+	}
 	let player = w.create_now()
 		.with(Ai::new(AiState::Player, 10))
 		.with(Bag(Vec::new()))

@@ -12,7 +12,8 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 	let possy = w.read_resource::<Possy>();
 	let ents = w.entities();
 	let Todo(ref mut todos) = *w.write_resource::<Todo>();
-	for (mut ai, &race, ent) in (&mut cai, &crace, &ents).iter() {
+	for (mut ai, ent) in (&mut cai, &ents).iter() {
+		let race = crace.get(ent).map(|&x| x);
 		if let Some(pos) = possy.get_pos(ent) {
 			if ai.tick == 0 {
 				ai.tick = ai.speed;
@@ -21,6 +22,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 						ai.tick = 1;
 						let mut bag = w.write::<Bag>();
 						let mut weapons = w.write::<Weapon>();
+						let mut shields = w.write::<Shield>();
 						let mut armors = w.write::<Armor>();
 						if let Some(&mut Bag(ref mut ebag)) = bag.get_mut(ent) {
 							'invput: loop {
@@ -36,8 +38,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 									('w', false) => {
 										if let InsertResult::Updated(Weapon(oldw)) = weapons.insert(ent, Weapon(ebag.remove(invp))) {
 											ebag.push(oldw);
-										}
-										if invp == ebag.len() {
+										} else if invp == ebag.len() {
 											ai.state = AiState::PlayerInventory(0);
 										}
 									},
@@ -46,17 +47,37 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 											ebag.push(went);
 										}
 									},
+									('s', false) => {
+										if let InsertResult::Updated(Shield(oldw)) = shields.insert(ent, Shield(ebag.remove(invp))) {
+											ebag.push(oldw);
+										} else if invp == ebag.len() {
+											ai.state = AiState::PlayerInventory(0);
+										}
+									},
+									('S', _) => {
+										if let Some(Shield(went)) = shields.remove(ent) {
+											ebag.push(went);
+										}
+									},
 									('a', false) => {
 										if let InsertResult::Updated(Armor(oldw)) = armors.insert(ent, Armor(ebag.remove(invp))) {
 											ebag.push(oldw);
-										}
-										if invp == ebag.len() {
+										} else if invp == ebag.len() {
 											ai.state = AiState::PlayerInventory(0);
 										}
 									},
 									('A', _) => {
 										if let Some(Armor(went)) = armors.remove(ent) {
 											ebag.push(went);
+										}
+									},
+									('t', false) => {
+										if let Ok(d) = char_as_dir(getch()) {
+											let went = ebag.remove(invp);
+											todos.push(Box::new(move|w| actions::throw(d, ent, went, w)));
+											ai.state = AiState::Player;
+										} else {
+											continue 'invput
 										}
 									},
 									(c, _) if c >= '0' && c <= '9' => {
@@ -149,11 +170,13 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							todos.push(Box::new(move|w| actions::movedir(dir, ent, w)));
 						}
 						let near = possy.get_within(pos, 5);
-						for (e2, _) in near {
-							if ent != e2 {
-								if let Some(&race2) = crace.get(e2) {
-									if is_aggro(race, race2) {
-										ai.state = AiState::Aggro(e2)
+						if let Some(race) = race {
+							for (e2, _) in near {
+								if ent != e2 {
+									if let Some(&race2) = crace.get(e2) {
+										if is_aggro(race, race2) {
+											ai.state = AiState::Aggro(e2)
+										}
 									}
 								}
 							}
@@ -187,7 +210,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							None => ai.state = AiState::Random,
 							Some(fxy) => {
 								match race {
-									Race::Leylapan => {
+									Some(Race::Leylapan) => {
 										let mut dirs: [Dir; 2] = unsafe { mem::uninitialized() };
 										let mut dnum = 0;
 										if pos[0] != fxy[0] {
@@ -207,6 +230,13 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 											dnum += 1
 										}
 										if let Some(&fdir) = rng.choose(&dirs[..dnum]) {
+											let mut shields = w.write::<Shield>();
+											let mut weight = w.write::<Weight>();
+											let mut fragile = w.write::<Fragile>();
+											let shot = w.create_later();
+											weight.insert(shot, Weight(1));
+											fragile.insert(shot, Fragile);
+											shields.insert(ent, Shield(shot));
 											todos.push(Box::new(move|w| actions::shoot(fdir, ent, w)));
 											let mdir = if dnum == 2 {
 												dirs[if dirs[0] == fdir { 1 } else { 0 }]

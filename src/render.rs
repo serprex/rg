@@ -52,15 +52,24 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) -> io
 				}
 				let weapons = w.read::<Weapon>();
 				let armors = w.read::<Armor>();
+				let shields = w.read::<Shield>();
 				if let Some(&Weapon(item)) = weapons.get(player) {
 					let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
-					curse.printnows(60, 1, &format!("Weapon {}", ch),
+					curse.printnows(61, 1, "Weapon",
 						x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+					curse.set(69, 1, ch);
+				}
+				if let Some(&Shield(item)) = shields.get(player) {
+					let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
+					curse.printnows(60, 2, "Offhand",
+						x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+					curse.set(69, 2, ch);
 				}
 				if let Some(&Armor(item)) = armors.get(player) {
 					let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
-					curse.printnows(61, 2, &format!("Armor {}", ch),
+					curse.printnows(62, 3, "Armor",
 						x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+					curse.set(69, 3, ch);
 				}
 			}
 		}

@@ -22,7 +22,6 @@ pub enum Race {
 	Wazzlefu,
 	Raffbarf,
 	Leylapan,
-	None,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -65,6 +64,9 @@ pub struct Weight(pub i16);
 
 #[derive(Copy, Clone, Default)]
 pub struct Solid;
+
+#[derive(Copy, Clone, Default)]
+pub struct Fragile;
 
 #[derive(Copy, Clone)]
 pub struct Strength(pub u16);
@@ -115,9 +117,6 @@ impl<T> Atk<T> {
 	}
 }
 
-#[derive(Copy, Clone)]
-pub struct Bow(pub u8, pub i16);
-
 #[derive(Clone)]
 pub struct Casting(pub String);
 
@@ -138,11 +137,11 @@ pub struct Todo(pub Vec<Action>);
 
 impl_storage!(VecStorage, Chr, Ai, Race);
 impl_storage!(HashMapStorage, Portal, Weight, Strength,
-	Bow, Heal, Mortal,
+	Heal, Mortal,
 	Armor, Weapon, Shield, Head, Bag,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
-impl_storage!(NullStorage, Solid);
+impl_storage!(NullStorage, Solid, Fragile);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {
 	match (r1, r2) {

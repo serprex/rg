@@ -26,17 +26,15 @@ pub fn colcheck(src: Entity, w: &mut World) {
 
 pub fn moveto(np: [i16; 3], src: Entity, w: &mut World) {
 	let mut possy = w.write_resource::<Possy>();
-	let crace = w.read::<Race>();
 	let mut mort = w.write::<Mortal>();
 	let portal = w.read::<Portal>();
+	let fragile = w.read::<Fragile>();
 	let mut ai = w.write::<Ai>();
 	let mut solid = w.write::<Solid>();
 	let Walls(ref walls) = *w.read_resource::<Walls>();
 	if walls.contains_key(&np) {
-		if let Some(&race) = crace.get(src) {
-			if race == Race::None {
-				w.delete_later(src)
-			}
+		if fragile.get(src).is_some() {
+			w.delete_later(src)
 		}
 		return
 	}
@@ -57,17 +55,21 @@ pub fn moveto(np: [i16; 3], src: Entity, w: &mut World) {
 		if let Some(aie) = ai.get(src) {
 			match aie.state {
 				AiState::Missile(_, dmg) => {
-					if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
-						if *mce <= dmg {
-							*mce = 0;
-							solid.remove(ce);
-							rmai.push(ce);
-						} else {
-							*mce -= dmg;
-						}
-					}
 					if solid.get(ce).is_some() {
-						w.delete_later(src)
+						if let Some(&mut Mortal(ref mut mce)) = mort.get_mut(ce) {
+							if *mce <= dmg {
+								*mce = 0;
+								solid.remove(ce);
+								rmai.push(ce);
+							} else {
+								*mce -= dmg;
+							}
+						}
+						if fragile.get(src).is_some() {
+							w.delete_later(src);
+						} else {
+							rmai.push(src);
+						}
 					}
 				},
 				AiState::Melee(_, dmg) => {
@@ -94,34 +96,34 @@ pub fn moveto(np: [i16; 3], src: Entity, w: &mut World) {
 }
 
 pub fn attack(dir: Dir, src: Entity, w: &mut World) {
-	let weapons = w.read::<Weapon>();
-	let mut cch = w.write::<Chr>();
-	let mut cai = w.write::<Ai>();
-	let cpos = w.read_resource::<Possy>();
-	let mut crace = w.write::<Race>();
-	let watk = w.read::<Atk<Weapon>>();
-	if let Some(&Weapon(went)) = weapons.get(src) {
-		if let Some(&wch) = cch.get(went) {
-			if let Some(pos) = cpos.get_pos(src) {
-				let bp = xyz_plus_dir(pos, dir);
-				let wstats = *watk.get(went).unwrap_or(&Atk::<Weapon>::new(0, 0, 0));
-				let newent = w.create_later();
-				cch.insert(newent, wch);
-				cai.insert(newent, Ai::new(AiState::Melee(wstats.dur, wstats.dmg), 1));
-				crace.insert(newent, Race::None);
-				if let Some(mut ai) = cai.get_mut(src) {
-					ai.tick = if wstats.spd < 0 {
-						let spd = (-wstats.spd) as u8;
-						if spd < ai.tick { ai.tick - spd } else { 0 }
-					} else {
-						ai.tick + wstats.spd as u8
-					};
-				}
-				let Todo(ref mut todos) = *w.write_resource::<Todo>();
-				todos.push(Box::new(move|w| moveto(bp, newent, w)));
-			}
-		}
-	}
+	let (bp, newent) = {
+		let weapons = w.read::<Weapon>();
+		let mut cch = w.write::<Chr>();
+		let mut cai = w.write::<Ai>();
+		let cpos = w.read_resource::<Possy>();
+		let watk = w.read::<Atk<Weapon>>();
+		if let Some(&Weapon(went)) = weapons.get(src) {
+			if let Some(&wch) = cch.get(went) {
+				if let Some(pos) = cpos.get_pos(src) {
+					let bp = xyz_plus_dir(pos, dir);
+					let wstats = *watk.get(went).unwrap_or(&Atk::<Weapon>::new(0, 0, 0));
+					let newent = w.create_later();
+					cch.insert(newent, wch);
+					cai.insert(newent, Ai::new(AiState::Melee(wstats.dur, wstats.dmg), 1));
+					if let Some(mut ai) = cai.get_mut(src) {
+						ai.tick = if wstats.spd < 0 {
+							let spd = (-wstats.spd) as u8;
+							if spd < ai.tick { ai.tick - spd } else { 0 }
+						} else {
+							ai.tick + wstats.spd as u8
+						};
+					}
+					(bp, newent)
+				} else { return }
+			} else { return }
+		} else { return }
+	};
+	moveto(bp, newent, w)
 }
 
 pub fn lunge(dir: Dir, src: Entity, w: &mut World) {
@@ -130,27 +132,74 @@ pub fn lunge(dir: Dir, src: Entity, w: &mut World) {
 }
 
 pub fn shoot(dir: Dir, src: Entity, w: &mut World) {
-	let weapons = w.read::<Weapon>();
-	let bows = w.read::<Bow>();
-	let mut cch = w.write::<Chr>();
-	let cpos = w.read_resource::<Possy>();
-	let mut crace = w.write::<Race>();
-	let mut cai = w.write::<Ai>();
-	if let Some(&Weapon(went)) = weapons.get(src) {
-		if let Some(&Bow(spd, dmg)) = bows.get(went) {
-			if let Some(&wch) = cch.get(went) {
-				if let Some(pos) = cpos.get_pos(src) {
-					let bp = xyz_plus_dir(pos, dir);
-					let newent = w.create_later();
-					cch.insert(newent, wch);
-					cai.insert(newent, Ai::new(AiState::Missile(dir, dmg), spd));
-					crace.insert(newent, Race::None);
-					let Todo(ref mut todos) = *w.write_resource::<Todo>();
-					todos.push(Box::new(move|w| moveto(bp, newent, w)));
-				}
+	let (went, sent) = {
+		let weapons = w.read::<Weapon>();
+		let mut shields = w.write::<Shield>();
+		let mut cch = w.write::<Chr>();
+		let cpos = w.read_resource::<Possy>();
+		let mut cai = w.write::<Ai>();
+		if let Some(&Weapon(went)) = weapons.get(src) {
+			if let Some(Shield(sent)) = shields.remove(src) {
+				(went, sent)
+			} else { return }
+		} else { return }
+	};
+	//throw(dir, went, sent, w)
+	let (bp, ai, ch) = {
+		let possy = w.read_resource::<Possy>();
+		if let Some(pos) = possy.get_pos(src) {
+			let cstr = w.read::<Strength>();
+			let cwei = w.read::<Weight>();
+			let cchr = w.read::<Chr>();
+			let mut cai = w.write::<Ai>();
+			let bp = xyz_plus_dir(pos, dir);
+			let &Strength(srcstr) = cstr.get(went).unwrap_or(&Strength(1));
+			let &Weight(objwei) = cwei.get(sent).unwrap_or(&Weight(1));
+			let dmg = srcstr as i16 + objwei as i16 / 2;
+			let spd = if objwei >= srcstr as i16 { 1 } else { 1 + srcstr as u8 / objwei as u8 };
+			if let Some(&ch) = cchr.get(sent) {
+				(bp, Ai::new(AiState::Missile(dir, dmg), spd), ch)
+			} else {
+				return
 			}
+		} else {
+			return
 		}
-	}
+	};
+	let newent = w.create_now()
+		.with(ai)
+		.with(ch)
+		.build();
+	moveto(bp, newent, w)
+}
+
+pub fn throw(dir: Dir, src: Entity, obj: Entity, w: &mut World) {
+	let (bp, ai, ch) = {
+		let possy = w.read_resource::<Possy>();
+		if let Some(pos) = possy.get_pos(src) {
+			let cstr = w.read::<Strength>();
+			let cwei = w.read::<Weight>();
+			let cchr = w.read::<Chr>();
+			let mut cai = w.write::<Ai>();
+			let bp = xyz_plus_dir(pos, dir);
+			let &Strength(srcstr) = cstr.get(src).unwrap_or(&Strength(1));
+			let &Weight(objwei) = cwei.get(obj).unwrap_or(&Weight(1));
+			let dmg = srcstr as i16 + objwei as i16 / 2;
+			let spd = if objwei >= srcstr as i16 { 1 } else { 1 + srcstr as u8 / objwei as u8 };
+			if let Some(&ch) = cchr.get(obj) {
+				(bp, Ai::new(AiState::Missile(dir, dmg), spd), ch)
+			} else {
+				return
+			}
+		} else {
+			return
+		}
+	};
+	let newent = w.create_now()
+		.with(ai)
+		.with(ch)
+		.build();
+	moveto(bp, newent, w)
 }
 
 pub fn heal(src: Entity, w: &mut World) {

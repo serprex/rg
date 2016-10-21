@@ -20,15 +20,15 @@ impl RoomGen for GreedyRoomGen {
 	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
 		if w<3 || h<3 { return }
 		let mut rc = self.0;
-		while rc * 9 > w as usize * h as usize {
+		while rc * 16 > w as usize * h as usize {
 			rc -= 1;
 		}
-		let rc = rc;
+		let rc = if rc == 0 { 1 } else { rc };
 		let betwh = Range::new(0, (w-2)*(h-2));
 		let mut rxy = Vec::with_capacity(rc);
 		while rxy.len() < rc {
 			let xy = betwh.ind_sample(rng);
-			let (rx, ry) = (xyz[0] + xy % (w-2), xyz[1] + xy / (h-2));
+			let (rx, ry) = (xyz[0] + xy % (w-2), xyz[1] + xy / (w-2));
 			let candy = [rx, ry, rx+2, ry+2];
 			if !rxy.iter().any(|&a| rectover(candy, a))
 				{ rxy.push(candy) }
