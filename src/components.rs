@@ -35,8 +35,8 @@ pub enum AiState {
 	Player,
 	PlayerInventory(usize),
 	PlayerCasting(String),
-	Melee(u8, i16),
-	Missile(Dir, i16),
+	Melee(u8, i16, Entity),
+	Missile(Dir, i16, u8),
 }
 #[derive(Clone)]
 pub struct Ai {
@@ -67,7 +67,7 @@ pub struct Solid;
 pub struct Fragile;
 
 #[derive(Copy, Clone)]
-pub struct Strength(pub u16);
+pub struct Strength(pub i16);
 
 #[derive(Copy, Clone)]
 pub struct Armor(pub Entity);

@@ -45,9 +45,9 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) -> io
 						curse.set(40, 1 + invp as u16, Char::from('>'));
 						for (idx, &item) in bag.iter().enumerate() {
 							if idx > 9 {
-								curse.set(41, 1 + idx as u16, Char::from((b'0' + (idx%10) as u8) as char));
+								curse.set(41, 1 + idx as u16, Char::from((b'0' + (idx/10) as u8) as char));
 							}
-							curse.set(42, 1 + idx as u16, Char::from((b'0' + (idx/10) as u8) as char));
+							curse.set(42, 1 + idx as u16, Char::from((b'0' + (idx%10) as u8) as char));
 							if let Some(&Chr(ch)) = chr.get(item) {
 								curse.set(44, 1 + idx as u16, ch);
 							}

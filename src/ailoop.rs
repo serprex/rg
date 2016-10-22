@@ -12,6 +12,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 	let possy = w.read_resource::<Possy>();
 	let ents = w.entities();
 	let Todo(ref mut todos) = *w.write_resource::<Todo>();
+	let mut rmai = Vec::new();
 	for (mut ai, ent) in (&mut cai, &ents).iter() {
 		let race = crace.get(ent).map(|&x| x);
 		if let Some(pos) = possy.get_pos(ent) {
@@ -81,7 +82,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 									('t', false) => {
 										if let Ok(d) = char_as_dir(getch()) {
 											let went = ebag.remove(invp);
-											todos.push(Box::new(move|r, w| actions::throw(d, ent, went, r, w)));
+											todos.push(Box::new(move|r, w| actions::throw(d, ent, ent, went, r, w)));
 											ai.state = AiState::Player;
 										} else {
 											continue 'invput
@@ -240,9 +241,11 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 											let mut shields = w.write::<Shield>();
 											let mut weight = w.write::<Weight>();
 											let mut fragile = w.write::<Fragile>();
+											let mut cch = w.write::<Chr>();
 											let shot = w.create_later();
 											weight.insert(shot, Weight(1));
 											fragile.insert(shot, Fragile);
+											cch.insert(shot, Chr(Char::from('j')));
 											shields.insert(ent, Shield(shot));
 											todos.push(Box::new(move|r, w| actions::shoot(fdir, ent, r, w)));
 											let mdir = if dnum == 2 {
@@ -313,15 +316,21 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 							}
 						}
 					},
-					AiState::Missile(dir, _) => {
-						todos.push(Box::new(move|r, w| actions::movedir(dir, ent, r, w)));
-					},
-					AiState::Melee(ref mut dur, _) => {
+					AiState::Missile(dir, _, ref mut dur) => {
 						if *dur == 0 {
-							w.delete_later(ent)
+							rmai.push(ent);
+						} else {
+							todos.push(Box::new(move|r, w| actions::movedir(dir, ent, r, w)));
+							*dur -= 1;
+						}
+					},
+					AiState::Melee(ref mut dur, _, src) => {
+						if *dur == 0 {
+							rmai.push(ent);
+							todos.push(Box::new(move|r, w| actions::pickup(src, ent, r, w)));
 						} else {
 							todos.push(Box::new(move|r, w| actions::colcheck(ent, r, w)));
-							*dur -= 1
+							*dur -= 1;
 						}
 					},
 					//_ => (),
@@ -330,5 +339,8 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 				ai.tick -= 1
 			}
 		}
+	}
+	for e in rmai {
+		cai.remove(e);
 	}
 }

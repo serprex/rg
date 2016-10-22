@@ -57,8 +57,8 @@ fn main(){
 		.build();
 	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('b')))
-		.with(Weight(2))
-		.with(Strength(4))
+		.with(Weight(10))
+		.with(Strength(80))
 		.build(), [2, 5, 0]);
 	for _ in 0..10 {
 		possy.set_pos(w.create_now()
@@ -73,8 +73,8 @@ fn main(){
 		.with(Solid)
 		.with(Mortal(20))
 		.with(Race::Wazzlefu)
-		.with(Strength(10))
-		.with(Weight(30))
+		.with(Strength(50))
+		.with(Weight(60))
 		.build();
 	possy.set_pos(player, [4, 4, 0]);
 	possy.set_pos(w.create_now()
@@ -108,8 +108,8 @@ fn main(){
 		.build(), [8, 10, 0]);
 	w.add_resource(possy);
 	{
-	let rrg = genroom::greedy::GreedyRoomGen::default();
-	let frg = genroom::forest::ForestRoomGen::default();
+	let rrg = genroom::GreedyRoomGen::default();
+	let frg = genroom::ForestRoomGen::default();
 	let mut f1 = [[10, 10, 22, 12], [20, 22, 30, 32], [35, 20, 24, 36], [50, 50, 55, 55], [60, 50, 62, 52], [80, 60, 82, 70], [90, 90, 95, 105]];
 	let fadj = greedgrow::grow(&mut rng, &mut f1, 0, 0, 120, 120);
 	let fjlist = greedgrow::joinlist(&mut rng, &fadj, f1.len());
