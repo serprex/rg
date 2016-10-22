@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use fnv::FnvHashMap;
 use specs::{World, Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
-use util::Char;
+use util::{Char, Action};
 
 macro_rules! impl_storage {
 	($storage: ident, $($comp: ty),*) => {
@@ -11,8 +11,6 @@ macro_rules! impl_storage {
 		})*
 	}
 }
-
-pub type Action = Box<Fn(&mut World) + Send + Sync>;
 
 #[derive(Copy, Clone)]
 pub struct Chr(pub Char);

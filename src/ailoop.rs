@@ -6,7 +6,7 @@ use util::*;
 use actions;
 use position::Possy;
 
-pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
+pub fn ailoop(rng: &mut R, w: &mut World) {
 	let crace = w.read::<Race>();
 	let mut cai = w.write::<Ai>();
 	let possy = w.read_resource::<Possy>();
@@ -35,6 +35,13 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 										ai.state = AiState::PlayerInventory(if invp == ebag.len()-1 { 0 } else { invp + 1 }),
 									('k', false) =>
 										ai.state = AiState::PlayerInventory(if invp == 0 { ebag.len()-1 } else { invp - 1 }),
+									('d', false) => {
+										let drop = ebag.remove(invp);
+										todos.push(Box::new(move|r, w| actions::moveto(pos, drop, r, w)));
+										if invp == ebag.len() {
+											ai.state = AiState::PlayerInventory(0);
+										}
+									},
 									('w', false) => {
 										if let InsertResult::Updated(Weapon(oldw)) = weapons.insert(ent, Weapon(ebag.remove(invp))) {
 											ebag.push(oldw);
@@ -74,7 +81,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 									('t', false) => {
 										if let Ok(d) = char_as_dir(getch()) {
 											let went = ebag.remove(invp);
-											todos.push(Box::new(move|w| actions::throw(d, ent, went, w)));
+											todos.push(Box::new(move|r, w| actions::throw(d, ent, went, r, w)));
 											ai.state = AiState::Player;
 										} else {
 											continue 'invput
@@ -103,7 +110,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							if let AiState::PlayerCasting(ref mut cast) = *casting {
 								cast.push(ch);
 								if cast == "blink" {
-									todos.push(Box::new(move|w| actions::blink(ent, w)));
+									todos.push(Box::new(move|r, w| actions::blink(ent, r, w)));
 								} else {
 									continue;
 								}
@@ -114,13 +121,13 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 					AiState::Player => 'playerinput: loop {
 						match char_as_dir(getch()) {
 							Ok(d) => {
-								todos.push(Box::new(move|w| actions::movedir(d, ent, w)));
+								todos.push(Box::new(move|r, w| actions::movedir(d, ent, r, w)));
 							},
 							Err('p') => {
 								match char_as_dir(getch()) {
 									Ok(d) => {
 										let gp = xyz_plus_dir(pos, d);
-										todos.push(Box::new(move|w| actions::grab(gp, ent, w)));
+										todos.push(Box::new(move|r, w| actions::grab(gp, ent, r, w)));
 									},
 									_ => continue 'playerinput,
 								}
@@ -130,19 +137,19 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							},
 							Err('a') => {
 								match char_as_dir(getch()) {
-									Ok(d) => todos.push(Box::new(move|w| actions::attack(d, ent, w))),
+									Ok(d) => todos.push(Box::new(move|r, w| actions::attack(d, ent, r, w))),
 									_ => continue 'playerinput,
 								}
 							},
 							Err('q') => {
 								match char_as_dir(getch()) {
-									Ok(d) => todos.push(Box::new(move|w| actions::lunge(d, ent, w))),
+									Ok(d) => todos.push(Box::new(move|r, w| actions::lunge(d, ent, r, w))),
 									_ => continue 'playerinput,
 								}
 							},
 							Err('s') => {
 								match char_as_dir(getch()) {
-									Ok(d) => todos.push(Box::new(move|w| actions::shoot(d, ent, w))),
+									Ok(d) => todos.push(Box::new(move|r, w| actions::shoot(d, ent, r, w))),
 									_ => continue 'playerinput,
 								}
 							},
@@ -167,7 +174,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 							}
 						}
 						if let Some(&Some(dir)) = rng.choose(&choices[..chs]) {
-							todos.push(Box::new(move|w| actions::movedir(dir, ent, w)));
+							todos.push(Box::new(move|r, w| actions::movedir(dir, ent, r, w)));
 						}
 						let near = possy.get_within(pos, 5);
 						if let Some(race) = race {
@@ -200,7 +207,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 									ai.state = AiState::Aggro(foe)
 								} else {
 									let dir = *rng.choose(&choices[..chs]).unwrap();
-									todos.push(Box::new(move|w| actions::movedir(dir, ent, w)));
+									todos.push(Box::new(move|r, w| actions::movedir(dir, ent, r, w)));
 								}
 							}
 						}
@@ -237,7 +244,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 											weight.insert(shot, Weight(1));
 											fragile.insert(shot, Fragile);
 											shields.insert(ent, Shield(shot));
-											todos.push(Box::new(move|w| actions::shoot(fdir, ent, w)));
+											todos.push(Box::new(move|r, w| actions::shoot(fdir, ent, r, w)));
 											let mdir = if dnum == 2 {
 												dirs[if dirs[0] == fdir { 1 } else { 0 }]
 											} else {
@@ -252,7 +259,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 											if possy.contains(nxy) {
 												ai.state = AiState::Scared(foe)
 											} else {
-												todos.push(Box::new(move|w| actions::movedir(mdir, ent, w)));
+												todos.push(Box::new(move|r, w| actions::movedir(mdir, ent, r, w)));
 											}
 										} else {
 											ai.state = AiState::Scared(foe)
@@ -263,7 +270,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 										let mut attacking = false;
 										for &dir in &[Dir::L, Dir::H, Dir::J, Dir::K] {
 											if xyz_plus_dir(pos, dir) == fxy {
-												todos.push(Box::new(move|w| actions::attack(dir, ent, w)));
+												todos.push(Box::new(move|r, w| actions::attack(dir, ent, r, w)));
 												attacking = true;
 												break
 											}
@@ -295,7 +302,7 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 													(1, 1) => Some(Dir::J),
 													 _ => None,
 												} {
-													todos.push(Box::new(move|w| actions::movedir(dir, ent, w)));
+													todos.push(Box::new(move|r, w| actions::movedir(dir, ent, r, w)));
 												}
 											} else {
 												ai.state = AiState::Random
@@ -307,13 +314,13 @@ pub fn ailoop<R: Rng>(rng: &mut R, w: &mut World) {
 						}
 					},
 					AiState::Missile(dir, _) => {
-						todos.push(Box::new(move|w| actions::movedir(dir, ent, w)));
+						todos.push(Box::new(move|r, w| actions::movedir(dir, ent, r, w)));
 					},
 					AiState::Melee(ref mut dur, _) => {
 						if *dur == 0 {
 							w.delete_later(ent)
 						} else {
-							todos.push(Box::new(move|w| actions::colcheck(ent, w)));
+							todos.push(Box::new(move|r, w| actions::colcheck(ent, r, w)));
 							*dur -= 1
 						}
 					},

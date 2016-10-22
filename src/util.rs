@@ -1,10 +1,14 @@
 use std::cmp;
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use std::io::{self, Read};
+use rand::XorShiftRng;
+use specs::World;
 use x1b;
 use components::Dir;
 
+pub type Action = Box<Fn(&mut R, &mut World) + Send + Sync>;
 pub type Char = x1b::Char<x1b::RGB4>;
+pub type R = XorShiftRng;
 
 pub fn rectover(r1: [i16; 4], r2: [i16; 4]) -> bool {
 	r1[0] <= r2[2] && r1[2] >= r2[0] && r1[1] <= r2[3] && r1[3] >= r2[1]

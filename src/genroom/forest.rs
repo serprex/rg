@@ -6,7 +6,7 @@ use specs::World;
 use super::RoomGen;
 use super::super::components::*;
 use super::super::position::Possy;
-use super::super::util::Char;
+use super::super::util::{R, Char};
 use super::super::x1b::RGB4;
 
 #[derive(Copy, Clone)]
@@ -27,7 +27,7 @@ impl Default for ForestRoomGen {
 }
 
 impl RoomGen for ForestRoomGen {
-	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
+	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
 		let range = Range::new(0, self.trees + self.raff + self.null);
 		let raffspeed = Range::new(8, 14);
 		let raffclaw = room.create_now()

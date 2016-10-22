@@ -19,14 +19,14 @@ mod util;
 use std::mem;
 use std::sync::atomic::Ordering;
 use fnv::FnvHashSet;
-use rand::{Rand, Rng, XorShiftRng};
+use rand::{Rand, Rng};
 use specs::*;
 
 use components::*;
 use position::Possy;
 use genroom::RoomGen;
 use termjuggler::TermJuggler;
-use util::{Char, EXITGAME};
+use util::{Char, R, EXITGAME};
 
 macro_rules! w_register {
 	($w: expr, $($comp: ty),*) => {
@@ -35,7 +35,7 @@ macro_rules! w_register {
 }
 
 fn main(){
-	let mut rng = XorShiftRng::rand(&mut rand::thread_rng());
+	let mut rng = R::rand(&mut rand::thread_rng());
 	let mut w = World::new();
 	w_register!(w, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
 		Bag, Armor, Weapon, Head, Shield, Solid, Fragile,
@@ -136,7 +136,7 @@ fn main(){
 				mem::replace(todos, Vec::new())
 			};
 			for action in todo {
-				action(&mut w);
+				action(&mut rng, &mut w);
 			}
 		}
 		let mut possy = w.write_resource::<Possy>();

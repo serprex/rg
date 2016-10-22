@@ -5,11 +5,11 @@ use rand::Rng;
 use rand::distributions::{IndependentSample, Range};
 
 use adjacency::{Adjacency, AdjacencySet};
-use util::rectoverinc;
+use util::{R, rectoverinc};
 
 /* Given a set of rects, grow them as much as possible
    Return adjacency matrix */
-pub fn grow<R: Rng>(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h: i16)
+pub fn grow(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h: i16)
 -> AdjacencySet {
 	let bet4 = Range::new(0, 4);
 	let rc = rxy.len();
@@ -59,7 +59,7 @@ pub fn grow<R: Rng>(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h:
 	}
 }
 
-pub fn joinlist<R: Rng, A: Adjacency>(rng: &mut R, adj: &A, rc: usize)
+pub fn joinlist<A: Adjacency>(rng: &mut R, adj: &A, rc: usize)
 -> Vec<(usize, usize)> {
 	let mut ret = Vec::with_capacity(rc);
 	if rc == 0 { return ret }
@@ -85,7 +85,7 @@ pub fn joinlist<R: Rng, A: Adjacency>(rng: &mut R, adj: &A, rc: usize)
 	}
 }
 
-pub fn doors<R: Rng, D>(rng: &mut R, connset: D, rxy: &[[i16; 4]])
+pub fn doors<D>(rng: &mut R, connset: D, rxy: &[[i16; 4]])
 -> (FnvHashSet<[i16; 2]>, usize)
 where D: Iterator<Item = (usize, usize)>
 {

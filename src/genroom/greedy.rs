@@ -5,7 +5,7 @@ use specs::World;
 
 use super::RoomGen;
 use super::super::components::*;
-use super::super::util::{rectover, Char};
+use super::super::util::{rectover, R, Char};
 use super::super::greedgrow;
 use super::super::position::Possy;
 
@@ -17,7 +17,7 @@ impl Default for GreedyRoomGen {
 	}
 }
 impl RoomGen for GreedyRoomGen {
-	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
+	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
 		if w<3 || h<3 { return }
 		let mut rc = self.0;
 		while rc * 16 > w as usize * h as usize {

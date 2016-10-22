@@ -1,4 +1,4 @@
-use rand::{self, Rng};
+use rand::Rng;
 use specs::*;
 use smallvec::SmallVec;
 
@@ -6,25 +6,25 @@ use components::*;
 use util::*;
 use position::Possy;
 
-pub fn movedir(dir: Dir, src: Entity, w: &mut World) {
+pub fn movedir(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	if let Some(np) = {
 		let possy = w.read_resource::<Possy>();
 		possy.get_pos(src).map(|pos| xyz_plus_dir(pos, dir))
 	} {
-		moveto(np, src, w)
+		moveto(np, src, rng, w)
 	}
 }
 
-pub fn colcheck(src: Entity, w: &mut World) {
+pub fn colcheck(src: Entity, rng: &mut R, w: &mut World) {
 	if let Some(np) = {
 		let possy = w.read_resource::<Possy>();
 		possy.get_pos(src)
 	} {
-		moveto(np, src, w)
+		moveto(np, src, rng, w)
 	}
 }
 
-pub fn moveto(np: [i16; 3], src: Entity, w: &mut World) {
+pub fn moveto(np: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 	let mut possy = w.write_resource::<Possy>();
 	let mut mort = w.write::<Mortal>();
 	let portal = w.read::<Portal>();
@@ -95,7 +95,7 @@ pub fn moveto(np: [i16; 3], src: Entity, w: &mut World) {
 	}
 }
 
-pub fn attack(dir: Dir, src: Entity, w: &mut World) {
+pub fn attack(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	let (bp, newent) = {
 		let weapons = w.read::<Weapon>();
 		let mut cch = w.write::<Chr>();
@@ -123,15 +123,15 @@ pub fn attack(dir: Dir, src: Entity, w: &mut World) {
 			} else { return }
 		} else { return }
 	};
-	moveto(bp, newent, w)
+	moveto(bp, newent, rng, w)
 }
 
-pub fn lunge(dir: Dir, src: Entity, w: &mut World) {
-	movedir(dir, src, w);
-	attack(dir, src, w);
+pub fn lunge(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
+	movedir(dir, src, rng, w);
+	attack(dir, src, rng, w);
 }
 
-pub fn shoot(dir: Dir, src: Entity, w: &mut World) {
+pub fn shoot(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	let (went, sent) = {
 		let weapons = w.read::<Weapon>();
 		let mut shields = w.write::<Shield>();
@@ -144,7 +144,7 @@ pub fn shoot(dir: Dir, src: Entity, w: &mut World) {
 			} else { return }
 		} else { return }
 	};
-	//throw(dir, went, sent, w)
+	//throw(dir, went, sent, rng, w)
 	let (bp, ai, ch) = {
 		let possy = w.read_resource::<Possy>();
 		if let Some(pos) = possy.get_pos(src) {
@@ -155,9 +155,8 @@ pub fn shoot(dir: Dir, src: Entity, w: &mut World) {
 			let bp = xyz_plus_dir(pos, dir);
 			let &Strength(srcstr) = cstr.get(went).unwrap_or(&Strength(1));
 			let &Weight(objwei) = cwei.get(sent).unwrap_or(&Weight(1));
-			let dmg = srcstr as i16 + objwei as i16 / 2;
-			let spd = if objwei >= srcstr as i16 { 1 } else { 1 + srcstr as u8 / objwei as u8 };
-			println!("{} {}", dmg, spd);
+			let dmg = srcstr as i16 / 2 + objwei as i16;
+			let spd = 1 + srcstr as u8 / objwei as u8;
 			if let Some(&ch) = cchr.get(sent) {
 				(bp, Ai::new(AiState::Missile(dir, dmg), spd), ch)
 			} else {
@@ -171,10 +170,10 @@ pub fn shoot(dir: Dir, src: Entity, w: &mut World) {
 		.with(ai)
 		.with(ch)
 		.build();
-	moveto(bp, newent, w)
+	moveto(bp, newent, rng, w)
 }
 
-pub fn throw(dir: Dir, src: Entity, obj: Entity, w: &mut World) {
+pub fn throw(dir: Dir, src: Entity, obj: Entity, rng: &mut R, w: &mut World) {
 	let (bp, ai, ch) = {
 		let possy = w.read_resource::<Possy>();
 		if let Some(pos) = possy.get_pos(src) {
@@ -200,27 +199,26 @@ pub fn throw(dir: Dir, src: Entity, obj: Entity, w: &mut World) {
 		.with(ai)
 		.with(ch)
 		.build();
-	moveto(bp, newent, w)
+	moveto(bp, newent, rng, w)
 }
 
-pub fn heal(src: Entity, amt: i16, w: &mut World) {
+pub fn heal(src: Entity, amt: i16, _rng: &mut R, w: &mut World) {
 	let mut mortal = w.write::<Mortal>();
 	if let Some(&mut Mortal(ref mut mo)) = mortal.get_mut(src) {
 		*mo += amt
 	}
 }
 
-pub fn blink(src: Entity, w: &mut World) {
+pub fn blink(src: Entity, rng: &mut R, w: &mut World) {
 	let np = if let Some(pxy) = w.write_resource::<Possy>().get_pos(src) {
-		let mut rng = rand::thread_rng();
 		[rng.gen_range(0, 40), rng.gen_range(0, 40), pxy[2]]
 	} else {
 		return
 	};
-	moveto(np, src, w);
+	moveto(np, src, rng, w);
 }
 
-pub fn grab(xyz: [i16; 3], src: Entity, w: &mut World) {
+pub fn grab(xyz: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 	let strength = w.read::<Strength>();
 	let mut bag = w.write::<Bag>();
 	if let (Some(&Strength(strg)), Some(&mut Bag(ref mut ebag))) = (strength.get(src), bag.get_mut(src)) {

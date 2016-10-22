@@ -4,7 +4,7 @@ use specs::World;
 use x1b::RGB4;
 
 use super::RoomGen;
-use super::super::util::Char;
+use super::super::util::{R, Char};
 
 #[derive(Clone)]
 pub struct BezierRoomGen {
@@ -14,7 +14,7 @@ pub struct BezierRoomGen {
 }
 
 impl BezierRoomGen {
-	fn new<R: Rng>(rng: &mut R, ch: Char, width: usize, pnum: usize, x: i16, y: i16, w: i16, h: i16) -> Self {
+	fn new(rng: &mut R, ch: Char, width: usize, pnum: usize, x: i16, y: i16, w: i16, h: i16) -> Self {
 		let mut pts = Vec::new();
 		pts.push(match rng.gen_range(0, 4){
 			0 => [rng.gen_range(x, x+w), y],
@@ -42,6 +42,6 @@ impl BezierRoomGen {
 }
 
 impl RoomGen for BezierRoomGen {
-	fn generate<R: Rng>(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
+	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
 	}
 }
