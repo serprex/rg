@@ -42,11 +42,15 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) -> io
 					if bag.is_empty() {
 						curse.printnows(40, 1, "Empty", x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
 					} else {
+						curse.set(40, 1 + invp as u16, Char::from('>'));
 						for (idx, &item) in bag.iter().enumerate() {
-							let ch = if let Some(&Chr(ch)) = chr.get(item) { ch.get_char() } else { ' ' };
-							curse.printnows(40, 1 + idx as u16,
-								&format!("{}{:2} {}", if idx == invp { '>' } else { ' ' }, idx, ch),
-								x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+							if idx > 9 {
+								curse.set(41, 1 + idx as u16, Char::from((b'0' + (idx%10) as u8) as char));
+							}
+							curse.set(42, 1 + idx as u16, Char::from((b'0' + (idx/10) as u8) as char));
+							if let Some(&Chr(ch)) = chr.get(item) {
+								curse.set(44, 1 + idx as u16, ch);
+							}
 						}
 					}
 				}
@@ -54,22 +58,25 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) -> io
 				let armors = w.read::<Armor>();
 				let shields = w.read::<Shield>();
 				if let Some(&Weapon(item)) = weapons.get(player) {
-					let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
 					curse.printnows(61, 1, "Weapon",
 						x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
-					curse.set(69, 1, ch);
+					if let Some(&Chr(ch)) = chr.get(item) {
+						curse.set(69, 1, ch);
+					}
 				}
 				if let Some(&Shield(item)) = shields.get(player) {
-					let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
 					curse.printnows(60, 2, "Offhand",
 						x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
-					curse.set(69, 2, ch);
+					if let Some(&Chr(ch)) = chr.get(item) {
+						curse.set(69, 2, ch);
+					}
 				}
 				if let Some(&Armor(item)) = armors.get(player) {
-					let ch = chr.get(item).unwrap_or(&Chr(Char::from(' '))).0.get_char();
 					curse.printnows(62, 3, "Armor",
 						x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
-					curse.set(69, 3, ch);
+					if let Some(&Chr(ch)) = chr.get(item) {
+						curse.set(69, 3, ch);
+					}
 				}
 			}
 		}

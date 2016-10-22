@@ -120,9 +120,6 @@ impl<T> Atk<T> {
 #[derive(Clone)]
 pub struct Casting(pub String);
 
-#[derive(Copy, Clone)]
-pub struct Heal(pub i16);
-
 #[derive(Clone)]
 pub struct Bag(pub Vec<Entity>);
 
@@ -136,8 +133,7 @@ pub struct Walls(pub FnvHashMap<[i16; 3], Char>);
 pub struct Todo(pub Vec<Action>);
 
 impl_storage!(VecStorage, Chr, Ai, Race);
-impl_storage!(HashMapStorage, Portal, Weight, Strength,
-	Heal, Mortal,
+impl_storage!(HashMapStorage, Portal, Weight, Strength, Mortal,
 	Armor, Weapon, Shield, Head, Bag,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);

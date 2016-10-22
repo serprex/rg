@@ -38,7 +38,7 @@ fn main(){
 	let mut rng = XorShiftRng::rand(&mut rand::thread_rng());
 	let mut w = World::new();
 	w_register!(w, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
-		Heal, Bag, Armor, Weapon, Head, Shield, Solid, Fragile,
+		Bag, Armor, Weapon, Head, Shield, Solid, Fragile,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());

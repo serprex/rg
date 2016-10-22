@@ -157,6 +157,7 @@ pub fn shoot(dir: Dir, src: Entity, w: &mut World) {
 			let &Weight(objwei) = cwei.get(sent).unwrap_or(&Weight(1));
 			let dmg = srcstr as i16 + objwei as i16 / 2;
 			let spd = if objwei >= srcstr as i16 { 1 } else { 1 + srcstr as u8 / objwei as u8 };
+			println!("{} {}", dmg, spd);
 			if let Some(&ch) = cchr.get(sent) {
 				(bp, Ai::new(AiState::Missile(dir, dmg), spd), ch)
 			} else {
@@ -202,13 +203,10 @@ pub fn throw(dir: Dir, src: Entity, obj: Entity, w: &mut World) {
 	moveto(bp, newent, w)
 }
 
-pub fn heal(src: Entity, w: &mut World) {
+pub fn heal(src: Entity, amt: i16, w: &mut World) {
 	let mut mortal = w.write::<Mortal>();
-	let heal = w.read::<Heal>();
 	if let Some(&mut Mortal(ref mut mo)) = mortal.get_mut(src) {
-		if let Some(&Heal(amt)) = heal.get(src) {
-			*mo += amt
-		}
+		*mo += amt
 	}
 }
 
