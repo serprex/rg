@@ -1,6 +1,6 @@
 use std::io;
 
-use specs::{Entity, Join, World};
+use specs::{Entity, World};
 use x1b::{self, RGB4};
 
 use components::*;
@@ -23,21 +23,22 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) -> io
 				xyz[1] = pxy[1] + y - 6;
 				if let Some(&ch) = walls.get(&xyz) {
 					curse.set(x as u16, y as u16, ch);
+				} else {
+					for &e in possy.get_ents(xyz).iter() {
+						if let Some(&Chr(ch)) = chr.get(e) {
+							curse.set(x as u16, y as u16, ch);
+							break
+						}
+					}
 				}
 			}
 		}
-		}
-		for (&Chr(ch), e) in (&chr, &w.entities()).iter() {
-			if let Some(a) = possy.get_pos(e) {
-				let x = a[0] - pxy[0] + 6;
-				let y = a[1] - pxy[1] + 6;
-				if a[2] == pxy[2] && x >= 0 && x <= 12 && y >= 0 && y <= 12 {
-					curse.set(x as u16, y as u16, ch);
-				}
-			}
 		}
 		if let Some(ai) = cai.get(player) {
-			if let AiState::PlayerInventory(invp) = ai.state {
+			if let AiState::PlayerCasting(ref cast) = ai.state {
+				curse.set(40, 1, Char::from('>'));
+				curse.printnows(42, 1, &cast, x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+			} else if let AiState::PlayerInventory(invp) = ai.state {
 				if let Some(&Bag(ref bag)) = cbag.get(player) {
 					if bag.is_empty() {
 						curse.printnows(40, 1, "Empty", x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);

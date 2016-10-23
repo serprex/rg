@@ -50,11 +50,6 @@ fn main(){
 		.with(Atk::<Weapon>::new(1, 1, -2))
 		.build();
 	possy.set_pos(raffclaw, [4, 8, 0]);
-	let leylabow = w.create_now()
-		.with(Weight(1))
-		.with(Strength(1))
-		.with(Chr(Char::from('j')))
-		.build();
 	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('b')))
 		.with(Weight(10))
@@ -93,7 +88,7 @@ fn main(){
 		.with(Mortal(2))
 		.with(Weight(20))
 		.with(Race::Leylapan)
-		.with(Weapon(leylabow))
+		.with(Strength(15))
 		.build(), [10, 8, 0]);
 	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('!')))

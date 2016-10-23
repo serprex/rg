@@ -30,7 +30,6 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 								match (getch(), ebag.is_empty()) {
 									('i', _) => {
 										ai.state = AiState::Player;
-										ai.tick = 10;
 									},
 									('j', false) =>
 										ai.state = AiState::PlayerInventory(if invp == ebag.len()-1 { 0 } else { invp + 1 }),
@@ -246,8 +245,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 											weight.insert(shot, Weight(1));
 											fragile.insert(shot, Fragile);
 											cch.insert(shot, Chr(Char::from('j')));
-											shields.insert(ent, Shield(shot));
-											todos.push(Box::new(move|r, w| actions::shoot(fdir, ent, r, w)));
+											todos.push(Box::new(move|r, w| actions::throw(fdir, ent, ent, shot, r, w)));
 											let mdir = if dnum == 2 {
 												dirs[if dirs[0] == fdir { 1 } else { 0 }]
 											} else {

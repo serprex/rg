@@ -34,7 +34,7 @@ pub fn moveto(np: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 	let Walls(ref walls) = *w.read_resource::<Walls>();
 	if walls.contains_key(&np) {
 		if fragile.get(src).is_some() {
-			w.delete_later(src)
+			w.delete_later(src);
 		}
 		return
 	}
@@ -46,8 +46,8 @@ pub fn moveto(np: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 		}
 	}
 	possy.set_pos(src, np);
-	let mut rmai = SmallVec::<[Entity; 2]>::new();
-	let mut spos = SmallVec::<[(Entity, [i16; 3]); 2]>::new();
+	let mut rmai = SmallVec::<[Entity; 1]>::new();
+	let mut spos = Vec::new();
 	for ce in possy.get_ents(np).iter().cloned().filter(|&ce| ce != src) {
 		if let Some(&Portal(porx)) = portal.get(ce) {
 			spos.push((src, porx));
@@ -147,7 +147,7 @@ pub fn shoot(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 }
 
 pub fn throw(dir: Dir, psrc: Entity, tsrc: Entity, obj: Entity, rng: &mut R, w: &mut World) {
-	let (bp, ai, ch) = {
+	let bp = {
 		let possy = w.read_resource::<Possy>();
 		if let Some(pos) = possy.get_pos(psrc) {
 			let cstr = w.read::<Strength>();
@@ -159,20 +159,11 @@ pub fn throw(dir: Dir, psrc: Entity, tsrc: Entity, obj: Entity, rng: &mut R, w: 
 			let &Weight(objwei) = cwei.get(obj).unwrap_or(&Weight(1));
 			let dmg = srcstr as i16 + objwei as i16 / 2;
 			let spd = 1 + (objwei as i16 * 8 / srcstr as i16) as u8;
-			if let Some(&ch) = cchr.get(obj) {
-				(bp, Ai::new(AiState::Missile(dir, dmg, 108/spd), spd), ch)
-			} else {
-				return
-			}
-		} else {
-			return
-		}
+			cai.insert(obj, Ai::new(AiState::Missile(dir, dmg, 108/spd), spd));
+			bp
+		} else { return }
 	};
-	let newent = w.create_now()
-		.with(ai)
-		.with(ch)
-		.build();
-	moveto(bp, newent, rng, w)
+	moveto(bp, obj, rng, w)
 }
 
 pub fn heal(src: Entity, amt: i16, _rng: &mut R, w: &mut World) {
