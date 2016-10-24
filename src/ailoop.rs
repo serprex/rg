@@ -14,9 +14,9 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 	let Todo(ref mut todos) = *w.write_resource::<Todo>();
 	let mut rmai = Vec::new();
 	for (mut ai, ent) in (&mut cai, &ents).iter() {
-		let race = crace.get(ent).map(|&x| x);
-		if let Some(pos) = possy.get_pos(ent) {
-			if ai.tick == 0 {
+		if ai.tick == 0 {
+			if let Some(pos) = possy.get_pos(ent) {
+				let race = crace.get(ent).map(|&x| x);
 				ai.tick = ai.speed;
 				match ai.state {
 					AiState::PlayerInventory(invp) => {
@@ -28,9 +28,8 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 						if let Some(&mut Bag(ref mut ebag)) = bag.get_mut(ent) {
 							'invput: loop {
 								match (getch(), ebag.is_empty()) {
-									('i', _) => {
-										ai.state = AiState::Player;
-									},
+									('i', _) =>
+										ai.state = AiState::Player,
 									('j', false) =>
 										ai.state = AiState::PlayerInventory(if invp == ebag.len()-1 { 0 } else { invp + 1 }),
 									('k', false) =>
@@ -333,9 +332,9 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 					},
 					//_ => (),
 				}
-			} else {
-				ai.tick -= 1
 			}
+		} else {
+			ai.tick -= 1
 		}
 	}
 	for e in rmai {
