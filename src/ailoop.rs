@@ -16,7 +16,6 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 	for (mut ai, ent) in (&mut cai, &ents).iter() {
 		if ai.tick == 0 {
 			if let Some(pos) = possy.get_pos(ent) {
-				let race = crace.get(ent).map(|&x| x);
 				ai.tick = ai.speed;
 				match ai.state {
 					AiState::PlayerInventory(invp) => {
@@ -176,7 +175,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 							todos.push(Box::new(move|r, w| actions::movedir(dir, ent, r, w)));
 						}
 						let near = possy.get_within(pos, 5);
-						if let Some(race) = race {
+						if let Some(&race) = crace.get(ent) {
 							for (e2, _) in near {
 								if ent != e2 {
 									if let Some(&race2) = crace.get(e2) {
@@ -215,8 +214,8 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 						match possy.get_pos(foe) {
 							None => ai.state = AiState::Random,
 							Some(fxy) => {
-								match race {
-									Some(Race::Leylapan) => {
+								match crace.get(ent) {
+									Some(&Race::Leylapan) => {
 										let mut dirs: [Dir; 2] = unsafe { mem::uninitialized() };
 										let mut dnum = 0;
 										if pos[0] != fxy[0] {
