@@ -9,6 +9,7 @@ mod actions;
 mod adjacency;
 mod ailoop;
 mod components;
+mod flood;
 mod genroom;
 mod greedgrow;
 mod position;
