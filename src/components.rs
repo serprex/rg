@@ -35,8 +35,6 @@ pub enum AiState {
 	Player,
 	PlayerInventory(usize),
 	PlayerCasting(String),
-	Melee(u8, i16, Entity),
-	Missile(Dir, i16, u8),
 }
 #[derive(Clone)]
 pub struct Ai {
@@ -127,12 +125,12 @@ pub struct Portal(pub [i16; 3]);
 #[derive(Default)]
 pub struct Walls(pub FnvHashMap<[i16; 3], Char>);
 
-#[derive(Default)]
-pub struct Todo(pub Vec<Action>);
+#[derive(Copy, Clone)]
+pub struct Dmg(pub i16);
 
-impl_storage!(VecStorage, Chr, Ai, Race);
+impl_storage!(VecStorage, Chr, Ai);
 impl_storage!(HashMapStorage, Portal, Weight, Strength, Mortal,
-	Armor, Weapon, Shield, Head, Bag,
+	Armor, Weapon, Shield, Head, Bag, Race, Dmg,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 impl_storage!(NullStorage, Solid, Fragile);

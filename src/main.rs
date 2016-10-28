@@ -14,9 +14,9 @@ mod greedgrow;
 mod position;
 mod render;
 mod termjuggler;
+mod tick;
 mod util;
 
-use std::mem;
 use std::sync::atomic::Ordering;
 use fnv::FnvHashSet;
 use rand::{Rand, Rng};
@@ -26,6 +26,7 @@ use components::*;
 use position::Possy;
 use genroom::RoomGen;
 use termjuggler::TermJuggler;
+use tick::Ticker;
 use util::{Char, R, EXITGAME};
 
 macro_rules! w_register {
@@ -38,11 +39,10 @@ fn main(){
 	let mut rng = R::rand(&mut rand::thread_rng());
 	let mut w = World::new();
 	w_register!(w, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
-		Bag, Armor, Weapon, Head, Shield, Solid, Fragile,
+		Bag, Armor, Weapon, Head, Shield, Solid, Fragile, Dmg,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());
-	w.add_resource(Todo::default());
 	let mut possy = Possy::new();
 	let raffclaw = w.create_now()
 		.with(Chr(Char::from('x')))
@@ -102,6 +102,7 @@ fn main(){
 		.with(Weight(5))
 		.build(), [8, 10, 0]);
 	w.add_resource(possy);
+	w.add_resource(Ticker::default());
 	{
 	let rrg = genroom::GreedyRoomGen::default();
 	let frg = genroom::ForestRoomGen::default();
@@ -125,16 +126,18 @@ fn main(){
 		ailoop::ailoop(&mut rng, &mut w);
 		loop {
 			w.maintain();
-			let todo = {
-				let Todo(ref mut todos) = *w.write_resource::<Todo>();
-				if todos.is_empty() { break }
-				mem::replace(todos, Vec::new())
+			let events = {
+				let mut ticker = w.write_resource::<Ticker>();
+				ticker.pop()
 			};
-			for action in todo {
-				action(&mut rng, &mut w);
+			if events.is_empty() { break }
+			for event in events {
+				event(&mut rng, &mut w);
 			}
 		}
 		let mut possy = w.write_resource::<Possy>();
 		possy.gc(&w);
+		let mut ticker = w.write_resource::<Ticker>();
+		ticker.tick();
 	}
 }
