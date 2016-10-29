@@ -77,8 +77,8 @@ impl RoomGen for ForestRoomGen {
 		}
 		let mut xys: FnvHashSet<[i16; 2]> = Default::default();
 		while let Some((x, y)) = {
-			flood::fill(&mut xys, fx, fy, xyz[0], xyz[1], xyz[0] + w, xyz[1] + h, |x, y| walls.contains_key(&[x, y, xyz[2]]));
-			let candy = flood::holecandy(&xys, xyz[0], xyz[1], xyz[0] + w, xyz[1] + h, |x, y| walls.contains_key(&[x, y, xyz[2]]));
+			flood::fill(&mut xys, fx, fy, xyz[0], xyz[1], xyz[0] + w, xyz[1] + h, &|x, y| walls.contains_key(&[x, y, xyz[2]]));
+			let candy = flood::holecandy(&xys, xyz[0], xyz[1], xyz[0] + w, xyz[1] + h, &|x, y| walls.contains_key(&[x, y, xyz[2]]));
 			rng.choose(&candy).map(|&xy| xy)
 		} {
 			walls.remove(&[x, y, xyz[2]]);
