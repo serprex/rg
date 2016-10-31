@@ -1,35 +1,31 @@
+use std::cmp;
 use fnv::FnvHashSet;
 
 #[derive(Copy, Clone)]
-struct Segment {
-	pub y: i16,
-	pub x0: i16,
-	pub x1: i16,
-}
+struct Segment(pub i16, pub i16);
 
 impl Segment {
-	pub fn grow<F>(&mut self, set: &mut FnvHashSet<[i16; 2]>, x0: i16, x1: i16, pred: &F)
+	pub fn grow<F>(&mut self, set: &mut FnvHashSet<[i16; 2]>, x0: i16, x1: i16, y: i16, pred: &F)
 		where F: Fn(i16, i16) -> bool
 	{
-		while self.x0 - 1 >= x0 && !pred(self.x0 - 1, self.y) {
-			self.x0 -= 1;
-			set.insert([self.x0, self.y]);
+		while self.0 - 1 >= x0 && !set.contains(&[self.0 - 1, y]) && !pred(self.0 - 1, y) {
+			self.0 -= 1;
+			set.insert([self.0, y]);
 		}
-		while self.x1 + 1 < x1 && !pred(self.x1 + 1, self.y) {
-			self.x1 += 1;
-			set.insert([self.x1, self.y]);
+		while self.1 + 1 < x1 && !set.contains(&[self.1 + 1, y]) && !pred(self.1 + 1, y) {
+			self.1 += 1;
+			set.insert([self.1, y]);
 		}
 	}
 
-	pub fn roll<F>(self, set: &mut FnvHashSet<[i16; 2]>, y: i16, x0: i16, x1: i16, pred: &F, up: &mut Vec<Segment>, down: &mut Vec<Segment>)
+	pub fn roll<F>(self, set: &mut FnvHashSet<[i16; 2]>, y: i16, x0: i16, x1: i16, canup: bool, pred: &F, up: &mut Vec<(i16, Segment)>, down: &mut Vec<(i16, Segment)>)
 		where F: Fn(i16, i16) -> bool
 	{
-		let lx = if set.contains(&[self.x0, y]) || pred(self.x0, y) {
-			set.insert([self.x0, y]);
+		let lx = if set.contains(&[self.0, y]) || pred(self.0, y) {
 			let lx;
 			'lxanyloop: loop {
-				for x in self.x0+1..self.x1+1 {
-					if !pred(x, y) {
+				for x in self.0+1..self.1+1 {
+					if !set.contains(&[x, y]) && !pred(x, y) {
 						set.insert([x, y]);
 						lx = x;
 						break 'lxanyloop
@@ -39,58 +35,63 @@ impl Segment {
 			}
 			lx
 		} else {
-			let mut lx = self.x0 - 1;
-			while lx >= x0 && !set.contains(&[lx, y]) && !pred(lx, y) {
-				set.insert([lx, y]);
+			let mut lx = self.0;
+			set.insert([lx, y]);
+			while lx - 1 >= x0 && !set.contains(&[lx - 1, y]) && !pred(lx - 1, y) {
 				lx -= 1;
+				set.insert([lx, y]);
 			}
-			let lx = lx + 1;
-			if lx != self.x0 {
-				down.push(Segment { x0: lx, x1: self.x0 - 1, y: y });
+			if lx != self.0 {
+				down.push((y, Segment(lx, self.0 - 1)));
 			}
 			lx
 		};
-		let rx = if set.contains(&[self.x1, y]) || pred(self.x1, y) {
-			set.insert([self.x1, y]);
+		let rx = if lx < self.1 && self.0 != self.1 && (set.contains(&[self.1, y]) || pred(self.1, y)) {
 			let rx;
 			'rxanyloop: loop {
-				for x in (lx+1..self.x1).rev() {
-					if !set.contains(&[x, y]) && !pred(x, y) {
+				for x in (lx+1..self.1).rev() {
+					if !pred(x, y) {
 						set.insert([x, y]);
 						rx = x;
 						break 'rxanyloop
 					}
 				}
-				up.push(Segment { x0: lx, x1: lx, y: y });
+				if canup {
+					up.push((y, Segment(lx, lx)));
+				}
 				return
 			}
 			rx
 		} else {
-			let mut rx = self.x1 + 1;
-			while rx < x1 && !set.contains(&[rx, y]) && !pred(rx, y) {
-				set.insert([rx, y]);
+			let mut rx = self.1;
+			set.insert([rx, y]);
+			while rx + 1 < x1 && !set.contains(&[rx + 1, y]) && !pred(rx + 1, y) {
 				rx += 1;
+				set.insert([rx, y]);
 			}
-			let rx = rx - 1;
-			if rx != self.x1 {
-				down.push(Segment { x0: self.x1 + 1, x1: rx, y: y });
+			if rx != self.1 {
+				down.push((y, Segment(self.1 + 1, rx)));
 			}
 			rx
 		};
 		let mut lastpred = Some(lx);
-		for x in self.x0..self.x1 + 1 {
-			if !set.contains(&[x, y]) && !pred(x, y) {
+		for x in cmp::max(lx, self.0)+1..cmp::min(rx, self.1) {
+			if !pred(x, y) {
 				set.insert([x, y]);
 				if lastpred.is_none() {
 					lastpred = Some(x);
 				}
 			} else if let Some(lp) = lastpred {
-				up.push(Segment { x0: lp, x1: x - 1, y: y });
+				if canup {
+					up.push((y, Segment(lp, x - 1)));
+				}
 				lastpred = None;
 			}
 		}
-		if let Some(lp) = lastpred {
-			up.push(Segment { x0: lp, x1: rx, y: y });
+		if canup {
+			up.push((y, Segment(
+				if let Some(lp) = lastpred { lp } else { cmp::min(rx, self.1) }, rx
+			)));
 		}
 	}
 }
@@ -101,20 +102,28 @@ pub fn fill<F>(set: &mut FnvHashSet<[i16; 2]>, x: i16, y: i16, x0: i16, y0: i16,
 	let mut xx0 = x;
 	let mut xx1 = x;
 	set.insert([x, y]);
-	let mut seg0 = Segment { y: y, x0: x, x1: x };
-	seg0.grow(set, x0, x1, pred);
+	let mut seg = Segment(x, x);
+	seg.grow(set, x0, x1, y, pred);
 	let mut up = vec![];
-	let mut down = vec![seg0];
+	let mut down = vec![];
+	if y + 1 < y1 {
+		seg.roll(set, y + 1, x0, x1, y + 2 < y1, pred, &mut down, &mut up);
+	}
+	if y - 1 >= y0 {
+		seg.roll(set, y - 1, x0, x1, y - 2 >= y0, pred, &mut up, &mut down);
+	}
 	loop {
-		while let Some(seg) = down.pop() {
-			if seg.y > y1 { continue }
-			seg.roll(set, seg.y + 1, x0, x1, pred, &mut down, &mut up);
+		if down.len() > up.len() {
+			if let Some((y, seg)) = down.pop() {
+				seg.roll(set, y + 1, x0, x1, y + 2 < y1, pred, &mut down, &mut up);
+			} else {
+				unreachable!();
+			}
+		} else if let Some((y, seg)) = up.pop() {
+			seg.roll(set, y - 1, x0, x1, y - 2 >= y0, pred, &mut up, &mut down);
+		} else {
+			break
 		}
-		while let Some(seg) = up.pop() {
-			if seg.y < y0 { continue }
-			seg.roll(set, seg.y - 1, x0, x1, pred, &mut up, &mut down);
-		}
-		if down.is_empty() { return }
 	}
 }
 
