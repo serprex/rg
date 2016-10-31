@@ -41,8 +41,8 @@ impl Segment {
 				lx -= 1;
 				set.insert([lx, y]);
 			}
-			if lx != self.0 {
-				down.push((y, Segment(lx, self.0 - 1)));
+			if lx <= self.0 - 2 {
+				down.push((y, Segment(lx, self.0 - 2)));
 			}
 			lx
 		};
@@ -69,8 +69,8 @@ impl Segment {
 				rx += 1;
 				set.insert([rx, y]);
 			}
-			if rx != self.1 {
-				down.push((y, Segment(self.1 + 1, rx)));
+			if rx >= self.1 + 2 {
+				down.push((y, Segment(self.1 + 2, rx)));
 			}
 			rx
 		};
