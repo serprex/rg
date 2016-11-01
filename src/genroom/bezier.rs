@@ -9,15 +9,15 @@ use super::super::util::{R, Char};
 use super::super::components::*;
 
 #[derive(Clone)]
-pub struct BezierRoomGen {
+pub struct Bezier {
 	pub ch: Char,
 	pub width: usize,
 	pub pnum: usize,
 }
 
-impl BezierRoomGen {
+impl Bezier {
 	fn new(ch: Char, width: usize, pnum: usize) -> Self {
-		BezierRoomGen {
+		Bezier {
 			ch: Char::new_with_color(' ', RGB4::Default, RGB4::Blue),
 			width: 3,
 			pnum: pnum,
@@ -25,7 +25,7 @@ impl BezierRoomGen {
 	}
 }
 
-impl RoomGen for BezierRoomGen {
+impl RoomGen for Bezier {
 	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
 		let mut pts = Vec::new();
 		let x = xyz[0] as f32;

@@ -105,8 +105,8 @@ fn main(){
 	w.add_resource(possy);
 	w.add_resource(Ticker::default());
 	{
-	let rrg = genroom::GreedyRoomGen::default();
-	let frg = genroom::ForestRoomGen::default();
+	let rrg = genroom::Greedy::default();
+	let frg = (genroom::Forest::default(), genroom::Floodjoin);
 	let mut f1 = [[10, 10, 22, 12], [20, 22, 30, 32], [35, 20, 24, 36], [50, 50, 55, 55], [60, 50, 62, 52], [80, 60, 82, 70], [90, 90, 95, 105]];
 	let fadj = greedgrow::grow(&mut rng, &mut f1, 0, 0, 120, 120);
 	let fjlist = greedgrow::joinlist(&mut rng, &fadj, f1.len());

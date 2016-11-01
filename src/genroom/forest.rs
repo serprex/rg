@@ -5,21 +5,20 @@ use specs::World;
 
 use super::RoomGen;
 use super::super::components::*;
-use super::super::flood;
 use super::super::position::Possy;
 use super::super::util::{R, Char};
 use super::super::x1b::RGB4;
 
 #[derive(Copy, Clone)]
-pub struct ForestRoomGen {
+pub struct Forest {
 	pub trees: usize,
 	pub raff: usize,
 	pub null: usize,
 }
 
-impl Default for ForestRoomGen {
+impl Default for Forest {
 	fn default() -> Self {
-		ForestRoomGen {
+		Forest {
 			trees: 4,
 			raff: 1,
 			null: 9,
@@ -27,7 +26,7 @@ impl Default for ForestRoomGen {
 	}
 }
 
-impl RoomGen for ForestRoomGen {
+impl RoomGen for Forest {
 	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
 		let range = Range::new(0, self.trees + self.raff + self.null);
 		let raffspeed = Range::new(8, 14);
@@ -61,33 +60,6 @@ impl RoomGen for ForestRoomGen {
 					possy.set_pos(e, [x, y, xyz[2]]);
 				}
 			}
-		}
-
-		let mut fx;
-		let mut fy;
-		let Walls(ref mut walls) = *room.write_resource::<Walls>();
-		'xyloop: loop {
-			for x in xyz[0]..xyz[0]+w {
-				for y in xyz[1]..xyz[1]+h {
-					if !walls.contains_key(&[x, y, xyz[2]]) {
-						fx = x;
-						fy = y;
-						break 'xyloop
-					}
-				}
-			}
-			return
-		}
-		let mut xys: FnvHashSet<[i16; 2]> = Default::default();
-		while let Some((x, y)) = {
-			let pred = &|x, y| walls.contains_key(&[x, y, xyz[2]]);
-			flood::fill(&mut xys, fx, fy, xyz[0], xyz[1], xyz[0] + w, xyz[1] + h, &pred);
-			let candy = flood::holecandy(&xys, xyz[0], xyz[1], xyz[0] + w, xyz[1] + h, &pred);
-			rng.choose(&candy).map(|&xy| xy)
-		} {
-			walls.remove(&[x, y, xyz[2]]);
-			fx = x;
-			fy = y;
 		}
 	}
 }

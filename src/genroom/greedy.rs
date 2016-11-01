@@ -10,13 +10,13 @@ use super::super::greedgrow;
 use super::super::position::Possy;
 
 #[derive(Copy, Clone)]
-pub struct GreedyRoomGen(pub usize);
-impl Default for GreedyRoomGen {
+pub struct Greedy(pub usize);
+impl Default for Greedy {
 	fn default() -> Self {
-		GreedyRoomGen(6)
+		Greedy(6)
 	}
 }
-impl RoomGen for GreedyRoomGen {
+impl RoomGen for Greedy {
 	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
 		if w<3 || h<3 { return }
 		let mut rc = self.0;
