@@ -5,11 +5,11 @@ use super::util::R;
 
 mod forest;
 mod greedy;
-mod river;
+mod bezier;
 
 pub use self::forest::ForestRoomGen;
 pub use self::greedy::GreedyRoomGen;
-pub use self::river::BezierRoomGen;
+pub use self::bezier::BezierRoomGen;
 
 pub trait RoomGen {
 	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World);
