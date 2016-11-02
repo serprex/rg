@@ -1,6 +1,5 @@
 use fnv::FnvHashSet;
 use specs::World;
-use rand::Rng;
 use super::util::R;
 
 mod forest;

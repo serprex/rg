@@ -13,7 +13,6 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 	let possy = w.read_resource::<Possy>();
 	let ents = w.entities();
 	let ref mut ticker = *w.write_resource::<Ticker>();
-	let mut rmai = Vec::new();
 	for (mut ai, ent) in (&mut cai, &ents).iter() {
 		if ai.tick == 0 {
 			if let Some(pos) = possy.get_pos(ent) {
@@ -236,7 +235,6 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 											dnum += 1
 										}
 										if let Some(&fdir) = rng.choose(&dirs[..dnum]) {
-											let mut shields = w.write::<Shield>();
 											let mut weight = w.write::<Weight>();
 											let mut fragile = w.write::<Fragile>();
 											let mut cch = w.write::<Chr>();
@@ -319,8 +317,5 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 		} else {
 			ai.tick -= 1
 		}
-	}
-	for e in rmai {
-		cai.remove(e);
 	}
 }

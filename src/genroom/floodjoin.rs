@@ -10,7 +10,7 @@ use super::super::util::R;
 pub struct Floodjoin;
 
 impl RoomGen for Floodjoin {
-	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
+	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, _exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
 		let mut fx;
 		let mut fy;
 		let Walls(ref mut walls) = *room.write_resource::<Walls>();

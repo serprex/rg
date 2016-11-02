@@ -99,8 +99,6 @@ impl Segment {
 pub fn fill<F>(set: &mut FnvHashSet<[i16; 2]>, x: i16, y: i16, x0: i16, y0: i16, x1: i16, y1: i16, pred: &F)
 	where F: Fn(i16, i16) -> bool
 {
-	let mut xx0 = x;
-	let mut xx1 = x;
 	set.insert([x, y]);
 	let mut seg = Segment(x, x);
 	seg.grow(set, x0, x1, y, pred);

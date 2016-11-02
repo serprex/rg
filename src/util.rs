@@ -2,7 +2,6 @@ use std::cmp;
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
 use std::io::{self, Read};
 use rand::XorShiftRng;
-use specs::World;
 use x1b;
 use components::Dir;
 
@@ -52,15 +51,6 @@ pub fn char_as_dir(ch: char) -> Result<Dir, char> {
 	})
 }
 
-pub fn dir_as_off(dir: Dir) -> [i16; 2] {
-	match dir {
-		Dir::H => [-1, 0],
-		Dir::J => [0, 1],
-		Dir::K => [0, -1],
-		Dir::L => [1, 0],
-	}
-}
-
 pub fn xy_incr_dir(xy: &mut [i16], dir: Dir) {
 	match dir {
 		Dir::H => xy[0] -= 1,
@@ -68,11 +58,6 @@ pub fn xy_incr_dir(xy: &mut [i16], dir: Dir) {
 		Dir::K => xy[1] -= 1,
 		Dir::L => xy[0] += 1,
 	}
-}
-
-pub fn xy_plus_dir(mut xy: [i16; 2], dir: Dir) -> [i16; 2] {
-	xy_incr_dir(&mut xy, dir);
-	xy
 }
 
 pub fn xyz_plus_dir(mut xyz: [i16; 3], dir: Dir) -> [i16; 3] {

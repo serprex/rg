@@ -1,8 +1,6 @@
 use fnv::FnvHashSet;
-use rand::Rng;
 use rand::distributions::{IndependentSample, Range};
 use specs::World;
-use x1b::RGB4;
 
 use super::RoomGen;
 use super::super::util::{R, Char};
@@ -18,8 +16,8 @@ pub struct Bezier {
 impl Bezier {
 	fn new(ch: Char, width: usize, pnum: usize) -> Self {
 		Bezier {
-			ch: Char::new_with_color(' ', RGB4::Default, RGB4::Blue),
-			width: 3,
+			ch: ch,
+			width: width,
 			pnum: pnum,
 		}
 	}

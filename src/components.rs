@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 use fnv::FnvHashMap;
-use specs::{World, Entity, Component, VecStorage, HashMapStorage, NullStorage};
+use specs::{Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
 use util::Char;
 

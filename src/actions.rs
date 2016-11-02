@@ -7,6 +7,7 @@ use position::Possy;
 use tick::Ticker;
 use util::*;
 
+#[allow(dead_code)]
 pub enum Action {
 	Action(Box<Fn(&mut R, &mut World) + Send + Sync>),
 	Movedir{ dir: Dir, src: Entity },
@@ -28,19 +29,19 @@ impl Action {
 	pub fn call(self, rng: &mut R, w: &mut World) {
 		match self {
 			Action::Action(a) => a(rng, w),
-			Action::Movedir { dir: dir, src: src } => movedir(dir, src, rng, w),
-			Action::Colcheck { src: src } => colcheck(src, rng, w),
-			Action::Moveto { np: np, src: src } => moveto(np, src, rng, w),
-			Action::Melee { dur: dur, src: src, ent: ent } => melee(dur, src, ent, rng, w),
-			Action::Missile { spd: spd, dir: dir, dur: dur, ent: ent} => missile(spd, dir, dur, ent, rng, w),
-			Action::Attack { dir: dir, src: src } => attack(dir, src, rng, w),
-			Action::Lunge { dir: dir, src: src } => lunge(dir, src, rng, w),
-			Action::Shoot { dir: dir, src: src } => shoot(dir, src, rng, w),
-			Action::Throw { dir: dir, psrc: psrc, tsrc: tsrc, obj: obj } => throw(dir, psrc, tsrc, obj, rng, w),
-			Action::Heal { src: src, amt: amt } => heal(src, amt, rng, w),
-			Action::Blink { src: src } => blink(src, rng, w),
-			Action::Grab { xyz: xyz, src: src } => grab(xyz, src, rng, w),
-			Action::Pickup { src: src, ent: ent } => pickup(src, ent, rng, w),
+			Action::Movedir { dir, src } => movedir(dir, src, rng, w),
+			Action::Colcheck { src } => colcheck(src, rng, w),
+			Action::Moveto { np, src } => moveto(np, src, rng, w),
+			Action::Melee { dur, src, ent } => melee(dur, src, ent, rng, w),
+			Action::Missile { spd, dir, dur, ent} => missile(spd, dir, dur, ent, rng, w),
+			Action::Attack { dir, src } => attack(dir, src, rng, w),
+			Action::Lunge { dir, src } => lunge(dir, src, rng, w),
+			Action::Shoot { dir, src } => shoot(dir, src, rng, w),
+			Action::Throw { dir, psrc, tsrc, obj } => throw(dir, psrc, tsrc, obj, rng, w),
+			Action::Heal { src, amt } => heal(src, amt, rng, w),
+			Action::Blink { src } => blink(src, rng, w),
+			Action::Grab { xyz, src } => grab(xyz, src, rng, w),
+			Action::Pickup { src, ent } => pickup(src, ent, rng, w),
 		}
 	}
 }
@@ -154,34 +155,31 @@ fn missile(spd: u32, dir: Dir, dur: u8, ent: Entity, rng: &mut R, w: &mut World)
 fn attack(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	let (bp, went) = {
 		let mut weapons = w.write::<Weapon>();
-		let mut cch = w.write::<Chr>();
 		let mut cai = w.write::<Ai>();
 		let cpos = w.read_resource::<Possy>();
 		let watk = w.read::<Atk<Weapon>>();
 		let mut misl = w.write::<Dmg>();
 		if let Some(Weapon(went)) = weapons.remove(src) {
-			if let Some(&wch) = cch.get(went) {
-				if let Some(pos) = cpos.get_pos(src) {
-					let cstr = w.read::<Strength>();
-					let &Strength(srcstr) = cstr.get(went).unwrap_or(&Strength(1));
-					let bp = xyz_plus_dir(pos, dir);
-					let wstats = *watk.get(went).unwrap_or(&Atk::<Weapon>::new(0, 1, 0));
-					let mut ticker = w.write_resource::<Ticker>();
-					misl.insert(went, Dmg(srcstr / 4 + wstats.dmg));
-					let dur = wstats.dur;
-					ticker.push(1, Action::Melee { dur: dur, src: src, ent: went });
-					if wstats.spd != 0 {
-						if let Some(mut ai) = cai.get_mut(src) {
-							ai.tick = if wstats.spd < 0 {
-								let spd = (-wstats.spd) as u8;
-								if spd < ai.tick { ai.tick - spd } else { 0 }
-							} else {
-								ai.tick + wstats.spd as u8
-							};
-						}
+			if let Some(pos) = cpos.get_pos(src) {
+				let cstr = w.read::<Strength>();
+				let &Strength(srcstr) = cstr.get(went).unwrap_or(&Strength(1));
+				let bp = xyz_plus_dir(pos, dir);
+				let wstats = *watk.get(went).unwrap_or(&Atk::<Weapon>::new(0, 1, 0));
+				let mut ticker = w.write_resource::<Ticker>();
+				misl.insert(went, Dmg(srcstr / 4 + wstats.dmg));
+				let dur = wstats.dur;
+				ticker.push(1, Action::Melee { dur: dur, src: src, ent: went });
+				if wstats.spd != 0 {
+					if let Some(mut ai) = cai.get_mut(src) {
+						ai.tick = if wstats.spd < 0 {
+							let spd = (-wstats.spd) as u8;
+							if spd < ai.tick { ai.tick - spd } else { 0 }
+						} else {
+							ai.tick + wstats.spd as u8
+						};
 					}
-					(bp, went)
-				} else { return }
+				}
+				(bp, went)
 			} else { return }
 		} else { return }
 	};
@@ -212,7 +210,6 @@ fn throw(dir: Dir, psrc: Entity, tsrc: Entity, obj: Entity, rng: &mut R, w: &mut
 		if let Some(pos) = possy.get_pos(psrc) {
 			let cstr = w.read::<Strength>();
 			let cwei = w.read::<Weight>();
-			let cchr = w.read::<Chr>();
 			let mut ticker = w.write_resource::<Ticker>();
 			let mut misl = w.write::<Dmg>();
 			let bp = xyz_plus_dir(pos, dir);
@@ -273,12 +270,11 @@ fn pickup(src: Entity, ent: Entity, _rng: &mut R, w: &mut World) {
 	if let (Some(&Strength(strg)), Some(&mut Bag(ref mut ebag))) = (strength.get(src), bag.get_mut(src)) {
 		let weight = w.read::<Weight>();
 		let mut possy = w.write_resource::<Possy>();
-		let mut totwei: i32 = ebag.iter().filter_map(|&e| weight.get(e).map(|&Weight(x)| x as i32)).sum();
+		let totwei: i32 = ebag.iter().filter_map(|&e| weight.get(e).map(|&Weight(x)| x as i32)).sum();
 		if let Some(&Weight(wei)) = weight.get(ent) {
 			if totwei + wei as i32 <= strg as i32 {
 				ebag.push(ent);
 				possy.remove(ent);
-				totwei += wei as i32;
 			}
 		}
 	}
