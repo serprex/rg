@@ -133,7 +133,7 @@ fn main(){
 			};
 			if events.is_empty() { break }
 			for event in events {
-				event(&mut rng, &mut w);
+				event.call(&mut rng, &mut w);
 			}
 		}
 		let mut possy = w.write_resource::<Possy>();

@@ -7,7 +7,45 @@ use position::Possy;
 use tick::Ticker;
 use util::*;
 
-pub fn movedir(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
+pub enum Action {
+	Action(Box<Fn(&mut R, &mut World) + Send + Sync>),
+	Movedir{ dir: Dir, src: Entity },
+	Colcheck { src: Entity },
+	Moveto { np: [i16; 3], src: Entity },
+	Melee { dur: u8, src: Entity, ent: Entity },
+	Missile { spd: u32, dir: Dir, dur: u8, ent: Entity },
+	Attack { dir: Dir, src: Entity },
+	Lunge { dir: Dir, src: Entity },
+	Shoot { dir: Dir, src: Entity },
+	Throw { dir: Dir, psrc: Entity, tsrc: Entity, obj: Entity },
+	Heal { src: Entity, amt: i16 },
+	Blink { src: Entity },
+	Grab { xyz: [i16; 3], src: Entity },
+	Pickup { src: Entity, ent: Entity },
+}
+
+impl Action {
+	pub fn call(self, rng: &mut R, w: &mut World) {
+		match self {
+			Action::Action(a) => a(rng, w),
+			Action::Movedir { dir: dir, src: src } => movedir(dir, src, rng, w),
+			Action::Colcheck { src: src } => colcheck(src, rng, w),
+			Action::Moveto { np: np, src: src } => moveto(np, src, rng, w),
+			Action::Melee { dur: dur, src: src, ent: ent } => melee(dur, src, ent, rng, w),
+			Action::Missile { spd: spd, dir: dir, dur: dur, ent: ent} => missile(spd, dir, dur, ent, rng, w),
+			Action::Attack { dir: dir, src: src } => attack(dir, src, rng, w),
+			Action::Lunge { dir: dir, src: src } => lunge(dir, src, rng, w),
+			Action::Shoot { dir: dir, src: src } => shoot(dir, src, rng, w),
+			Action::Throw { dir: dir, psrc: psrc, tsrc: tsrc, obj: obj } => throw(dir, psrc, tsrc, obj, rng, w),
+			Action::Heal { src: src, amt: amt } => heal(src, amt, rng, w),
+			Action::Blink { src: src } => blink(src, rng, w),
+			Action::Grab { xyz: xyz, src: src } => grab(xyz, src, rng, w),
+			Action::Pickup { src: src, ent: ent } => pickup(src, ent, rng, w),
+		}
+	}
+}
+
+fn movedir(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	if let Some(np) = {
 		let possy = w.read_resource::<Possy>();
 		possy.get_pos(src).map(|pos| xyz_plus_dir(pos, dir))
@@ -16,7 +54,7 @@ pub fn movedir(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	}
 }
 
-pub fn colcheck(src: Entity, rng: &mut R, w: &mut World) {
+fn colcheck(src: Entity, rng: &mut R, w: &mut World) {
 	if let Some(np) = {
 		let possy = w.read_resource::<Possy>();
 		possy.get_pos(src)
@@ -25,7 +63,7 @@ pub fn colcheck(src: Entity, rng: &mut R, w: &mut World) {
 	}
 }
 
-pub fn moveto(np: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
+fn moveto(np: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 	let mut possy = w.write_resource::<Possy>();
 	let mut mort = w.write::<Mortal>();
 	let portal = w.read::<Portal>();
@@ -85,7 +123,7 @@ pub fn moveto(np: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 	}
 }
 
-pub fn melee(dur: u8, src: Entity, ent: Entity, rng: &mut R, w: &mut World) {
+fn melee(dur: u8, src: Entity, ent: Entity, rng: &mut R, w: &mut World) {
 	if dur == 0 {
 		let mut weapons = w.write::<Weapon>();
 		let mut possy = w.write_resource::<Possy>();
@@ -94,26 +132,26 @@ pub fn melee(dur: u8, src: Entity, ent: Entity, rng: &mut R, w: &mut World) {
 	} else {
 		{
 		let mut ticker = w.write_resource::<Ticker>();
-		ticker.push(1, Box::new(move|r, w| melee(dur - 1, src, ent, r, w)));
+		ticker.push(1, Action::Melee { dur: dur - 1, src: src, ent: ent });
 		}
 		colcheck(ent, rng, w);
 	}
 }
 
-pub fn missile(spd: u32, dir: Dir, dur: u8, ent: Entity, rng: &mut R, w: &mut World) {
+fn missile(spd: u32, dir: Dir, dur: u8, ent: Entity, rng: &mut R, w: &mut World) {
 	if dur == 0 {
 		let mut cm = w.write::<Dmg>();
 		cm.remove(ent);
 	} else {
 		{
 		let mut ticker = w.write_resource::<Ticker>();
-		ticker.push(spd, Box::new(move|r, w| missile(spd, dir, dur - 1, ent, r, w)));
+		ticker.push(spd, Action::Missile { spd: spd, dir: dir, dur: dur - 1, ent: ent });
 		}
 		movedir(dir, ent, rng, w);
 	}
 }
 
-pub fn attack(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
+fn attack(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	let (bp, went) = {
 		let mut weapons = w.write::<Weapon>();
 		let mut cch = w.write::<Chr>();
@@ -131,7 +169,7 @@ pub fn attack(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 					let mut ticker = w.write_resource::<Ticker>();
 					misl.insert(went, Dmg(srcstr / 4 + wstats.dmg));
 					let dur = wstats.dur;
-					ticker.push(1, Box::new(move|r, w| melee(dur, src, went, r, w)));
+					ticker.push(1, Action::Melee { dur: dur, src: src, ent: went });
 					if wstats.spd != 0 {
 						if let Some(mut ai) = cai.get_mut(src) {
 							ai.tick = if wstats.spd < 0 {
@@ -150,12 +188,12 @@ pub fn attack(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	moveto(bp, went, rng, w)
 }
 
-pub fn lunge(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
+fn lunge(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	movedir(dir, src, rng, w);
 	attack(dir, src, rng, w);
 }
 
-pub fn shoot(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
+fn shoot(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	let (went, sent) = {
 		let weapons = w.read::<Weapon>();
 		let mut shields = w.write::<Shield>();
@@ -168,7 +206,7 @@ pub fn shoot(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 	throw(dir, src, went, sent, rng, w)
 }
 
-pub fn throw(dir: Dir, psrc: Entity, tsrc: Entity, obj: Entity, rng: &mut R, w: &mut World) {
+fn throw(dir: Dir, psrc: Entity, tsrc: Entity, obj: Entity, rng: &mut R, w: &mut World) {
 	let bp = {
 		let possy = w.read_resource::<Possy>();
 		if let Some(pos) = possy.get_pos(psrc) {
@@ -183,21 +221,21 @@ pub fn throw(dir: Dir, psrc: Entity, tsrc: Entity, obj: Entity, rng: &mut R, w: 
 			let dmg = srcstr as i16 + objwei as i16 / 2;
 			let spd = 1 + (objwei as i16 * 8 / srcstr as i16) as u32;
 			misl.insert(obj, Dmg(dmg));
-			ticker.push(spd, Box::new(move|r, w| missile(spd, dir, (108/spd) as u8, obj, r, w)));
+			ticker.push(spd, Action::Missile { spd: spd, dir: dir, dur: (108/spd) as u8, ent: obj });
 			bp
 		} else { return }
 	};
 	moveto(bp, obj, rng, w)
 }
 
-pub fn heal(src: Entity, amt: i16, _rng: &mut R, w: &mut World) {
+fn heal(src: Entity, amt: i16, _rng: &mut R, w: &mut World) {
 	let mut mortal = w.write::<Mortal>();
 	if let Some(&mut Mortal(ref mut mo)) = mortal.get_mut(src) {
 		*mo += amt
 	}
 }
 
-pub fn blink(src: Entity, rng: &mut R, w: &mut World) {
+fn blink(src: Entity, rng: &mut R, w: &mut World) {
 	let np = if let Some(pxy) = w.write_resource::<Possy>().get_pos(src) {
 		[rng.gen_range(0, 40), rng.gen_range(0, 40), pxy[2]]
 	} else {
@@ -206,7 +244,7 @@ pub fn blink(src: Entity, rng: &mut R, w: &mut World) {
 	moveto(np, src, rng, w);
 }
 
-pub fn grab(xyz: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
+fn grab(xyz: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 	let strength = w.read::<Strength>();
 	let mut bag = w.write::<Bag>();
 	if let (Some(&Strength(strg)), Some(&mut Bag(ref mut ebag))) = (strength.get(src), bag.get_mut(src)) {
@@ -229,7 +267,7 @@ pub fn grab(xyz: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 	}
 }
 
-pub fn pickup(src: Entity, ent: Entity, _rng: &mut R, w: &mut World) {
+fn pickup(src: Entity, ent: Entity, _rng: &mut R, w: &mut World) {
 	let strength = w.read::<Strength>();
 	let mut bag = w.write::<Bag>();
 	if let (Some(&Strength(strg)), Some(&mut Bag(ref mut ebag))) = (strength.get(src), bag.get_mut(src)) {

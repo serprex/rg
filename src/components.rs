@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use fnv::FnvHashMap;
 use specs::{World, Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
-use util::{Char, Action};
+use util::Char;
 
 macro_rules! impl_storage {
 	($storage: ident, $($comp: ty),*) => {

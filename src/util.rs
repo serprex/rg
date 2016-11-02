@@ -6,7 +6,6 @@ use specs::World;
 use x1b;
 use components::Dir;
 
-pub type Action = Box<Fn(&mut R, &mut World) + Send + Sync>;
 pub type Char = x1b::Char<x1b::RGB4>;
 pub type R = XorShiftRng;
 

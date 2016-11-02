@@ -1,7 +1,7 @@
 use std::mem;
 use rand::Rng;
 use specs::*;
-use actions;
+use actions::Action;
 use components::*;
 use tick::Ticker;
 use util::*;
@@ -36,7 +36,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 										ai.state = AiState::PlayerInventory(if invp == 0 { ebag.len()-1 } else { invp - 1 }),
 									('d', false) => {
 										let drop = ebag.remove(invp);
-										ticker.push(0, Box::new(move|r, w| actions::moveto(pos, drop, r, w)));
+										ticker.push(0, Action::Moveto { np: pos, src: drop });
 										if invp == ebag.len() {
 											ai.state = AiState::PlayerInventory(0);
 										}
@@ -80,7 +80,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 									('t', false) => {
 										if let Ok(d) = char_as_dir(getch()) {
 											let went = ebag.remove(invp);
-											ticker.push(0, Box::new(move|r, w| actions::throw(d, ent, ent, went, r, w)));
+											ticker.push(0, Action::Throw{ dir: d, psrc: ent, tsrc: ent, obj: went });
 											ai.state = AiState::Player;
 										} else {
 											continue 'invput
@@ -109,7 +109,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 							if let AiState::PlayerCasting(ref mut cast) = *casting {
 								cast.push(ch);
 								if cast == "blink" {
-									ticker.push(0, Box::new(move|r, w| actions::blink(ent, r, w)));
+									ticker.push(0, Action::Blink{ src: ent });
 								} else {
 									continue;
 								}
@@ -120,13 +120,13 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 					AiState::Player => 'playerinput: loop {
 						match char_as_dir(getch()) {
 							Ok(d) => {
-								ticker.push(0, Box::new(move|r, w| actions::movedir(d, ent, r, w)));
+								ticker.push(0, Action::Movedir { dir: d, src: ent });
 							},
 							Err('p') => {
 								match char_as_dir(getch()) {
 									Ok(d) => {
 										let gp = xyz_plus_dir(pos, d);
-										ticker.push(0, Box::new(move|r, w| actions::grab(gp, ent, r, w)));
+										ticker.push(0, Action::Grab { xyz: gp, src: ent });
 									},
 									_ => continue 'playerinput,
 								}
@@ -136,19 +136,19 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 							},
 							Err('a') => {
 								match char_as_dir(getch()) {
-									Ok(d) => ticker.push(0, Box::new(move|r, w| actions::attack(d, ent, r, w))),
+									Ok(d) => ticker.push(0, Action::Attack { dir: d, src: ent }),
 									_ => continue 'playerinput,
 								}
 							},
 							Err('q') => {
 								match char_as_dir(getch()) {
-									Ok(d) => ticker.push(0, Box::new(move|r, w| actions::lunge(d, ent, r, w))),
+									Ok(d) => ticker.push(0, Action::Lunge { dir: d, src: ent }),
 									_ => continue 'playerinput,
 								}
 							},
 							Err('s') => {
 								match char_as_dir(getch()) {
-									Ok(d) => ticker.push(0, Box::new(move|r, w| actions::shoot(d, ent, r, w))),
+									Ok(d) => ticker.push(0, Action::Shoot{ dir: d, src: ent }),
 									_ => continue 'playerinput,
 								}
 							},
@@ -173,7 +173,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 							}
 						}
 						if let Some(&Some(dir)) = rng.choose(&choices[..chs]) {
-							ticker.push(0, Box::new(move|r, w| actions::movedir(dir, ent, r, w)));
+							ticker.push(0, Action::Movedir { dir: dir, src: ent });
 						}
 						let near = possy.get_within(pos, 5);
 						if let Some(&race) = crace.get(ent) {
@@ -206,7 +206,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 									ai.state = AiState::Aggro(foe)
 								} else {
 									let dir = *rng.choose(&choices[..chs]).unwrap();
-									ticker.push(0, Box::new(move|r, w| actions::movedir(dir, ent, r, w)));
+									ticker.push(0, Action::Movedir { dir: dir, src: ent });
 								}
 							}
 						}
@@ -244,7 +244,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 											weight.insert(shot, Weight(2));
 											fragile.insert(shot, Fragile);
 											cch.insert(shot, Chr(Char::from('j')));
-											ticker.push(0, Box::new(move|r, w| actions::throw(fdir, ent, ent, shot, r, w)));
+											ticker.push(0, Action::Throw { dir: fdir, psrc: ent, tsrc: ent, obj: shot });
 											let mdir = if dnum == 2 {
 												dirs[if dirs[0] == fdir { 1 } else { 0 }]
 											} else {
@@ -259,7 +259,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 											if possy.contains(nxy) {
 												ai.state = AiState::Scared(foe)
 											} else {
-												ticker.push(0, Box::new(move|r, w| actions::movedir(mdir, ent, r, w)));
+												ticker.push(0, Action::Movedir { dir: mdir, src: ent });
 											}
 										} else {
 											ai.state = AiState::Scared(foe)
@@ -270,7 +270,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 										let mut attacking = false;
 										for &dir in &[Dir::L, Dir::H, Dir::J, Dir::K] {
 											if xyz_plus_dir(pos, dir) == fxy {
-												ticker.push(0, Box::new(move|r, w| actions::attack(dir, ent, r, w)));
+												ticker.push(0, Action::Attack { dir: dir, src: ent });
 												attacking = true;
 												break
 											}
@@ -302,7 +302,7 @@ pub fn ailoop(rng: &mut R, w: &mut World) {
 													(1, 1) => Some(Dir::J),
 													 _ => None,
 												} {
-													ticker.push(0, Box::new(move|r, w| actions::movedir(dir, ent, r, w)));
+													ticker.push(0, Action::Movedir { dir: dir, src: ent });
 												}
 											} else {
 												ai.state = AiState::Random

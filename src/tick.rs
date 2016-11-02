@@ -3,7 +3,7 @@ use std::collections::BinaryHeap;
 use std::collections::hash_map::Entry;
 use fnv::FnvHashMap;
 
-use util::Action;
+use actions::Action;
 
 pub struct Ticker {
 	pub tick: u32,
