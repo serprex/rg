@@ -10,10 +10,6 @@ pub struct Ticker {
 }
 
 impl Ticker {
-	pub fn tick(&mut self) {
-		self.events.remove(&self.tick);
-		self.tick += 1;
-	}
 	pub fn push(&mut self, n: u32, act: Action) {
 		match self.events.entry(self.tick + n) {
 			Entry::Vacant(entry) => {
@@ -25,7 +21,11 @@ impl Ticker {
 		}
 	}
 	pub fn pop(&mut self) -> Vec<Action> {
-		self.events.remove(&self.tick).unwrap_or_else(Vec::new)
+		loop {
+			if let Some(v) = self.events.remove(&self.tick) {
+				return v
+			}
+			self.tick += 1;
+		}
 	}
 }
-

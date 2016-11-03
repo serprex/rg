@@ -27,6 +27,7 @@ pub enum Action {
 	Grab { xyz: [i16; 3], src: Entity },
 	Pickup { src: Entity, ent: Entity },
 	Render { src: Entity },
+	PossyGc,
 }
 
 impl Action {
@@ -48,8 +49,16 @@ impl Action {
 			Action::Grab { xyz, src } => grab(xyz, src, rng, w),
 			Action::Pickup { src, ent } => pickup(src, ent, rng, w),
 			Action::Render { src } => super::render::render(src, rng, w),
+			Action::PossyGc => possygc(w),
 		}
 	}
+}
+
+fn possygc(w: &mut World) {
+	let mut possy = w.write_resource::<Possy>();
+	possy.gc(&w);
+	let mut ticker = w.write_resource::<Ticker>();
+	ticker.push(10, Action::PossyGc);
 }
 
 fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
@@ -57,7 +66,7 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 	if let Some(mut ai) = cai.get_mut(ent) {
 		let mut tick = ai.speed;
 		let possy = w.read_resource::<Possy>();
-		let ref mut ticker = *w.write_resource::<Ticker>();
+		let mut ticker = w.write_resource::<Ticker>();
 		if let Some(pos) = possy.get_pos(ent) {
 			match ai.state {
 				AiState::PlayerInventory(invp) => {

@@ -73,6 +73,7 @@ fn main(){
 		.with(Strength(50))
 		.with(Weight(60))
 		.build();
+	ticker.push(10, Action::PossyGc);
 	ticker.push(0, Action::Render { src: player });
 	ticker.push(10, Action::Ai { src: player });
 	possy.set_pos(player, [4, 4, 0]);
@@ -130,20 +131,13 @@ fn main(){
 	w.add_resource(Curse::new(80, 60));
 	let _lock = TermJuggler::new();
 	while !EXITGAME.load(Ordering::Relaxed) {
-		loop {
-			w.maintain();
-			let events = {
-				let mut ticker = w.write_resource::<Ticker>();
-				ticker.pop()
-			};
-			if events.is_empty() { break }
-			for event in events {
-				event.call(&mut rng, &mut w);
-			}
+		w.maintain();
+		let events = {
+			let mut ticker = w.write_resource::<Ticker>();
+			ticker.pop()
+		};
+		for event in events {
+			event.call(&mut rng, &mut w);
 		}
-		let mut possy = w.write_resource::<Possy>();
-		possy.gc(&w);
-		let mut ticker = w.write_resource::<Ticker>();
-		ticker.tick();
 	}
 }
