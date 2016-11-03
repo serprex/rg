@@ -6,6 +6,7 @@ use x1b;
 use components::Dir;
 
 pub type Char = x1b::Char<x1b::RGB4>;
+pub type Curse = x1b::Curse<x1b::RGB4>;
 pub type R = XorShiftRng;
 
 pub fn rectover(r1: [i16; 4], r2: [i16; 4]) -> bool {

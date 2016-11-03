@@ -24,11 +24,11 @@ use specs::*;
 
 use actions::Action;
 use components::*;
-use position::Possy;
 use genroom::RoomGen;
+use position::Possy;
 use termjuggler::TermJuggler;
 use tick::Ticker;
-use util::{Char, R, EXITGAME};
+use util::{Char, Curse, R, EXITGAME};
 
 macro_rules! w_register {
 	($w: expr, $($comp: ty),*) => {
@@ -73,6 +73,7 @@ fn main(){
 		.with(Strength(50))
 		.with(Weight(60))
 		.build();
+	ticker.push(0, Action::Render { src: player });
 	ticker.push(10, Action::Ai { src: player });
 	possy.set_pos(player, [4, 4, 0]);
 	let raff = w.create_now()
@@ -126,10 +127,9 @@ fn main(){
 	}
 	rrg.generate(&mut rng, [0, 0, 0], 40, 40, &FnvHashSet::default(), &mut w);
 	}
-	let mut curse = x1b::Curse::<x1b::RGB4>::new(80, 60);
+	w.add_resource(Curse::new(80, 60));
 	let _lock = TermJuggler::new();
 	while !EXITGAME.load(Ordering::Relaxed) {
-		render::render(player, &mut w, &mut curse).ok();
 		loop {
 			w.maintain();
 			let events = {

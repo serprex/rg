@@ -12,6 +12,7 @@ use util::*;
 #[allow(dead_code)]
 pub enum Action {
 	Action(Box<Fn(&mut R, &mut World) + Send + Sync>),
+	Ai { src: Entity },
 	Movedir{ dir: Dir, src: Entity },
 	Colcheck { src: Entity },
 	Moveto { np: [i16; 3], src: Entity },
@@ -25,7 +26,7 @@ pub enum Action {
 	Blink { src: Entity },
 	Grab { xyz: [i16; 3], src: Entity },
 	Pickup { src: Entity, ent: Entity },
-	Ai { src: Entity },
+	Render { src: Entity },
 }
 
 impl Action {
@@ -46,6 +47,7 @@ impl Action {
 			Action::Blink { src } => blink(src, rng, w),
 			Action::Grab { xyz, src } => grab(xyz, src, rng, w),
 			Action::Pickup { src, ent } => pickup(src, ent, rng, w),
+			Action::Render { src } => super::render::render(src, rng, w),
 		}
 	}
 }

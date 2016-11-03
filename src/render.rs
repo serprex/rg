@@ -1,15 +1,18 @@
-use std::io;
-
 use specs::{Entity, World};
 use x1b::{self, RGB4};
 
+use actions::Action;
 use components::*;
 use position::Possy;
-use util::Char;
+use tick::Ticker;
+use util::{Char, Curse, R};
 
-pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) -> io::Result<()> {
+pub fn render(player: Entity, _rng: &mut R, w: &mut World) {
 	let possy = w.read_resource::<Possy>();
 	if let Some(plpos) = possy.get_pos(player) {
+		let ref mut curse = *w.write_resource::<Curse>();
+		let ref mut ticker = *w.write_resource::<Ticker>();
+		ticker.push(1, Action::Render { src: player });
 		let cai = w.read::<Ai>();
 		let chr = w.read::<Chr>();
 		let cbag = w.read::<Bag>();
@@ -81,6 +84,6 @@ pub fn render(player: Entity, w: &mut World, curse: &mut x1b::Curse<RGB4>) -> io
 				}
 			}
 		}
+		curse.perframe_refresh_then_clear(Char::from(' ')).expect("tty fail");
 	}
-	curse.perframe_refresh_then_clear(Char::from(' '))
 }
