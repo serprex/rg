@@ -7,7 +7,6 @@ extern crate smallvec;
 
 mod actions;
 mod adjacency;
-mod ailoop;
 mod components;
 mod flood;
 mod genroom;
@@ -23,6 +22,7 @@ use fnv::FnvHashSet;
 use rand::{Rand, Rng};
 use specs::*;
 
+use actions::Action;
 use components::*;
 use position::Possy;
 use genroom::RoomGen;
@@ -44,6 +44,7 @@ fn main(){
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());
+	let mut ticker = Ticker::default();
 	let mut possy = Possy::new();
 	let raffclaw = w.create_now()
 		.with(Chr(Char::from('x')))
@@ -72,8 +73,9 @@ fn main(){
 		.with(Strength(50))
 		.with(Weight(60))
 		.build();
+	ticker.push(10, Action::Ai { src: player });
 	possy.set_pos(player, [4, 4, 0]);
-	possy.set_pos(w.create_now()
+	let raff = w.create_now()
 		.with(Chr(Char::from('r')))
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 12))
@@ -81,8 +83,10 @@ fn main(){
 		.with(Weight(10))
 		.with(Race::Raffbarf)
 		.with(Weapon(raffclaw))
-		.build(), [20, 6, 0]);
-	possy.set_pos(w.create_now()
+		.build();
+	ticker.push(12, Action::Ai { src: raff });
+	possy.set_pos(raff, [20, 6, 0]);
+	let leyla = w.create_now()
 		.with(Chr(Char::from('k')))
 		.with(Solid)
 		.with(Ai::new(AiState::Random, 8))
@@ -90,7 +94,9 @@ fn main(){
 		.with(Weight(20))
 		.with(Race::Leylapan)
 		.with(Strength(15))
-		.build(), [10, 8, 0]);
+		.build();
+	ticker.push(8, Action::Ai { src: leyla });
+	possy.set_pos(leyla, [10, 8, 0]);
 	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('!')))
 		.with(Atk::<Weapon>::new(2, 3, 2))
@@ -103,7 +109,7 @@ fn main(){
 		.with(Weight(5))
 		.build(), [8, 10, 0]);
 	w.add_resource(possy);
-	w.add_resource(Ticker::default());
+	w.add_resource(ticker);
 	{
 	let rrg = genroom::Greedy::default();
 	let frg = (genroom::Forest::default(), genroom::Floodjoin);
@@ -124,7 +130,6 @@ fn main(){
 	let _lock = TermJuggler::new();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		render::render(player, &mut w, &mut curse).ok();
-		ailoop::ailoop(&mut rng, &mut w);
 		loop {
 			w.maintain();
 			let events = {

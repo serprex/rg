@@ -39,15 +39,13 @@ pub enum AiState {
 #[derive(Clone)]
 pub struct Ai {
 	pub state: AiState,
-	pub speed: u8,
-	pub tick: u8,
+	pub speed: u32,
 }
 impl Ai {
-	pub fn new(state: AiState, speed: u8) -> Ai {
+	pub fn new(state: AiState, speed: u32) -> Ai {
 		Ai {
 			state: state,
 			speed: speed,
-			tick: speed,
 		}
 	}
 }

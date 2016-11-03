@@ -4,7 +4,9 @@ use rand::distributions::{Range, IndependentSample};
 use specs::World;
 
 use super::RoomGen;
+use super::super::actions::Action;
 use super::super::components::*;
+use super::super::tick::Ticker;
 use super::super::position::Possy;
 use super::super::util::{R, Char};
 use super::super::x1b::RGB4;
@@ -47,15 +49,18 @@ impl RoomGen for Forest {
 						else { (RGB4::Green, RGB4::LightGreen) };
 					walls.insert([x, y, xyz[2]], Char::new_with_color('*', fg, bg));
 				} else if r - self.trees < self.raff {
+					let speed = raffspeed.ind_sample(rng);
 					let e = room.create_now()
 						.with(Chr(Char::from('r')))
+						.with(Ai::new(AiState::Random, speed))
 						.with(Solid)
-						.with(Ai::new(AiState::Random, raffspeed.ind_sample(rng)))
 						.with(Race::Raffbarf)
 						.with(Mortal(4))
 						.with(Weight(10))
 						.with(Weapon(raffclaw))
 						.build();
+					let mut ticker = room.write_resource::<Ticker>();
+					ticker.push(speed, Action::Ai { src: e });
 					let mut possy = room.write_resource::<Possy>();
 					possy.set_pos(e, [x, y, xyz[2]]);
 				}
