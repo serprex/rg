@@ -1,11 +1,10 @@
 use fnv::FnvHashSet;
 use rand::Rng;
-use rand::distributions::{IndependentSample, Range};
 use specs::World;
 
 use super::RoomGen;
 use super::super::components::*;
-use super::super::util::{rectover, R, Char};
+use super::super::util::{R, Char};
 use super::super::greedgrow;
 use super::super::position::Possy;
 
@@ -18,26 +17,13 @@ impl Default for Greedy {
 }
 impl RoomGen for Greedy {
 	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
-		if w<3 || h<3 { return }
-		let mut rc = self.0;
-		while rc * 16 > w as usize * h as usize {
-			rc -= 1;
-		}
-		let rc = if rc == 0 { 1 } else { rc };
-		let betwh = Range::new(0, (w-2)*(h-2));
-		let mut rxy = Vec::with_capacity(rc);
-		while rxy.len() < rc {
-			let xy = betwh.ind_sample(rng);
-			let (rx, ry) = (xyz[0] + xy % (w-2), xyz[1] + xy / (w-2));
-			let candy = [rx, ry, rx+2, ry+2];
-			if !rxy.iter().any(|&a| rectover(candy, a))
-				{ rxy.push(candy) }
-		}
-		let adjacent = greedgrow::grow(rng, &mut rxy, xyz[0], xyz[1], w, h);
-		let mut doors: FnvHashSet<[i16; 2]> = exits.clone();
+		let dim = [xyz[0], xyz[1], w, h];
+		let mut rxy = greedgrow::init(rng, self.0, 3, dim);
+		let adjacent = greedgrow::grow(rng, &mut rxy, dim);
+		let rc = rxy.len();
 		let connset = greedgrow::joinlist(rng, &adjacent, rc);
-		let (doorset, lastaidx) = greedgrow::doors(rng, connset.into_iter(), &rxy);
-		for xy in doorset {
+		let (mut doors, lastaidx) = greedgrow::doors(rng, connset.into_iter(), &rxy);
+		for &xy in exits.iter() {
 			doors.insert(xy);
 		}
 		{

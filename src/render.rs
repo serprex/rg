@@ -10,8 +10,8 @@ use util::{Char, Curse, R};
 pub fn render(player: Entity, _rng: &mut R, w: &mut World) {
 	let possy = w.read_resource::<Possy>();
 	if let Some(plpos) = possy.get_pos(player) {
-		let ref mut curse = *w.write_resource::<Curse>();
-		let ref mut ticker = *w.write_resource::<Ticker>();
+		let mut curse = w.write_resource::<Curse>();
+		let mut ticker = w.write_resource::<Ticker>();
 		ticker.push(1, Action::Render { src: player });
 		let cai = w.read::<Ai>();
 		let chr = w.read::<Chr>();

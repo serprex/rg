@@ -5,11 +5,34 @@ use rand::Rng;
 use rand::distributions::{IndependentSample, Range};
 
 use adjacency::{Adjacency, AdjacencySet};
-use util::{R, rectoverinc};
+use util::{R, rectover, rectoverinc};
+
+pub fn init(rng: &mut R, mut n: usize, minwh: i16, dim: [i16; 4]) -> Vec<[i16; 4]> {
+	let w = dim[2];
+	let h = dim[3];
+	if w < 3 || h < 3 {
+		vec![dim]
+	} else {
+		while n * (minwh as usize * minwh as usize) > w as usize * h as usize {
+			n -= 1;
+		}
+		let n = if n == 0 { 1 } else { n };
+		let betwh = Range::new(0, (w-2)*(h-2));
+		let mut rxy = Vec::with_capacity(n);
+		while rxy.len() < n {
+			let xy = betwh.ind_sample(rng);
+			let (rx, ry) = (dim[0] + xy % (w-2), dim[1] + xy / (w-2));
+			let candy = [rx, ry, rx+minwh-1, ry+minwh-1];
+			if !rxy.iter().any(|&a| rectover(candy, a))
+				{ rxy.push(candy) }
+		}
+		rxy
+	}
+}
 
 /* Given a set of rects, grow them as much as possible
    Return adjacency matrix */
-pub fn grow(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h: i16)
+pub fn grow(rng: &mut R, rxy: &mut [[i16;4]], dim: [i16; 4])
 -> AdjacencySet {
 	let bet4 = Range::new(0, 4);
 	let rc = rxy.len();
@@ -23,11 +46,11 @@ pub fn grow(rng: &mut R, rxy: &mut [[i16;4]], x: i16, y: i16, w: i16, h: i16)
 			let oob = match b4 {
 				0|1 => {
 					newrect[b4] -= 1;
-					newrect[b4] < if b4 == 0 { x } else { y }
+					newrect[b4] < dim[if b4 == 0 { 0 } else { 1 }]
 				},
 				2|3 => {
 					newrect[b4] += 1;
-					newrect[b4] >= if b4 == 2 { w } else { h }
+					newrect[b4] >= dim[if b4 == 2 { 2 } else { 3 }]
 				},
 				_ => unreachable!(),
 			};

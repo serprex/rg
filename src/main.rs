@@ -45,7 +45,7 @@ fn main(){
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());
 	let mut ticker = Ticker::default();
-	let mut possy = Possy::new();
+	let mut possy = Possy::default();
 	let raffclaw = w.create_now()
 		.with(Chr(Char::from('x')))
 		.with(Weight(3))
@@ -116,8 +116,9 @@ fn main(){
 	let rrg = genroom::Greedy::default();
 	let frg = (genroom::Forest::default(), genroom::Floodjoin);
 	let genbag: [&RoomGen; 2] = [&rrg, &frg];
-	let mut f1 = [[10, 10, 22, 12], [20, 22, 30, 32], [35, 20, 24, 36], [50, 50, 55, 55], [60, 50, 62, 52], [80, 60, 82, 70], [90, 90, 95, 105]];
-	let fadj = greedgrow::grow(&mut rng, &mut f1, 0, 0, 120, 120);
+	let f1dim = [0, 0, 120, 120];
+	let mut f1 = greedgrow::init(&mut rng, 7, 5, f1dim);
+	let fadj = greedgrow::grow(&mut rng, &mut f1, f1dim);
 	let fjlist = greedgrow::joinlist(&mut rng, &fadj, f1.len());
 	let (exits, _) = greedgrow::doors(&mut rng, fjlist.into_iter(), &f1);
 	for fxy in f1.iter() {

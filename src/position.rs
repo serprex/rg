@@ -1,6 +1,6 @@
 use std::collections::hash_map::Entry;
 
-use fnv::{FnvHashMap, FnvHashSet};
+use fnv::FnvHashMap;
 use smallvec::SmallVec;
 use specs::{Entity, World};
 
@@ -8,13 +8,9 @@ use specs::{Entity, World};
 pub struct Possy {
 	pub floors: FnvHashMap<i16, FnvHashMap<[i16; 2], SmallVec<[Entity; 1]>>>,
 	pub e2p: FnvHashMap<Entity, [i16; 3]>,
-	pub collisions: FnvHashSet<[i16; 3]>,
 }
 
 impl Possy {
-	pub fn new() -> Possy {
-		Default::default()
-	}
 	pub fn get_pos(&self, e: Entity) -> Option<[i16; 3]> {
 		self.e2p.get(&e).map(|&x| x)
 	}
@@ -98,7 +94,6 @@ impl Possy {
 				evec.len()
 			};
 			if eveclen < 2 {
-				self.collisions.remove(&oldpos);
 				if eveclen == 0 {
 					floor.remove(&oldpos[..2]);
 				}
@@ -113,19 +108,7 @@ impl Possy {
 				floor.insert(fmap);
 			},
 			Entry::Occupied(mut floor) => {
-				match floor.get_mut().entry([pos[0],pos[1]]) {
-					Entry::Vacant(try) => {
-						let mut sv = try.insert(SmallVec::new());
-						sv.push(e)
-					},
-					Entry::Occupied(mut try) => {
-						let mut sv = try.get_mut();
-						sv.push(e);
-						if sv.len() > 1 {
-							self.collisions.insert(pos);
-						}
-					},
-				}
+				floor.get_mut().entry([pos[0],pos[1]]).or_insert_with(SmallVec::new).push(e);
 			}
 		}
 	}
