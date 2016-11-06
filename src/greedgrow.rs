@@ -7,16 +7,13 @@ use rand::distributions::{IndependentSample, Range};
 use adjacency::{Adjacency, AdjacencySet};
 use util::{R, rectover, rectoverinc};
 
-pub fn init(rng: &mut R, mut n: usize, minwh: i16, dim: [i16; 4]) -> Vec<[i16; 4]> {
+pub fn init(rng: &mut R, n: usize, minwh: i16, dim: [i16; 4]) -> Vec<[i16; 4]> {
 	let w = dim[2];
 	let h = dim[3];
-	if w < 3 || h < 3 {
+	let n = cmp::min(n, (w as usize * h as usize) / (minwh as usize * minwh as usize));
+	if n < 2 {
 		vec![dim]
 	} else {
-		while n * (minwh as usize * minwh as usize) > w as usize * h as usize {
-			n -= 1;
-		}
-		let n = if n == 0 { 1 } else { n };
 		let betwh = Range::new(0, (w-2)*(h-2));
 		let mut rxy = Vec::with_capacity(n);
 		while rxy.len() < n {
