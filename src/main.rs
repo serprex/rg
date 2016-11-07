@@ -127,18 +127,22 @@ fn main(){
 	w.add_resource(possy);
 	w.add_resource(ticker);
 	{
+	let mut exits = FnvHashSet::default();
 	let rrg = genroom::Greedy::default();
 	let frg = (genroom::Forest::default(), genroom::Floodjoin);
+	rrg.generate(&mut rng, [0, 0, 0], 40, 40, &mut exits, &mut w);
 	let genbag: [&RoomGen; 2] = [&rrg, &frg];
 	let f1dim = [0, 0, 120, 120];
 	let mut f1 = greedgrow::init(&mut rng, 7, 5, f1dim);
 	let fadj = greedgrow::grow(&mut rng, &mut f1, f1dim);
 	let fjlist = greedgrow::joinlist(&mut rng, &fadj, f1.len());
-	let (exits, _) = greedgrow::doors(&mut rng, fjlist.into_iter(), &f1);
-	for fxy in f1.iter() {
-		rng.choose(&genbag).unwrap().generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0]+1, fxy[3]-fxy[1]+1, &exits, &mut w)
+	let (exits1, _) = greedgrow::doors(&mut rng, fjlist.into_iter(), &f1);
+	for xy in exits1 {
+		exits.insert([xy[0], xy[1], 1]);
 	}
-	rrg.generate(&mut rng, [0, 0, 0], 40, 40, &FnvHashSet::default(), &mut w);
+	for fxy in f1.iter() {
+		rng.choose(&genbag).unwrap().generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0]+1, fxy[3]-fxy[1]+1, &mut exits, &mut w)
+	}
 	}
 	w.add_resource(Curse::new(80, 60));
 	let _lock = TermJuggler::new();

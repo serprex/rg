@@ -24,7 +24,7 @@ impl Bezier {
 }
 
 impl RoomGen for Bezier {
-	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
+	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &mut FnvHashSet<[i16; 3]>, room: &mut World) {
 		let mut pts = Vec::new();
 		let x = xyz[0] as f32;
 		let y = xyz[1] as f32;
@@ -63,7 +63,7 @@ impl RoomGen for Bezier {
 			}
 			let p0 = (pts[0][0] + 0.5) as i16;
 			let p1 = (pts[0][1] + 0.5) as i16;
-			if !exits.contains(&[p0, p1]) {
+			if !exits.contains(&[p0, p1, xyz[2]]) {
 				walls.insert([p0, p1, xyz[2]], self.ch);
 			}
 			n += 1.0/512.0;

@@ -96,6 +96,8 @@ fn possygc(w: &mut World) {
 }
 
 fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
+	let mut donow = Vec::new();
+	{
 	let mut cai = w.write::<Ai>();
 	if let Some(mut ai) = cai.get_mut(ent) {
 		let mut tick = ai.speed;
@@ -120,7 +122,7 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 									ai.state = AiState::PlayerInventory(if invp == 0 { ebag.len()-1 } else { invp - 1 }),
 								('d', false) => {
 									let drop = ebag.remove(invp);
-									ticker.push(0, Action::Moveto { np: pos, src: drop });
+									donow.push(Action::Moveto { np: pos, src: drop });
 									if invp == ebag.len() {
 										ai.state = AiState::PlayerInventory(0);
 									}
@@ -164,7 +166,7 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 								('t', false) => {
 									if let Ok(d) = char_as_dir(getch()) {
 										let went = ebag.remove(invp);
-										ticker.push(0, Action::Throw{ dir: d, psrc: ent, tsrc: ent, obj: went });
+										donow.push(Action::Throw{ dir: d, psrc: ent, tsrc: ent, obj: went });
 										ai.state = AiState::Player;
 									} else {
 										continue 'invput
@@ -194,7 +196,7 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 							if let AiState::PlayerCasting(ref mut cast) = *casting {
 								cast.push(ch);
 								if cast == "blink" {
-									ticker.push(0, Action::Blink{ src: ent });
+									donow.push(Action::Blink{ src: ent });
 								} else {
 									break
 								}
@@ -207,13 +209,13 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 				AiState::Player => 'playerinput: loop {
 					match char_as_dir(getch()) {
 						Ok(d) => {
-							ticker.push(0, Action::Movedir { dir: d, src: ent });
+							donow.push(Action::Movedir { dir: d, src: ent });
 						},
 						Err('p') => {
 							match char_as_dir(getch()) {
 								Ok(d) => {
 									let gp = xyz_plus_dir(pos, d);
-									ticker.push(0, Action::Grab { xyz: gp, src: ent });
+									donow.push(Action::Grab { xyz: gp, src: ent });
 								},
 								_ => continue 'playerinput,
 							}
@@ -223,19 +225,19 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 						},
 						Err('a') => {
 							match char_as_dir(getch()) {
-								Ok(d) => ticker.push(0, Action::Attack { dir: d, src: ent }),
+								Ok(d) => donow.push(Action::Attack { dir: d, src: ent }),
 								_ => continue 'playerinput,
 							}
 						},
 						Err('q') => {
 							match char_as_dir(getch()) {
-								Ok(d) => ticker.push(0, Action::Lunge { dir: d, src: ent }),
+								Ok(d) => donow.push(Action::Lunge { dir: d, src: ent }),
 								_ => continue 'playerinput,
 							}
 						},
 						Err('s') => {
 							match char_as_dir(getch()) {
-								Ok(d) => ticker.push(0, Action::Shoot{ dir: d, src: ent }),
+								Ok(d) => donow.push(Action::Shoot{ dir: d, src: ent }),
 								_ => continue 'playerinput,
 							}
 						},
@@ -260,7 +262,7 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 						}
 					}
 					if let Some(&Some(dir)) = rng.choose(&choices[..chs]) {
-						ticker.push(0, Action::Movedir { dir: dir, src: ent });
+						donow.push(Action::Movedir { dir: dir, src: ent });
 					}
 					let near = possy.get_within(pos, 5);
 					let crace = w.read::<Race>();
@@ -294,7 +296,7 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 								ai.state = AiState::Aggro(foe)
 							} else {
 								let dir = *rng.choose(&choices[..chs]).unwrap();
-								ticker.push(0, Action::Movedir { dir: dir, src: ent });
+								donow.push(Action::Movedir { dir: dir, src: ent });
 							}
 						}
 					}
@@ -332,7 +334,7 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 										weight.insert(shot, Weight(2));
 										fragile.insert(shot, Fragile);
 										cch.insert(shot, Chr(Char::from('j')));
-										ticker.push(0, Action::Throw { dir: fdir, psrc: ent, tsrc: ent, obj: shot });
+										donow.push(Action::Throw { dir: fdir, psrc: ent, tsrc: ent, obj: shot });
 										let mdir = if dnum == 2 {
 											dirs[if dirs[0] == fdir { 1 } else { 0 }]
 										} else {
@@ -347,7 +349,7 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 										if possy.contains(nxy) {
 											ai.state = AiState::Scared(foe)
 										} else {
-											ticker.push(0, Action::Movedir { dir: mdir, src: ent });
+											donow.push(Action::Movedir { dir: mdir, src: ent });
 										}
 									} else {
 										ai.state = AiState::Scared(foe)
@@ -358,7 +360,7 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 									let mut attacking = false;
 									for &dir in &[Dir::L, Dir::H, Dir::J, Dir::K] {
 										if xyz_plus_dir(pos, dir) == fxy {
-											ticker.push(0, Action::Attack { dir: dir, src: ent });
+											donow.push(Action::Attack { dir: dir, src: ent });
 											attacking = true;
 											break
 										}
@@ -390,7 +392,7 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 												(1, 1) => Some(Dir::J),
 												 _ => None,
 											} {
-												ticker.push(0, Action::Movedir { dir: dir, src: ent });
+												donow.push(Action::Movedir { dir: dir, src: ent });
 											}
 										} else {
 											ai.state = AiState::Random
@@ -405,6 +407,10 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 			}
 			ticker.push(tick, Action::Ai { src: ent });
 		}
+	}
+	}
+	for act in donow {
+		act.call(rng, w);
 	}
 }
 
@@ -530,8 +536,9 @@ fn attack(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 				misl.insert(went, Dmg(srcstr / 4 + wstats.dmg));
 				let dur = wstats.dur;
 				ticker.push(1, Action::Melee { dur: dur, src: src, ent: went });
-				/*let mut cai = w.write::<Ai>();
+				/*
 				if wstats.spd != 0 {
+					let mut cai = w.write::<Ai>();
 					if let Some(mut ai) = cai.get_mut(src) {
 						ai.tick = if wstats.spd < 0 {
 							let spd = (-wstats.spd) as u8;

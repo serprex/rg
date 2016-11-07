@@ -16,15 +16,15 @@ impl Default for Greedy {
 	}
 }
 impl RoomGen for Greedy {
-	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
+	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &mut FnvHashSet<[i16; 3]>, room: &mut World) {
 		let dim = [xyz[0], xyz[1], w, h];
 		let mut rxy = greedgrow::init(rng, self.0, 3, dim);
 		let adjacent = greedgrow::grow(rng, &mut rxy, dim);
 		let rc = rxy.len();
 		let connset = greedgrow::joinlist(rng, &adjacent, rc);
 		let (mut doors, lastaidx) = greedgrow::doors(rng, connset.into_iter(), &rxy);
-		for &xy in exits.iter() {
-			doors.insert(xy);
+		for &xy in exits.iter().filter(|xy| xy[2] == xyz[2]) {
+			doors.insert([xy[0], xy[1]]);
 		}
 		{
 			let r = rxy[lastaidx];
@@ -34,8 +34,15 @@ impl RoomGen for Greedy {
 				.with(Chr(Char::from('\\')))
 				.with(Portal([xyz[0]+x,xyz[1]+y,xyz[2]+1]))
 				.build();
+			let e2 = room.create_now()
+				.with(Chr(Char::from('/')))
+				.with(Portal([xyz[0]+x-1,xyz[1]+y,xyz[2]]))
+				.build();
 			let mut possy = room.write_resource::<Possy>();
 			possy.set_pos(e, [xyz[0]+x,xyz[1]+y,xyz[2]]);
+			possy.set_pos(e2, [xyz[0]+x-1,xyz[1]+y,xyz[2]+1]);
+			exits.insert([xyz[0]+x-1,xyz[1]+y,xyz[2]]);
+			exits.insert([xyz[0]+x,xyz[1]+y,xyz[2]+1]);
 		}
 		let possy = room.read_resource::<Possy>();
 		if let Some(floor) = possy.floors.get(&xyz[2]) {

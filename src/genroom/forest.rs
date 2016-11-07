@@ -29,7 +29,7 @@ impl Default for Forest {
 }
 
 impl RoomGen for Forest {
-	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &FnvHashSet<[i16; 2]>, room: &mut World) {
+	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &mut FnvHashSet<[i16; 3]>, room: &mut World) {
 		let range = Range::new(0, self.trees + self.raff + self.null);
 		let raffspeed = Range::new(8, 14);
 		let raffclaw = room.create_now()
@@ -40,7 +40,13 @@ impl RoomGen for Forest {
 
 		for x in xyz[0]..xyz[0]+w {
 			for y in xyz[1]..xyz[1]+h {
-				if exits.contains(&[x, y]) { continue }
+				if exits.contains(&[x, y, xyz[2]]) { continue }
+				{
+					let possy = room.read_resource::<Possy>();
+					if !possy.get_ents([x, y, xyz[2]]).is_empty() {
+						continue
+					}
+				}
 				let r = range.ind_sample(rng);
 				if r < self.trees {
 					let Walls(ref mut walls) = *room.write_resource::<Walls>();
