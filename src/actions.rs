@@ -27,6 +27,8 @@ pub enum Action {
 	Grab { xyz: [i16; 3], src: Entity },
 	Pickup { src: Entity, ent: Entity },
 	Render { src: Entity },
+	Say(String),
+	Seek(u32, Entity),
 	PossyGc,
 }
 
@@ -49,9 +51,41 @@ impl Action {
 			Action::Grab { xyz, src } => grab(xyz, src, rng, w),
 			Action::Pickup { src, ent } => pickup(src, ent, rng, w),
 			Action::Render { src } => super::render::render(src, rng, w),
+			Action::Say(s) => say(s, w),
+			Action::Seek(n, src) => seek(n, src, rng, w),
 			Action::PossyGc => possygc(w),
 		}
 	}
+}
+
+fn seek(n: u32, src: Entity, rng: &mut R, w: &mut World) {
+	let (seeking, act) = {
+		let mut cseek = w.write::<Seeking>();
+		let possy = w.read_resource::<Possy>();
+		let b = if let Some(&Seeking(seeking, _)) = cseek.get(src) {
+			if let Some(pos) = possy.get_pos(src) {
+				if let Some(objpos) = possy.get_pos(seeking) {
+					objpos == [pos[0], pos[1] + 1, pos[2]]
+				} else { false }
+			} else { false }
+		} else { return };
+		if b {
+			if let Some(Seeking(seeking, act)) = cseek.remove(src) {
+				(seeking, act)
+			} else { return }
+		} else {
+			let mut ticker = w.write_resource::<Ticker>();
+			ticker.push(n, Action::Seek(n, src));
+			return
+		}
+	};
+	pickup(src, seeking, rng, w);
+	act.call(rng, w);
+}
+
+fn say(s: String, w: &mut World) {
+	let mut log = w.write_resource::<Log>();
+	log.push(s);
 }
 
 fn possygc(w: &mut World) {

@@ -40,10 +40,11 @@ fn main(){
 	let mut rng = R::rand(&mut rand::thread_rng());
 	let mut w = World::new();
 	w_register!(w, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
-		Bag, Armor, Weapon, Head, Shield, Solid, Fragile, Dmg,
+		Bag, Armor, Weapon, Head, Shield, Solid, Fragile, Dmg, Seeking,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
 	w.add_resource(Walls::default());
+	w.add_resource(Log::default());
 	let mut ticker = Ticker::default();
 	let mut possy = Possy::default();
 	let raffclaw = w.create_now()
@@ -106,10 +107,23 @@ fn main(){
 		.build(), [8, 8, 0]);
 	possy.set_pos(w.create_now()
 		.with(Chr(Char::from('#')))
-		.with(Solid)
 		.with(Def::<Armor>::new(2))
 		.with(Weight(5))
 		.build(), [8, 10, 0]);
+	let ring = w.create_now()
+		.with(Chr(Char::from('o')))
+		.with(Weight(1))
+		.build();
+	possy.set_pos(ring, [15, 20, 0]);
+	let seeker = w.create_now()
+		.with(Chr(Char::from('&')))
+		.with(Seeking(ring, Action::Say(String::from("Thanks"))))
+		.with(Weight(55))
+		.with(Strength(200))
+		.with(Bag(Vec::new()))
+		.build();
+	possy.set_pos(seeker, [5, 2, 0]);
+	ticker.push(20, Action::Seek(20, seeker));
 	w.add_resource(possy);
 	w.add_resource(ticker);
 	{

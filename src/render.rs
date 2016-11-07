@@ -37,6 +37,12 @@ pub fn render(player: Entity, _rng: &mut R, w: &mut World) {
 			}
 		}
 		}
+		{
+			let Log(ref log) = *w.read_resource::<Log>();
+			for (i, l) in log.iter().enumerate() {
+				curse.printnows(0, 48 + i as u16, &l, x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
+			}
+		}
 		if let Some(ai) = cai.get(player) {
 			if let AiState::PlayerCasting(ref cast) = ai.state {
 				curse.set(40, 1, Char::from('>'));

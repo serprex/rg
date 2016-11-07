@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
+use std::mem;
 use fnv::FnvHashMap;
 use specs::{Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
+use actions::Action;
 use util::Char;
 
 macro_rules! impl_storage {
@@ -123,12 +125,25 @@ pub struct Portal(pub [i16; 3]);
 #[derive(Default)]
 pub struct Walls(pub FnvHashMap<[i16; 3], Char>);
 
+#[derive(Default)]
+pub struct Log(pub [String; 12]);
+
+impl Log {
+	pub fn push(&mut self, mut s: String) {
+		for l in self.0.iter_mut() {
+			s = mem::replace(l, s);
+		}
+	}
+}
+
 #[derive(Copy, Clone)]
 pub struct Dmg(pub i16);
 
+pub struct Seeking(pub Entity, pub Action);
+
 impl_storage!(VecStorage, Chr, Ai);
 impl_storage!(HashMapStorage, Portal, Weight, Strength, Mortal,
-	Armor, Weapon, Shield, Head, Bag, Race, Dmg,
+	Armor, Weapon, Shield, Head, Bag, Race, Dmg, Seeking,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 impl_storage!(NullStorage, Solid, Fragile);
