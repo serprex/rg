@@ -39,7 +39,7 @@ macro_rules! w_register {
 fn main(){
 	let mut rng = R::rand(&mut rand::thread_rng());
 	let mut w = World::new();
-	w_register!(w, Mortal, Ai, Portal, Race, Chr, Weight, Strength,
+	w_register!(w, Mortal, Ai, Portal, Race, Chr, Weight, Strength, Consume,
 		Bag, Armor, Weapon, Head, Shield, Solid, Fragile, Dmg, Seeking,
 		Def<Armor>, Def<Weapon>, Def<Head>, Def<Shield>,
 		Atk<Armor>, Atk<Weapon>, Atk<Head>, Atk<Shield>);
@@ -117,13 +117,38 @@ fn main(){
 	possy.set_pos(ring, [15, 20, 0]);
 	let seeker = w.create_now()
 		.with(Chr(Char::from('&')))
-		.with(Seeking(ring, Action::Say(String::from("Thanks"))))
+		.with(Seeking(Seek::Entity(ring), Action::Say(String::from("Thanks"))))
 		.with(Weight(55))
 		.with(Strength(200))
 		.with(Bag(Vec::new()))
 		.build();
 	possy.set_pos(seeker, [5, 2, 0]);
 	ticker.push(20, Action::Seek(20, seeker));
+	let rateater = w.create_now()
+		.with(Chr(Char::from('&')))
+		.with(Bag(Vec::new()))
+		.build();
+	fn rateaterfn(rateater: Entity, w: &mut World) {
+		let mut seeking = w.write::<Seeking>();
+		seeking.insert(rateater, Seeking(Seek::Race(Race::Raffbarf), Action::Action(Box::new(move|r,w| {
+			Action::Say(String::from("Tasty")).call(r, w);
+			let meal = w.create_now()
+				.with(Chr(Char::from('r')))
+				.with(Weight(3))
+				.with(Consume(Box::new(|e| Action::Heal { src: e, amt: 1})))
+				.build();
+			{
+			let mut possy = w.write_resource::<Possy>();
+			if let Some(pos) = possy.get_pos(rateater) {
+				possy.set_pos(meal, [pos[0], pos[1]+1, pos[2]]);
+			}
+			}
+			rateaterfn(rateater, w);
+		}))));
+	}
+	rateaterfn(rateater, &mut w);
+	possy.set_pos(rateater, [1, 6, 0]);
+	ticker.push(20, Action::Seek(20, rateater));
 	w.add_resource(possy);
 	w.add_resource(ticker);
 	{

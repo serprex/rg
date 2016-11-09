@@ -62,15 +62,38 @@ fn seek(n: u32, src: Entity, rng: &mut R, w: &mut World) {
 	let (seeking, act) = {
 		let mut cseek = w.write::<Seeking>();
 		let possy = w.read_resource::<Possy>();
-		let b = if let Some(&Seeking(seeking, _)) = cseek.get(src) {
-			if let Some(pos) = possy.get_pos(src) {
-				if let Some(objpos) = possy.get_pos(seeking) {
-					objpos == [pos[0], pos[1] + 1, pos[2]]
-				} else { false }
-			} else { false }
+		let seeking = if let Some(&Seeking(ref seeking, _)) = cseek.get(src) {
+			match seeking {
+				&Seek::Entity(seekent) =>
+					if let Some(pos) = possy.get_pos(src) {
+						if let Some(objpos) = possy.get_pos(seekent) {
+							if objpos == [pos[0], pos[1] + 1, pos[2]] {
+								Some(seekent)
+							} else {
+								None
+							}
+						} else { None }
+					} else { None },
+				&Seek::Race(race) =>
+					if let Some(pos) = possy.get_pos(src) {
+						let ents = possy.get_ents([pos[0], pos[1] + 1, pos[2]]);
+						let crace = w.read::<Race>();
+						let mut seeking = None;
+						for &e in ents {
+							match crace.get(e) {
+								Some(&r) if r == race => {
+									seeking = Some(e);
+									break
+								},
+								_ => (),
+							}
+						}
+						seeking
+					} else { None }
+			}
 		} else { return };
-		if b {
-			if let Some(Seeking(seeking, act)) = cseek.remove(src) {
+		if let Some(seeking) = seeking {
+			if let Some(Seeking(_, act)) = cseek.remove(src) {
 				(seeking, act)
 			} else { return }
 		} else {
@@ -170,6 +193,17 @@ fn aievent(ent: Entity, rng: &mut R, w: &mut World) {
 										ai.state = AiState::Player;
 									} else {
 										continue 'invput
+									}
+								},
+								('u', false) => {
+									let mut consume = w.write::<Consume>();
+									if let Some(Consume(act)) = consume.remove(ebag[invp]) {
+										let ie = ebag.remove(invp);
+										donow.push(act(ie));
+										w.delete_later(ie);
+										if invp == ebag.len() {
+											ai.state = AiState::PlayerInventory(0);
+										}
 									}
 								},
 								(c, _) if c >= '0' && c <= '9' => {

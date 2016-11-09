@@ -139,11 +139,18 @@ impl Log {
 #[derive(Copy, Clone)]
 pub struct Dmg(pub i16);
 
-pub struct Seeking(pub Entity, pub Action);
+pub enum Seek {
+	Entity(Entity),
+	Race(Race),
+}
+
+pub struct Seeking(pub Seek, pub Action);
+
+pub struct Consume(pub Box<(Fn(Entity) -> Action) + Send + Sync>);
 
 impl_storage!(VecStorage, Chr, Ai);
-impl_storage!(HashMapStorage, Portal, Weight, Strength, Mortal,
-	Armor, Weapon, Shield, Head, Bag, Race, Dmg, Seeking,
+impl_storage!(HashMapStorage, Portal, Weight, Strength, Consume,
+    Mortal, Armor, Weapon, Shield, Head, Bag, Race, Dmg, Seeking,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 impl_storage!(NullStorage, Solid, Fragile);
