@@ -22,6 +22,7 @@ pub enum Race {
 	Wazzlefu,
 	Raffbarf,
 	Leylapan,
+	Yerienel,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -29,28 +30,27 @@ pub enum Dir {
 	H, J, K, L
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
+pub enum AllyState {
+	Random,
+	Follow,
+	Aggro(Entity),
+	Scared(Entity),
+	Wander([i16; 3]),
+}
+
+#[derive(Clone)]
 pub enum AiState {
 	Random,
 	Aggro(Entity),
 	Scared(Entity),
+	Ally(Entity, AllyState),
 	Player,
 	PlayerInventory(usize),
 	PlayerCasting(String),
 }
 #[derive(Clone)]
-pub struct Ai {
-	pub state: AiState,
-	pub speed: u32,
-}
-impl Ai {
-	pub fn new(state: AiState, speed: u32) -> Ai {
-		Ai {
-			state: state,
-			speed: speed,
-		}
-	}
-}
+pub struct Ai(pub AiState, pub u32);
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Mortal(pub i16);
@@ -150,7 +150,7 @@ pub struct Consume(pub Box<(Fn(Entity) -> Action) + Send + Sync>);
 
 impl_storage!(VecStorage, Chr, Ai);
 impl_storage!(HashMapStorage, Portal, Weight, Strength, Consume,
-    Mortal, Armor, Weapon, Shield, Head, Bag, Race, Dmg, Seeking,
+	Mortal, Armor, Weapon, Shield, Head, Bag, Race, Dmg, Seeking,
 	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
 	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
 impl_storage!(NullStorage, Solid, Fragile);

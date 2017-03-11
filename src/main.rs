@@ -7,6 +7,7 @@ extern crate smallvec;
 
 mod actions;
 mod adjacency;
+mod ailogic;
 mod components;
 mod flood;
 mod genroom;
@@ -65,7 +66,7 @@ fn main(){
 			.build(), [3, 7, 0]);
 	}
 	let player = w.create_now()
-		.with(Ai::new(AiState::Player, 10))
+		.with(Ai(AiState::Player, 10))
 		.with(Bag(Vec::new()))
 		.with(Chr(Char::from('@')))
 		.with(Solid)
@@ -78,10 +79,21 @@ fn main(){
 	ticker.push(0, Action::Render { src: player });
 	ticker.push(10, Action::Ai { src: player });
 	possy.set_pos(player, [4, 4, 0]);
+	let yeri = w.create_now()
+		.with(Chr(Char::from('a')))
+		.with(Solid)
+		.with(Ai(AiState::Ally(player, AllyState::Random), 12))
+		.with(Mortal(10))
+		.with(Race::Yerienel)
+		.with(Strength(24))
+		.with(Weight(26))
+		.build();
+	ticker.push(10, Action::Ai { src: yeri });
+	possy.set_pos(yeri, [4, 6, 0]);
 	let raff = w.create_now()
 		.with(Chr(Char::from('r')))
 		.with(Solid)
-		.with(Ai::new(AiState::Random, 12))
+		.with(Ai(AiState::Random, 12))
 		.with(Mortal(4))
 		.with(Weight(10))
 		.with(Race::Raffbarf)
@@ -92,7 +104,7 @@ fn main(){
 	let leyla = w.create_now()
 		.with(Chr(Char::from('k')))
 		.with(Solid)
-		.with(Ai::new(AiState::Random, 8))
+		.with(Ai(AiState::Random, 8))
 		.with(Mortal(2))
 		.with(Weight(20))
 		.with(Race::Leylapan)
@@ -105,11 +117,6 @@ fn main(){
 		.with(Atk::<Weapon>::new(2, 3, 2))
 		.with(Weight(5))
 		.build(), [8, 8, 0]);
-	possy.set_pos(w.create_now()
-		.with(Chr(Char::from('#')))
-		.with(Def::<Armor>::new(2))
-		.with(Weight(5))
-		.build(), [8, 10, 0]);
 	let ring = w.create_now()
 		.with(Chr(Char::from('o')))
 		.with(Weight(1))
@@ -138,7 +145,7 @@ fn main(){
 				.with(Consume(Box::new(|e| Action::Heal { src: e, amt: 1})))
 				.build();
 			{
-			let mut possy = w.write_resource::<Possy>();
+			let mut possy = w.write_resource::<Possy>().pass();
 			if let Some(pos) = possy.get_pos(rateater) {
 				possy.set_pos(meal, [pos[0], pos[1]+1, pos[2]]);
 			}
@@ -158,8 +165,8 @@ fn main(){
 	rrg.generate(&mut rng, [0, 0, 0], 40, 40, &mut exits, &mut w);
 	let genbag: [&RoomGen; 2] = [&rrg, &frg];
 	let f1dim = [0, 0, 120, 120];
-	let mut f1 = greedgrow::init(&mut rng, 7, 5, f1dim);
-	let fadj = greedgrow::grow(&mut rng, &mut f1, f1dim);
+	let mut f1 = greedgrow::init(&mut rng, 7, 5, f1dim, false);
+	let fadj = greedgrow::grow(&mut rng, &mut f1, f1dim, false);
 	let fjlist = greedgrow::joinlist(&mut rng, &fadj, f1.len());
 	let (exits1, _) = greedgrow::doors(&mut rng, fjlist.into_iter(), &f1);
 	for xy in exits1 {
@@ -174,7 +181,7 @@ fn main(){
 	while !EXITGAME.load(Ordering::Relaxed) {
 		w.maintain();
 		let events = {
-			let mut ticker = w.write_resource::<Ticker>();
+			let mut ticker = w.write_resource::<Ticker>().pass();
 			ticker.pop()
 		};
 		for event in events {

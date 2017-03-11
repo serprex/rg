@@ -1,6 +1,6 @@
 use fnv::FnvHashSet;
 use rand::Rng;
-use specs::World;
+use specs::{World, Gate};
 
 use super::RoomGen;
 use super::super::components::*;
@@ -18,8 +18,8 @@ impl Default for Greedy {
 impl RoomGen for Greedy {
 	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &mut FnvHashSet<[i16; 3]>, room: &mut World) {
 		let dim = [xyz[0], xyz[1], w, h];
-		let mut rxy = greedgrow::init(rng, self.0, 3, dim);
-		let adjacent = greedgrow::grow(rng, &mut rxy, dim);
+		let mut rxy = greedgrow::init(rng, self.0, 3, dim, true);
+		let adjacent = greedgrow::grow(rng, &mut rxy, dim, true);
 		let rc = rxy.len();
 		let connset = greedgrow::joinlist(rng, &adjacent, rc);
 		let (mut doors, lastaidx) = greedgrow::doors(rng, connset.into_iter(), &rxy);
@@ -38,19 +38,19 @@ impl RoomGen for Greedy {
 				.with(Chr(Char::from('/')))
 				.with(Portal([xyz[0]+x-1,xyz[1]+y,xyz[2]]))
 				.build();
-			let mut possy = room.write_resource::<Possy>();
+			let mut possy = room.write_resource::<Possy>().pass();
 			possy.set_pos(e, [xyz[0]+x,xyz[1]+y,xyz[2]]);
 			possy.set_pos(e2, [xyz[0]+x-1,xyz[1]+y,xyz[2]+1]);
 			exits.insert([xyz[0]+x-1,xyz[1]+y,xyz[2]]);
 			exits.insert([xyz[0]+x,xyz[1]+y,xyz[2]+1]);
 		}
-		let possy = room.read_resource::<Possy>();
+		let possy = room.read_resource::<Possy>().pass();
 		if let Some(floor) = possy.floors.get(&xyz[2]) {
 			for k in floor.keys() {
 				doors.insert([k[0], k[1]]);
 			}
 		}
-		let Walls(ref mut walls) = *room.write_resource::<Walls>();
+		let Walls(ref mut walls) = *room.write_resource::<Walls>().pass();
 		let mut add_wall = |xy: [i16; 2], ch: char| {
 			if !doors.contains(&xy) {
 				walls.insert([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]], Char::from(ch));

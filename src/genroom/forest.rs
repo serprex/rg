@@ -1,7 +1,7 @@
 use fnv::FnvHashSet;
 use rand::Rng;
 use rand::distributions::{Range, IndependentSample};
-use specs::World;
+use specs::{World, Gate};
 
 use super::RoomGen;
 use super::super::actions::Action;
@@ -42,14 +42,14 @@ impl RoomGen for Forest {
 			for y in xyz[1]..xyz[1]+h {
 				if exits.contains(&[x, y, xyz[2]]) { continue }
 				{
-					let possy = room.read_resource::<Possy>();
+					let possy = room.read_resource::<Possy>().pass();
 					if !possy.get_ents([x, y, xyz[2]]).is_empty() {
 						continue
 					}
 				}
 				let r = range.ind_sample(rng);
 				if r < self.trees {
-					let Walls(ref mut walls) = *room.write_resource::<Walls>();
+					let Walls(ref mut walls) = *room.write_resource::<Walls>().pass();
 					let (fg, bg) =
 						if rng.gen() { (RGB4::LightGreen, RGB4::Green) }
 						else { (RGB4::Green, RGB4::LightGreen) };
@@ -58,16 +58,16 @@ impl RoomGen for Forest {
 					let speed = raffspeed.ind_sample(rng);
 					let e = room.create_now()
 						.with(Chr(Char::from('r')))
-						.with(Ai::new(AiState::Random, speed))
+						.with(Ai(AiState::Random, speed))
 						.with(Solid)
 						.with(Race::Raffbarf)
 						.with(Mortal(4))
 						.with(Weight(10))
 						.with(Weapon(raffclaw))
 						.build();
-					let mut ticker = room.write_resource::<Ticker>();
+					let mut ticker = room.write_resource::<Ticker>().pass();
 					ticker.push(speed, Action::Ai { src: e });
-					let mut possy = room.write_resource::<Possy>();
+					let mut possy = room.write_resource::<Possy>().pass();
 					possy.set_pos(e, [x, y, xyz[2]]);
 				}
 			}

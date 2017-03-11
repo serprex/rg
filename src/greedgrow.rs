@@ -7,7 +7,7 @@ use rand::distributions::{IndependentSample, Range};
 use adjacency::{Adjacency, AdjacencySet};
 use util::{R, rectover, rectoverinc};
 
-pub fn init(rng: &mut R, n: usize, minwh: i16, dim: [i16; 4]) -> Vec<[i16; 4]> {
+pub fn init(rng: &mut R, n: usize, minwh: i16, dim: [i16; 4], inc: bool) -> Vec<[i16; 4]> {
 	let w = dim[2];
 	let h = dim[3];
 	let n = cmp::min(n, (w as usize * h as usize) / (minwh as usize * minwh as usize));
@@ -20,7 +20,7 @@ pub fn init(rng: &mut R, n: usize, minwh: i16, dim: [i16; 4]) -> Vec<[i16; 4]> {
 			let xy = betwh.ind_sample(rng);
 			let (rx, ry) = (dim[0] + xy % (w-2), dim[1] + xy / (w-2));
 			let candy = [rx, ry, rx+minwh-1, ry+minwh-1];
-			if !rxy.iter().any(|&a| rectover(candy, a))
+			if !rxy.iter().any(|&a| if inc { rectoverinc } else { rectover }(candy, a))
 				{ rxy.push(candy) }
 		}
 		rxy
@@ -29,7 +29,7 @@ pub fn init(rng: &mut R, n: usize, minwh: i16, dim: [i16; 4]) -> Vec<[i16; 4]> {
 
 /* Given a set of rects, grow them as much as possible
    Return adjacency matrix */
-pub fn grow(rng: &mut R, rxy: &mut [[i16;4]], dim: [i16; 4])
+pub fn grow(rng: &mut R, rxy: &mut [[i16;4]], dim: [i16; 4], inc: bool)
 -> AdjacencySet {
 	let bet4 = Range::new(0, 4);
 	let rc = rxy.len();
@@ -56,8 +56,8 @@ pub fn grow(rng: &mut R, rxy: &mut [[i16;4]], dim: [i16; 4])
 				continue
 			}
 			let mut grow = true;
-			for (j, rect2) in rxy.iter().enumerate() {
-				if i != j && rectoverinc(newrect, *rect2){
+			for (j, &rect2) in rxy.iter().enumerate() {
+				if i != j && if inc { rectoverinc } else { rectover }(newrect, rect2){
 					grow = false;
 					adjacent.insert(i, j);
 				}
@@ -122,6 +122,7 @@ where D: Iterator<Item = (usize, usize)>
 				if mn != mx {
 					let mnx = rng.gen_range(mn, mx);
 					ret.insert(if mxi == 1 { [r1[r1i],mnx] } else { [mnx,r1[r1i]] });
+					ret.insert(if mxi == 1 { [r2[r2i],mnx] } else { [mnx,r2[r2i]] });
 				}
 				break
 			}

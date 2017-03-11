@@ -1,4 +1,4 @@
-use specs::{Entity, World};
+use specs::{Entity, World, Gate};
 use x1b::{self, RGB4};
 
 use actions::Action;
@@ -8,17 +8,17 @@ use tick::Ticker;
 use util::{Char, Curse, R};
 
 pub fn render(player: Entity, _rng: &mut R, w: &mut World) {
-	let possy = w.read_resource::<Possy>();
+	let possy = w.read_resource::<Possy>().pass();
 	if let Some(plpos) = possy.get_pos(player) {
-		let mut curse = w.write_resource::<Curse>();
-		let mut ticker = w.write_resource::<Ticker>();
+		let mut curse = w.write_resource::<Curse>().pass();
+		let mut ticker = w.write_resource::<Ticker>().pass();
 		ticker.push(1, Action::Render { src: player });
 		let cai = w.read::<Ai>();
 		let chr = w.read::<Chr>();
 		let cbag = w.read::<Bag>();
 		let pxy = plpos;
 		{
-		let Walls(ref walls) = *w.read_resource::<Walls>();
+		let Walls(ref walls) = *w.read_resource::<Walls>().pass();
 		let mut xyz = pxy;
 		for x in 0..12 {
 			xyz[0] = pxy[0] + x - 6;
@@ -38,16 +38,16 @@ pub fn render(player: Entity, _rng: &mut R, w: &mut World) {
 		}
 		}
 		{
-			let Log(ref log) = *w.read_resource::<Log>();
+			let Log(ref log) = *w.read_resource::<Log>().pass();
 			for (i, l) in log.iter().enumerate() {
 				curse.printnows(0, 48 + i as u16, &l, x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
 			}
 		}
-		if let Some(ai) = cai.get(player) {
-			if let AiState::PlayerCasting(ref cast) = ai.state {
+		if let Some(&Ai(ref state, _)) = cai.get(player) {
+			if let AiState::PlayerCasting(ref cast) = *state {
 				curse.set(40, 1, Char::from('>'));
 				curse.printnows(42, 1, &cast, x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
-			} else if let AiState::PlayerInventory(invp) = ai.state {
+			} else if let AiState::PlayerInventory(invp) = *state {
 				if let Some(&Bag(ref bag)) = cbag.get(player) {
 					if bag.is_empty() {
 						curse.printnows(40, 1, "Empty", x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);

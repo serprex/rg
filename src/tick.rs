@@ -5,7 +5,7 @@ use actions::Action;
 
 #[derive(Default)]
 pub struct Ticker {
-	pub tick: u32,
+	tick: u32,
 	events: FnvHashMap<u32, Vec<Action>>,
 }
 
@@ -23,6 +23,7 @@ impl Ticker {
 	pub fn pop(&mut self) -> Vec<Action> {
 		loop {
 			if let Some(v) = self.events.remove(&self.tick) {
+				self.tick += 1;
 				return v
 			}
 			self.tick += 1;
