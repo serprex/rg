@@ -157,9 +157,7 @@ fn moveto(np: [i16; 3], src: Entity, w: &mut World) {
 	possy.set_pos(src, np);
 	let mut ai = w.write::<Ai>();
 	let mut misl = w.write::<Dmg>();
-	let mut rmai = SmallVec::<[Entity; 1]>::new();
-	let mut rmisl = SmallVec::<[Entity; 1]>::new();
-	let mut rment = SmallVec::<[Entity; 1]>::new();
+	let ents = w.entities();
 	let mut spos = Vec::new();
 	for ce in possy.get_ents(np).iter().cloned().filter(|&ce| ce != src) {
 		if let Some(&Portal(porx)) = portal.get(ce) {
@@ -171,31 +169,21 @@ fn moveto(np: [i16; 3], src: Entity, w: &mut World) {
 					if *mce <= dmg {
 						*mce = 0;
 						solid.remove(ce);
-						rmai.push(ce);
+						ai.remove(ce);
 					} else {
 						*mce -= dmg;
 					}
 				}
 				if fragile.get(src).is_some() {
-					rment.push(src);
+					ents.delete(src);
 				} else { // TODO enable persisting attack
-					rmisl.push(src);
+					misl.remove(src);
 				}
 			}
 		}
 	}
-	for e in rmai {
-		ai.remove(e);
-	}
-	for e in rmisl {
-		misl.remove(e);
-	}
 	for (e, p) in spos {
 		possy.set_pos(e, p);
-	}
-	let ents = w.entities();
-	for e in rment {
-		ents.delete(e);
 	}
 }
 
