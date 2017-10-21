@@ -9,7 +9,7 @@ use util::*;
 
 #[allow(dead_code)]
 pub enum Action {
-	Action(Box<Fn(&mut R, &mut World) + Send + Sync>),
+	Action(Box<Fn(&mut World) + Send + Sync>),
 	Ai { src: Entity },
 	Movedir{ dir: Dir, src: Entity },
 	Colcheck { src: Entity },
@@ -31,35 +31,35 @@ pub enum Action {
 }
 
 impl Action {
-	pub fn call(self, rng: &mut R, w: &mut World) {
+	pub fn call(self, w: &mut World) {
 		match self {
-			Action::Action(a) => a(rng, w),
-			Action::Ai { src } => super::ailogic::ailogic(src, rng, w),
-			Action::Movedir { dir, src } => movedir(dir, src, rng, w),
-			Action::Colcheck { src } => colcheck(src, rng, w),
-			Action::Moveto { np, src } => moveto(np, src, rng, w),
-			Action::Melee { dur, src, ent } => melee(dur, src, ent, rng, w),
-			Action::Missile { spd, dir, dur, ent} => missile(spd, dir, dur, ent, rng, w),
-			Action::Attack { dir, src } => attack(dir, src, rng, w),
-			Action::Lunge { dir, src } => lunge(dir, src, rng, w),
-			Action::Shoot { dir, src } => shoot(dir, src, rng, w),
-			Action::Throw { dir, psrc, tsrc, obj } => throw(dir, psrc, tsrc, obj, rng, w),
-			Action::Heal { src, amt } => heal(src, amt, rng, w),
-			Action::Blink { src } => blink(src, rng, w),
-			Action::Grab { xyz, src } => grab(xyz, src, rng, w),
-			Action::Pickup { src, ent } => pickup(src, ent, rng, w),
-			Action::Render { src } => super::render::render(src, rng, w),
+			Action::Action(a) => a(w),
+			Action::Ai { src } => super::ailogic::ailogic(src, w),
+			Action::Movedir { dir, src } => movedir(dir, src, w),
+			Action::Colcheck { src } => colcheck(src, w),
+			Action::Moveto { np, src } => moveto(np, src, w),
+			Action::Melee { dur, src, ent } => melee(dur, src, ent, w),
+			Action::Missile { spd, dir, dur, ent} => missile(spd, dir, dur, ent, w),
+			Action::Attack { dir, src } => attack(dir, src, w),
+			Action::Lunge { dir, src } => lunge(dir, src, w),
+			Action::Shoot { dir, src } => shoot(dir, src, w),
+			Action::Throw { dir, psrc, tsrc, obj } => throw(dir, psrc, tsrc, obj, w),
+			Action::Heal { src, amt } => heal(src, amt, w),
+			Action::Blink { src } => blink(src, w),
+			Action::Grab { xyz, src } => grab(xyz, src, w),
+			Action::Pickup { src, ent } => pickup(src, ent, w),
+			Action::Render { src } => super::render::render(src, w),
 			Action::Say(s) => say(s, w),
-			Action::Seek(n, src) => seek(n, src, rng, w),
+			Action::Seek(n, src) => seek(n, src, w),
 			Action::PossyGc => possygc(w),
 		}
 	}
 }
 
-fn seek(n: u32, src: Entity, rng: &mut R, w: &mut World) {
+fn seek(n: u32, src: Entity, w: &mut World) {
 	let (seeking, act) = {
 		let mut cseek = w.write::<Seeking>();
-		let possy = w.read_resource::<Possy>().pass();
+		let possy = w.read_resource::<Possy>();
 		let seeking = if let Some(&Seeking(ref seeking, _)) = cseek.get(src) {
 			match seeking {
 				&Seek::Entity(seekent) =>
@@ -95,55 +95,55 @@ fn seek(n: u32, src: Entity, rng: &mut R, w: &mut World) {
 				(seeking, act)
 			} else { return }
 		} else {
-			let mut ticker = w.write_resource::<Ticker>().pass();
+			let mut ticker = w.write_resource::<Ticker>();
 			ticker.push(n, Action::Seek(n, src));
 			return
 		}
 	};
-	pickup(src, seeking, rng, w);
-	act.call(rng, w);
+	pickup(src, seeking, w);
+	act.call(w);
 }
 
 fn say(s: String, w: &mut World) {
-	let mut log = w.write_resource::<Log>().pass();
+	let mut log = w.write_resource::<Log>();
 	log.push(s);
 }
 
 fn possygc(w: &mut World) {
-	let mut possy = w.write_resource::<Possy>().pass();
+	let mut possy = w.write_resource::<Possy>();
 	possy.gc(&w);
-	let mut ticker = w.write_resource::<Ticker>().pass();
+	let mut ticker = w.write_resource::<Ticker>();
 	ticker.push(10, Action::PossyGc);
 }
 
-fn movedir(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
+fn movedir(dir: Dir, src: Entity, w: &mut World) {
 	if let Some(np) = {
-		let possy = w.read_resource::<Possy>().pass();
+		let possy = w.read_resource::<Possy>();
 		possy.get_pos(src).map(|pos| xyz_plus_dir(pos, dir))
 	} {
-		moveto(np, src, rng, w)
+		moveto(np, src, w)
 	}
 }
 
-fn colcheck(src: Entity, rng: &mut R, w: &mut World) {
+fn colcheck(src: Entity, w: &mut World) {
 	if let Some(np) = {
-		let possy = w.read_resource::<Possy>().pass();
+		let possy = w.read_resource::<Possy>();
 		possy.get_pos(src)
 	} {
-		moveto(np, src, rng, w)
+		moveto(np, src, w)
 	}
 }
 
-fn moveto(np: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
-	let mut possy = w.write_resource::<Possy>().pass();
+fn moveto(np: [i16; 3], src: Entity, w: &mut World) {
+	let mut possy = w.write_resource::<Possy>();
 	let mut mort = w.write::<Mortal>();
 	let portal = w.read::<Portal>();
 	let fragile = w.read::<Fragile>();
 	let mut solid = w.write::<Solid>();
-	let Walls(ref walls) = *w.read_resource::<Walls>().pass();
+	let Walls(ref walls) = *w.read_resource::<Walls>();
 	if walls.contains_key(&np) {
 		if fragile.get(src).is_some() {
-			w.delete_later(src);
+			w.entities().delete(src);
 		}
 		return
 	}
@@ -159,6 +159,7 @@ fn moveto(np: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 	let mut misl = w.write::<Dmg>();
 	let mut rmai = SmallVec::<[Entity; 1]>::new();
 	let mut rmisl = SmallVec::<[Entity; 1]>::new();
+	let mut rment = SmallVec::<[Entity; 1]>::new();
 	let mut spos = Vec::new();
 	for ce in possy.get_ents(np).iter().cloned().filter(|&ce| ce != src) {
 		if let Some(&Portal(porx)) = portal.get(ce) {
@@ -176,7 +177,7 @@ fn moveto(np: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 					}
 				}
 				if fragile.get(src).is_some() {
-					w.delete_later(src);
+					rment.push(src);
 				} else { // TODO enable persisting attack
 					rmisl.push(src);
 				}
@@ -192,40 +193,44 @@ fn moveto(np: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 	for (e, p) in spos {
 		possy.set_pos(e, p);
 	}
+	let ents = w.entities();
+	for e in rment {
+		ents.delete(e);
+	}
 }
 
-fn melee(dur: u8, src: Entity, ent: Entity, rng: &mut R, w: &mut World) {
+fn melee(dur: u8, src: Entity, ent: Entity, w: &mut World) {
 	if dur == 0 {
 		let mut weapons = w.write::<Weapon>();
-		let mut possy = w.write_resource::<Possy>().pass();
+		let mut possy = w.write_resource::<Possy>();
 		weapons.insert(src, Weapon(ent));
 		possy.remove(ent);
 	} else {
 		{
-		let mut ticker = w.write_resource::<Ticker>().pass();
+		let mut ticker = w.write_resource::<Ticker>();
 		ticker.push(1, Action::Melee { dur: dur - 1, src: src, ent: ent });
 		}
-		colcheck(ent, rng, w);
+		colcheck(ent, w);
 	}
 }
 
-fn missile(spd: u32, dir: Dir, dur: u8, ent: Entity, rng: &mut R, w: &mut World) {
+fn missile(spd: u32, dir: Dir, dur: u8, ent: Entity, w: &mut World) {
 	if dur == 0 {
 		let mut cm = w.write::<Dmg>();
 		cm.remove(ent);
 	} else {
 		{
-		let mut ticker = w.write_resource::<Ticker>().pass();
+		let mut ticker = w.write_resource::<Ticker>();
 		ticker.push(spd, Action::Missile { spd: spd, dir: dir, dur: dur - 1, ent: ent });
 		}
-		movedir(dir, ent, rng, w);
+		movedir(dir, ent, w);
 	}
 }
 
-fn attack(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
+fn attack(dir: Dir, src: Entity, w: &mut World) {
 	let (bp, went) = {
 		let mut weapons = w.write::<Weapon>();
-		let cpos = w.read_resource::<Possy>().pass();
+		let cpos = w.read_resource::<Possy>();
 		let watk = w.read::<Atk<Weapon>>();
 		let mut misl = w.write::<Dmg>();
 		if let Some(Weapon(went)) = weapons.remove(src) {
@@ -234,7 +239,7 @@ fn attack(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 				let &Strength(srcstr) = cstr.get(went).unwrap_or(&Strength(1));
 				let bp = xyz_plus_dir(pos, dir);
 				let wstats = *watk.get(went).unwrap_or(&Atk::<Weapon>::new(0, 1, 0));
-				let mut ticker = w.write_resource::<Ticker>().pass();
+				let mut ticker = w.write_resource::<Ticker>();
 				misl.insert(went, Dmg(srcstr / 4 + wstats.dmg));
 				let dur = wstats.dur;
 				ticker.push(1, Action::Melee { dur: dur, src: src, ent: went });
@@ -254,15 +259,15 @@ fn attack(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 			} else { return }
 		} else { return }
 	};
-	moveto(bp, went, rng, w)
+	moveto(bp, went, w)
 }
 
-fn lunge(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
-	movedir(dir, src, rng, w);
-	attack(dir, src, rng, w);
+fn lunge(dir: Dir, src: Entity, w: &mut World) {
+	movedir(dir, src, w);
+	attack(dir, src, w);
 }
 
-fn shoot(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
+fn shoot(dir: Dir, src: Entity, w: &mut World) {
 	let (went, sent) = {
 		let weapons = w.read::<Weapon>();
 		let mut shields = w.write::<Shield>();
@@ -272,16 +277,16 @@ fn shoot(dir: Dir, src: Entity, rng: &mut R, w: &mut World) {
 			} else { return }
 		} else { return }
 	};
-	throw(dir, src, went, sent, rng, w)
+	throw(dir, src, went, sent, w)
 }
 
-fn throw(dir: Dir, psrc: Entity, tsrc: Entity, obj: Entity, rng: &mut R, w: &mut World) {
+fn throw(dir: Dir, psrc: Entity, tsrc: Entity, obj: Entity, w: &mut World) {
 	let bp = {
-		let possy = w.read_resource::<Possy>().pass();
+		let possy = w.read_resource::<Possy>();
 		if let Some(pos) = possy.get_pos(psrc) {
 			let cstr = w.read::<Strength>();
 			let cwei = w.read::<Weight>();
-			let mut ticker = w.write_resource::<Ticker>().pass();
+			let mut ticker = w.write_resource::<Ticker>();
 			let mut misl = w.write::<Dmg>();
 			let bp = xyz_plus_dir(pos, dir);
 			let &Strength(srcstr) = cstr.get(tsrc).unwrap_or(&Strength(1));
@@ -293,31 +298,35 @@ fn throw(dir: Dir, psrc: Entity, tsrc: Entity, obj: Entity, rng: &mut R, w: &mut
 			bp
 		} else { return }
 	};
-	moveto(bp, obj, rng, w)
+	moveto(bp, obj, w)
 }
 
-fn heal(src: Entity, amt: i16, _rng: &mut R, w: &mut World) {
+fn heal(src: Entity, amt: i16, w: &mut World) {
 	let mut mortal = w.write::<Mortal>();
 	if let Some(&mut Mortal(ref mut mo)) = mortal.get_mut(src) {
 		*mo += amt
 	}
 }
 
-fn blink(src: Entity, rng: &mut R, w: &mut World) {
-	let np = if let Some(pxy) = w.write_resource::<Possy>().pass().get_pos(src) {
-		[rng.gen_range(0, 40), rng.gen_range(0, 40), pxy[2]]
+fn blink(src: Entity, w: &mut World) {
+	let pz = if let Some(pxy) = w.write_resource::<Possy>().get_pos(src) {
+		pxy[2]
 	} else {
 		return
 	};
-	moveto(np, src, rng, w);
+	let np = {
+		let mut rng = w.write_resource::<R>();
+		[rng.gen_range(0, 40), rng.gen_range(0, 40), pz]
+	};
+	moveto(np, src, w);
 }
 
-fn grab(xyz: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
+fn grab(xyz: [i16; 3], src: Entity, w: &mut World) {
 	let strength = w.read::<Strength>();
 	let mut bag = w.write::<Bag>();
 	if let (Some(&Strength(strg)), Some(&mut Bag(ref mut ebag))) = (strength.get(src), bag.get_mut(src)) {
 		let weight = w.read::<Weight>();
-		let mut possy = w.write_resource::<Possy>().pass();
+		let mut possy = w.write_resource::<Possy>();
 		let mut totwei: i32 = ebag.iter().filter_map(|&e| weight.get(e).map(|&Weight(x)| x as i32)).sum();
 		let mut rmpos = Vec::new();
 		for &ent in possy.get_ents(xyz).iter() {
@@ -335,12 +344,12 @@ fn grab(xyz: [i16; 3], src: Entity, _rng: &mut R, w: &mut World) {
 	}
 }
 
-fn pickup(src: Entity, ent: Entity, _rng: &mut R, w: &mut World) {
+fn pickup(src: Entity, ent: Entity, w: &mut World) {
 	let strength = w.read::<Strength>();
 	let mut bag = w.write::<Bag>();
 	if let (Some(&Strength(strg)), Some(&mut Bag(ref mut ebag))) = (strength.get(src), bag.get_mut(src)) {
 		let weight = w.read::<Weight>();
-		let mut possy = w.write_resource::<Possy>().pass();
+		let mut possy = w.write_resource::<Possy>();
 		let totwei: i32 = ebag.iter().filter_map(|&e| weight.get(e).map(|&Weight(x)| x as i32)).sum();
 		if let Some(&Weight(wei)) = weight.get(ent) {
 			if totwei + wei as i32 <= strg as i32 {

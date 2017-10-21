@@ -1,6 +1,6 @@
 use fnv::FnvHashSet;
 use rand::Rng;
-use specs::{World, Gate};
+use specs::{World};
 
 use super::RoomGen;
 use super::super::components::*;
@@ -13,7 +13,7 @@ impl RoomGen for Floodjoin {
 	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, _exits: &mut FnvHashSet<[i16; 3]>, room: &mut World) {
 		let mut fx;
 		let mut fy;
-		let Walls(ref mut walls) = *room.write_resource::<Walls>().pass();
+		let Walls(ref mut walls) = *room.write_resource::<Walls>();
 		'xyloop: loop {
 			for x in xyz[0]..xyz[0]+w {
 				for y in xyz[1]..xyz[1]+h {

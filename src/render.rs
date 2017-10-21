@@ -1,24 +1,24 @@
-use specs::{Entity, World, Gate};
+use specs::{Entity, World};
 use x1b::{self, RGB4};
 
 use actions::Action;
 use components::*;
 use position::Possy;
 use tick::Ticker;
-use util::{Char, Curse, R};
+use util::{Char, Curse};
 
-pub fn render(player: Entity, _rng: &mut R, w: &mut World) {
-	let possy = w.read_resource::<Possy>().pass();
+pub fn render(player: Entity, w: &mut World) {
+	let possy = w.read_resource::<Possy>();
 	if let Some(plpos) = possy.get_pos(player) {
-		let mut curse = w.write_resource::<Curse>().pass();
-		let mut ticker = w.write_resource::<Ticker>().pass();
+		let mut curse = w.write_resource::<Curse>();
+		let mut ticker = w.write_resource::<Ticker>();
 		ticker.push(1, Action::Render { src: player });
 		let cai = w.read::<Ai>();
 		let chr = w.read::<Chr>();
 		let cbag = w.read::<Bag>();
 		let pxy = plpos;
 		{
-		let Walls(ref walls) = *w.read_resource::<Walls>().pass();
+		let Walls(ref walls) = *w.read_resource::<Walls>();
 		let mut xyz = pxy;
 		for x in 0..12 {
 			xyz[0] = pxy[0] + x - 6;
@@ -38,7 +38,7 @@ pub fn render(player: Entity, _rng: &mut R, w: &mut World) {
 		}
 		}
 		{
-			let Log(ref log) = *w.read_resource::<Log>().pass();
+			let Log(ref log) = *w.read_resource::<Log>();
 			for (i, l) in log.iter().enumerate() {
 				curse.printnows(0, 48 + i as u16, &l, x1b::TextAttr::empty(), RGB4::Default, RGB4::Default);
 			}

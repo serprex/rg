@@ -1,7 +1,7 @@
 use fnv::FnvHashSet;
 use rand::Rng;
 use rand::distributions::{Range, IndependentSample};
-use specs::{World, Gate};
+use specs::{World};
 
 use super::RoomGen;
 use super::super::actions::Action;
@@ -32,7 +32,7 @@ impl RoomGen for Forest {
 	fn generate(&self, rng: &mut R, xyz: [i16; 3], w: i16, h: i16, exits: &mut FnvHashSet<[i16; 3]>, room: &mut World) {
 		let range = Range::new(0, self.trees + self.raff + self.null);
 		let raffspeed = Range::new(8, 14);
-		let raffclaw = room.create_now()
+		let raffclaw = room.create_entity()
 			.with(Chr(Char::from('x')))
 			.with(Weight(2))
 			.with(Atk::<Weapon>::new(1, 2, 2))
@@ -42,21 +42,21 @@ impl RoomGen for Forest {
 			for y in xyz[1]..xyz[1]+h {
 				if exits.contains(&[x, y, xyz[2]]) { continue }
 				{
-					let possy = room.read_resource::<Possy>().pass();
+					let possy = room.read_resource::<Possy>();
 					if !possy.get_ents([x, y, xyz[2]]).is_empty() {
 						continue
 					}
 				}
 				let r = range.ind_sample(rng);
 				if r < self.trees {
-					let Walls(ref mut walls) = *room.write_resource::<Walls>().pass();
+					let Walls(ref mut walls) = *room.write_resource::<Walls>();
 					let (fg, bg) =
 						if rng.gen() { (RGB4::LightGreen, RGB4::Green) }
 						else { (RGB4::Green, RGB4::LightGreen) };
 					walls.insert([x, y, xyz[2]], Char::new_with_color('*', fg, bg));
 				} else if r - self.trees < self.raff {
 					let speed = raffspeed.ind_sample(rng);
-					let e = room.create_now()
+					let e = room.create_entity()
 						.with(Chr(Char::from('r')))
 						.with(Ai(AiState::Random, speed))
 						.with(Solid)
@@ -65,9 +65,9 @@ impl RoomGen for Forest {
 						.with(Weight(10))
 						.with(Weapon(raffclaw))
 						.build();
-					let mut ticker = room.write_resource::<Ticker>().pass();
+					let mut ticker = room.write_resource::<Ticker>();
 					ticker.push(speed, Action::Ai { src: e });
-					let mut possy = room.write_resource::<Possy>().pass();
+					let mut possy = room.write_resource::<Possy>();
 					possy.set_pos(e, [x, y, xyz[2]]);
 				}
 			}

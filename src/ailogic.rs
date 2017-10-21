@@ -9,13 +9,14 @@ use position::Possy;
 use tick::Ticker;
 use util::*;
 
-pub fn ailogic(ent: Entity, rng: &mut R, w: &mut World) {
+pub fn ailogic(ent: Entity, w: &mut World) {
 	let mut donow = Vec::new();
 	{
 	let mut cai = w.write::<Ai>();
 	if let Some(&mut Ai(ref mut state, mut tick)) = cai.get_mut(ent) {
-		let possy = w.read_resource::<Possy>().pass();
-		let mut ticker = w.write_resource::<Ticker>().pass();
+		let possy = w.read_resource::<Possy>();
+		let mut ticker = w.write_resource::<Ticker>();
+		let mut rng = w.write_resource::<R>();
 		if let Some(pos) = possy.get_pos(ent) {
 			match *state {
 				AiState::PlayerInventory(invp) => {
@@ -90,7 +91,7 @@ pub fn ailogic(ent: Entity, rng: &mut R, w: &mut World) {
 									if let Some(Consume(act)) = consume.remove(ebag[invp]) {
 										let ie = ebag.remove(invp);
 										donow.push(act(ie));
-										w.delete_later(ie);
+										w.entities().delete(ie);
 										if invp == ebag.len() {
 											*state = AiState::PlayerInventory(0);
 										}
@@ -254,7 +255,7 @@ pub fn ailogic(ent: Entity, rng: &mut R, w: &mut World) {
 										let mut weight = w.write::<Weight>();
 										let mut fragile = w.write::<Fragile>();
 										let mut cch = w.write::<Chr>();
-										let shot = w.create_pure();
+										let shot = w.entities().create();
 										weight.insert(shot, Weight(2));
 										fragile.insert(shot, Fragile);
 										cch.insert(shot, Chr(Char::from('j')));
@@ -343,7 +344,7 @@ pub fn ailogic(ent: Entity, rng: &mut R, w: &mut World) {
 	}
 	}
 	for act in donow {
-		act.call(rng, w);
+		act.call(w);
 	}
 }
 

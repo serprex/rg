@@ -38,7 +38,6 @@ macro_rules! w_register {
 }
 
 fn main(){
-	let mut rng = R::rand(&mut rand::thread_rng());
 	let mut w = World::new();
 	w_register!(w, Mortal, Ai, Portal, Race, Chr, Weight, Strength, Consume,
 		Bag, Armor, Weapon, Head, Shield, Solid, Fragile, Dmg, Seeking,
@@ -48,24 +47,24 @@ fn main(){
 	w.add_resource(Log::default());
 	let mut ticker = Ticker::default();
 	let mut possy = Possy::default();
-	let raffclaw = w.create_now()
+	let raffclaw = w.create_entity()
 		.with(Chr(Char::from('x')))
 		.with(Weight(3))
 		.with(Atk::<Weapon>::new(1, 1, -2))
 		.build();
 	possy.set_pos(raffclaw, [4, 8, 0]);
-	possy.set_pos(w.create_now()
+	possy.set_pos(w.create_entity()
 		.with(Chr(Char::from('b')))
 		.with(Weight(10))
 		.with(Strength(80))
 		.build(), [2, 5, 0]);
 	for _ in 0..10 {
-		possy.set_pos(w.create_now()
+		possy.set_pos(w.create_entity()
 			.with(Chr(Char::from('^')))
 			.with(Weight(3))
 			.build(), [3, 7, 0]);
 	}
-	let player = w.create_now()
+	let player = w.create_entity()
 		.with(Ai(AiState::Player, 10))
 		.with(Bag(Vec::new()))
 		.with(Chr(Char::from('@')))
@@ -79,7 +78,7 @@ fn main(){
 	ticker.push(0, Action::Render { src: player });
 	ticker.push(10, Action::Ai { src: player });
 	possy.set_pos(player, [4, 4, 0]);
-	let yeri = w.create_now()
+	let yeri = w.create_entity()
 		.with(Chr(Char::from('a')))
 		.with(Solid)
 		.with(Ai(AiState::Ally(player, AllyState::Random), 12))
@@ -90,7 +89,7 @@ fn main(){
 		.build();
 	ticker.push(10, Action::Ai { src: yeri });
 	possy.set_pos(yeri, [4, 6, 0]);
-	let raff = w.create_now()
+	let raff = w.create_entity()
 		.with(Chr(Char::from('r')))
 		.with(Solid)
 		.with(Ai(AiState::Random, 12))
@@ -101,7 +100,7 @@ fn main(){
 		.build();
 	ticker.push(12, Action::Ai { src: raff });
 	possy.set_pos(raff, [20, 6, 0]);
-	let leyla = w.create_now()
+	let leyla = w.create_entity()
 		.with(Chr(Char::from('k')))
 		.with(Solid)
 		.with(Ai(AiState::Random, 8))
@@ -112,17 +111,17 @@ fn main(){
 		.build();
 	ticker.push(8, Action::Ai { src: leyla });
 	possy.set_pos(leyla, [10, 8, 0]);
-	possy.set_pos(w.create_now()
+	possy.set_pos(w.create_entity()
 		.with(Chr(Char::from('!')))
 		.with(Atk::<Weapon>::new(2, 3, 2))
 		.with(Weight(5))
 		.build(), [8, 8, 0]);
-	let ring = w.create_now()
+	let ring = w.create_entity()
 		.with(Chr(Char::from('o')))
 		.with(Weight(1))
 		.build();
 	possy.set_pos(ring, [15, 20, 0]);
-	let seeker = w.create_now()
+	let seeker = w.create_entity()
 		.with(Chr(Char::from('&')))
 		.with(Seeking(Seek::Entity(ring), Action::Say(String::from("Thanks"))))
 		.with(Weight(55))
@@ -131,21 +130,21 @@ fn main(){
 		.build();
 	possy.set_pos(seeker, [5, 2, 0]);
 	ticker.push(20, Action::Seek(20, seeker));
-	let rateater = w.create_now()
+	let rateater = w.create_entity()
 		.with(Chr(Char::from('&')))
 		.with(Bag(Vec::new()))
 		.build();
 	fn rateaterfn(rateater: Entity, w: &mut World) {
 		let mut seeking = w.write::<Seeking>();
-		seeking.insert(rateater, Seeking(Seek::Race(Race::Raffbarf), Action::Action(Box::new(move|r,w| {
-			Action::Say(String::from("Tasty")).call(r, w);
-			let meal = w.create_now()
+		seeking.insert(rateater, Seeking(Seek::Race(Race::Raffbarf), Action::Action(Box::new(move|w| {
+			Action::Say(String::from("Tasty")).call(w);
+			let meal = w.create_entity()
 				.with(Chr(Char::from('r')))
 				.with(Weight(3))
 				.with(Consume(Box::new(|e| Action::Heal { src: e, amt: 1})))
 				.build();
 			{
-			let mut possy = w.write_resource::<Possy>().pass();
+			let mut possy = w.write_resource::<Possy>();
 			if let Some(pos) = possy.get_pos(rateater) {
 				possy.set_pos(meal, [pos[0], pos[1]+1, pos[2]]);
 			}
@@ -158,6 +157,7 @@ fn main(){
 	ticker.push(20, Action::Seek(20, rateater));
 	w.add_resource(possy);
 	w.add_resource(ticker);
+	let mut rng = R::rand(&mut rand::thread_rng());
 	{
 	let mut exits = FnvHashSet::default();
 	let rrg = genroom::Greedy::default();
@@ -176,16 +176,17 @@ fn main(){
 		rng.choose(&genbag).unwrap().generate(&mut rng, [fxy[0], fxy[1], 1], fxy[2]-fxy[0]+1, fxy[3]-fxy[1]+1, &mut exits, &mut w)
 	}
 	}
+	w.add_resource(rng);
 	w.add_resource(Curse::new(80, 60));
 	let _lock = TermJuggler::new();
 	while !EXITGAME.load(Ordering::Relaxed) {
 		w.maintain();
 		let events = {
-			let mut ticker = w.write_resource::<Ticker>().pass();
+			let mut ticker = w.write_resource::<Ticker>();
 			ticker.pop()
 		};
 		for event in events {
-			event.call(&mut rng, &mut w);
+			event.call(&mut w);
 		}
 	}
 }

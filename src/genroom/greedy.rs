@@ -1,6 +1,6 @@
 use fnv::FnvHashSet;
 use rand::Rng;
-use specs::{World, Gate};
+use specs::{World};
 
 use super::RoomGen;
 use super::super::components::*;
@@ -30,27 +30,27 @@ impl RoomGen for Greedy {
 			let r = rxy[lastaidx];
 			let x = rng.gen_range(r[0]+1, r[2]);
 			let y = rng.gen_range(r[1]+1, r[3]);
-			let e = room.create_now()
+			let e = room.create_entity()
 				.with(Chr(Char::from('\\')))
 				.with(Portal([xyz[0]+x,xyz[1]+y,xyz[2]+1]))
 				.build();
-			let e2 = room.create_now()
+			let e2 = room.create_entity()
 				.with(Chr(Char::from('/')))
 				.with(Portal([xyz[0]+x-1,xyz[1]+y,xyz[2]]))
 				.build();
-			let mut possy = room.write_resource::<Possy>().pass();
+			let mut possy = room.write_resource::<Possy>();
 			possy.set_pos(e, [xyz[0]+x,xyz[1]+y,xyz[2]]);
 			possy.set_pos(e2, [xyz[0]+x-1,xyz[1]+y,xyz[2]+1]);
 			exits.insert([xyz[0]+x-1,xyz[1]+y,xyz[2]]);
 			exits.insert([xyz[0]+x,xyz[1]+y,xyz[2]+1]);
 		}
-		let possy = room.read_resource::<Possy>().pass();
+		let possy = room.read_resource::<Possy>();
 		if let Some(floor) = possy.floors.get(&xyz[2]) {
 			for k in floor.keys() {
 				doors.insert([k[0], k[1]]);
 			}
 		}
-		let Walls(ref mut walls) = *room.write_resource::<Walls>().pass();
+		let Walls(ref mut walls) = *room.write_resource::<Walls>();
 		let mut add_wall = |xy: [i16; 2], ch: char| {
 			if !doors.contains(&xy) {
 				walls.insert([xyz[0]+xy[0],xyz[1]+xy[1],xyz[2]], Char::from(ch));

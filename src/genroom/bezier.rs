@@ -1,6 +1,6 @@
 use fnv::FnvHashSet;
 use rand::distributions::{IndependentSample, Range};
-use specs::{World, Gate};
+use specs::{World};
 
 use super::RoomGen;
 use super::super::util::{R, Char};
@@ -50,7 +50,7 @@ impl RoomGen for Bezier {
 			3 => [x+w-1.0, yrange.ind_sample(rng)],
 			_ => unreachable!(),
 		});
-		let Walls(ref mut walls) = *room.write_resource::<Walls>().pass();
+		let Walls(ref mut walls) = *room.write_resource::<Walls>();
 		let mut n: f32 = 0.0;
 		while n <= 1.0 {
 			let mut pts = pts.clone();

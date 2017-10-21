@@ -7,8 +7,8 @@ authors = ["serprex"]
 rand = "0.3"
 fnv = "1.0.5"
 termios = "0.2"
-specs = { version = "0.8.1", default-features = false }
-smallvec = "0.2"
+specs = { version = "0.10", default-features = false }
+smallvec = "0.4"
 x1b = "0.5.1"
 #x1b = { path = "../x1b", version = "*" }
 

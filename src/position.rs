@@ -80,10 +80,10 @@ impl Possy {
 			}
 		};
 		if let Some(oldpos) = oldpos {
-			let mut floor = self.floors.get_mut(&oldpos[2]).unwrap();
+			let floor = self.floors.get_mut(&oldpos[2]).unwrap();
 			let eveclen = {
 				let mut idx: usize = unsafe { ::std::mem::uninitialized() };
-				let mut evec = floor.get_mut(&oldpos[..2]).unwrap();
+				let evec = floor.get_mut(&oldpos[..2]).unwrap();
 				for (i, &ie) in evec.iter().enumerate() {
 					if e == ie {
 						idx = i;
