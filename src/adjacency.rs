@@ -1,11 +1,11 @@
+use fnv::{FnvHashMap, FnvHashSet};
 use std::collections::hash_map::Entry;
-use fnv::{FnvHashSet, FnvHashMap};
 
 pub trait Adjacency {
 	fn insert(&mut self, a: usize, b: usize) -> bool;
 	fn remove(&mut self, a: usize, b: usize) -> bool;
 	fn contains(&self, a: usize, b: usize) -> bool;
-	fn arms(&self, a: usize, b: usize) -> Vec<(usize, usize)>;
+	fn arms(&self, a: usize, b: usize) -> Box<Iterator<Item = (usize, usize)>>;
 	fn len(&self) -> usize;
 	fn root(&self) -> Option<(usize, usize)>;
 }
@@ -38,9 +38,12 @@ impl Adjacency for AdjacencySet {
 		self.0.contains(&ab)
 	}
 
-	fn arms(&self, a: usize, b: usize) -> Vec<(usize, usize)> {
+	fn arms(&self, a: usize, b: usize) -> Box<Iterator<Item = (usize, usize)>> {
 		let (a, b) = if a > b { (a, b) } else { (b, a) };
-		self.0.iter().cloned().filter(|&(x, y)| (x == a && y != b) || (x != a && y == b)).collect()
+		Box::new(self.0
+			.clone()
+			.into_iter()
+			.filter(move|&(x, y)| (x == a && y != b) || (x != a && y == b)))
 	}
 
 	#[inline(always)]
@@ -64,10 +67,19 @@ pub fn is_connected<T: Adjacency>(adj: &T) -> bool {
 	}
 }
 
-fn is_connected_core<T: Adjacency>(adj: &T, a: usize, b: usize, seen: &mut FnvHashSet<(usize, usize)>) {
+fn is_connected_core<T: Adjacency>(
+	adj: &T,
+	a: usize,
+	b: usize,
+	seen: &mut FnvHashSet<(usize, usize)>,
+) {
 	seen.insert((a, b));
-	let search: Vec<(usize, usize)> = adj.arms(a, b).into_iter().filter(|x| !seen.contains(x)).collect();
-	for (x, y) in search {
+	for (x, y) in adj
+		.arms(a, b)
+		.into_iter()
+		.filter(|x| !seen.contains(x))
+		.collect::<Vec<_>>().into_iter()
+	{
 		is_connected_core(adj, x, y, seen);
 	}
 }
@@ -89,18 +101,20 @@ impl Adjacency for AdjacencyVec {
 	fn contains(&self, a: usize, b: usize) -> bool {
 		self.0[a + b * self.1]
 	}
-	fn arms(&self, a: usize, b: usize) -> Vec<(usize, usize)> {
+	fn arms(&self, a: usize, b: usize) -> Box<Iterator<Item = (usize, usize)>> {
 		let mut ret = Vec::new();
 		for x in 0..self.1 {
 			let (x, y) = if x > a { (x, b) } else { (a, x) };
-			if self.contains(x, y) { ret.push((x, y)) }
+			if self.contains(x, y) {
+				ret.push((x, y))
+			}
 		}
-		ret
+		Box::new(ret.into_iter())
 	}
 	fn len(&self) -> usize {
 		let mut ret = 0;
 		for x in 0..self.1 {
-			for y in 0..(x+1) {
+			for y in 0..(x + 1) {
 				if self.contains(x, y) {
 					ret += 1;
 				}
@@ -110,9 +124,9 @@ impl Adjacency for AdjacencyVec {
 	}
 	fn root(&self) -> Option<(usize, usize)> {
 		for x in 0..self.1 {
-			for y in 0..(x+1) {
+			for y in 0..(x + 1) {
 				if self.contains(x, y) {
-					return Some((x, y))
+					return Some((x, y));
 				}
 			}
 		}
@@ -134,10 +148,10 @@ impl Adjacency for AdjacencyMap {
 				let mut s = FnvHashSet::default();
 				s.insert(b);
 				e.insert(s);
-			},
+			}
 			Entry::Occupied(mut e) => {
 				e.get_mut().insert(b);
-			},
+			}
 		}
 		match self.0.entry(b) {
 			Entry::Vacant(e) => {
@@ -145,10 +159,8 @@ impl Adjacency for AdjacencyMap {
 				s.insert(a);
 				e.insert(s);
 				true
-			},
-			Entry::Occupied(mut e) => {
-				e.get_mut().insert(b)
-			},
+			}
+			Entry::Occupied(mut e) => e.get_mut().insert(b),
 		}
 	}
 	fn remove(&mut self, a: usize, b: usize) -> bool {
@@ -168,7 +180,7 @@ impl Adjacency for AdjacencyMap {
 			false
 		}
 	}
-	fn arms(&self, a: usize, b: usize) -> Vec<(usize, usize)> {
+	fn arms(&self, a: usize, b: usize) -> Box<Iterator<Item = (usize, usize)>> {
 		let mut s: FnvHashSet<(usize, usize)> = if let Some(s) = self.0.get(&a) {
 			s.iter().map(|&b| (a, b)).filter(|&(a, b)| a <= b).collect()
 		} else {
@@ -179,7 +191,7 @@ impl Adjacency for AdjacencyMap {
 				s.insert((a, b));
 			}
 		}
-		s.into_iter().collect()
+		Box::new(s.into_iter())
 	}
 	fn len(&self) -> usize {
 		let mut ret = 0;
@@ -195,7 +207,7 @@ impl Adjacency for AdjacencyMap {
 	fn root(&self) -> Option<(usize, usize)> {
 		for (&a, v) in self.0.iter() {
 			for &b in v.iter() {
-				return Some((a, b))
+				return Some((a, b));
 			}
 		}
 		None

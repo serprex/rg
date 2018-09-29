@@ -4,11 +4,11 @@ version = "0.1.0"
 authors = ["serprex"]
 
 [dependencies]
-rand = "0.3"
-fnv = "1.0.5"
-termios = "0.2"
-specs = { version = "0.10", default-features = false }
-smallvec = "0.4"
+rand = "0.5"
+fnv = "1.0.6"
+termios = "0.3"
+specs = { version = "0.12", default-features = false }
+smallvec = "0.6"
 x1b = "0.5.1"
 #x1b = { path = "../x1b", version = "*" }
 

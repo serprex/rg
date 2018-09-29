@@ -1,9 +1,9 @@
-use std::cmp;
-use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
-use std::io::{self, Read};
-use rand::XorShiftRng;
-use x1b;
 use components::Dir;
+use rand::XorShiftRng;
+use std::cmp;
+use std::io::{self, Read};
+use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
+use x1b;
 
 pub type Char = x1b::Char<x1b::RGB4>;
 pub type Curse = x1b::Curse<x1b::RGB4>;
@@ -20,7 +20,8 @@ pub fn rectoverinc(r1: [i16; 4], r2: [i16; 4]) -> bool {
 pub static EXITGAME: AtomicBool = ATOMIC_BOOL_INIT;
 
 pub fn cmpi<T, U>(a: T, b: T, lt: U, eq: U, gt: U) -> U
-	where T: cmp::Ord
+where
+	T: cmp::Ord,
 {
 	match a.cmp(&b) {
 		cmp::Ordering::Less => lt,
@@ -36,7 +37,7 @@ pub fn getch() -> char {
 		let mut sinchars = sin.bytes();
 		match sinchars.next() {
 			Some(Ok(ch)) if ch != 0x1b => return ch as char,
-			_ => EXITGAME.store(true, Ordering::Relaxed)
+			_ => EXITGAME.store(true, Ordering::Relaxed),
 		}
 	}
 	'\x1b'

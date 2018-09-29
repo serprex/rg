@@ -1,5 +1,5 @@
-use std::collections::hash_map::Entry;
 use fnv::FnvHashMap;
+use std::collections::hash_map::Entry;
 
 use actions::Action;
 
@@ -14,17 +14,17 @@ impl Ticker {
 		match self.events.entry(self.tick + n) {
 			Entry::Vacant(entry) => {
 				entry.insert(vec![act]);
-			},
+			}
 			Entry::Occupied(mut entry) => {
 				entry.get_mut().push(act);
-			},
+			}
 		}
 	}
 	pub fn pop(&mut self) -> Vec<Action> {
 		loop {
 			if let Some(v) = self.events.remove(&self.tick) {
 				self.tick += 1;
-				return v
+				return v;
 			}
 			self.tick += 1;
 		}

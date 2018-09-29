@@ -1,7 +1,7 @@
+use fnv::FnvHashMap;
+use specs::{Component, Entity, HashMapStorage, NullStorage, VecStorage};
 use std::marker::PhantomData;
 use std::mem;
-use fnv::FnvHashMap;
-use specs::{Entity, Component, VecStorage, HashMapStorage, NullStorage};
 
 use actions::Action;
 use util::Char;
@@ -27,7 +27,10 @@ pub enum Race {
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Dir {
-	H, J, K, L
+	H,
+	J,
+	K,
+	L,
 }
 
 #[derive(Clone)]
@@ -146,13 +149,33 @@ pub enum Seek {
 
 pub struct Seeking(pub Seek, pub Action);
 
-pub struct Consume(pub Box<(Fn(Entity) -> Action) + Send + Sync>);
+pub struct Consume(pub Box<(Fn(Entity) -> Action + Send + Sync)>);
 
 impl_storage!(VecStorage, Chr, Ai);
-impl_storage!(HashMapStorage, Portal, Weight, Strength, Consume,
-	Mortal, Armor, Weapon, Shield, Head, Bag, Race, Dmg, Seeking,
-	Def<Armor>, Def<Weapon>, Def<Shield>, Def<Head>,
-	Atk<Armor>, Atk<Weapon>, Atk<Shield>, Atk<Head>);
+impl_storage!(
+	HashMapStorage,
+	Portal,
+	Weight,
+	Strength,
+	Consume,
+	Mortal,
+	Armor,
+	Weapon,
+	Shield,
+	Head,
+	Bag,
+	Race,
+	Dmg,
+	Seeking,
+	Def<Armor>,
+	Def<Weapon>,
+	Def<Shield>,
+	Def<Head>,
+	Atk<Armor>,
+	Atk<Weapon>,
+	Atk<Shield>,
+	Atk<Head>
+);
 impl_storage!(NullStorage, Solid, Fragile);
 
 pub fn is_aggro(r1: Race, r2: Race) -> bool {

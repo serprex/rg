@@ -16,9 +16,8 @@ impl TermJuggler {
 	}
 }
 impl Drop for TermJuggler {
-	fn drop(&mut self){
+	fn drop(&mut self) {
 		x1b::Cursor::dropclear().ok();
 		tcsetattr(0, TCSAFLUSH, &self.0).ok();
 	}
 }
-

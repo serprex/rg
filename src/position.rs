@@ -33,7 +33,7 @@ impl Possy {
 					for (i, &ie) in sv.iter().enumerate() {
 						if ent == ie {
 							idx = i;
-							break
+							break;
 						}
 					}
 					sv.remove(idx);
@@ -60,7 +60,11 @@ impl Possy {
 		}
 	}
 	pub fn get_ents(&self, pos: [i16; 3]) -> &[Entity] {
-		if let Some(sv) = self.floors.get(&pos[2]).and_then(|floor| floor.get(&pos[..2])) {
+		if let Some(sv) = self
+			.floors
+			.get(&pos[2])
+			.and_then(|floor| floor.get(&pos[..2]))
+		{
 			&sv[..]
 		} else {
 			&[]
@@ -74,10 +78,8 @@ impl Possy {
 			Entry::Vacant(try) => {
 				try.insert(pos);
 				None
-			},
-			Entry::Occupied(mut try) => {
-				Some(try.insert(pos))
 			}
+			Entry::Occupied(mut try) => Some(try.insert(pos)),
 		};
 		if let Some(oldpos) = oldpos {
 			let floor = self.floors.get_mut(&oldpos[2]).unwrap();
@@ -87,7 +89,7 @@ impl Possy {
 				for (i, &ie) in evec.iter().enumerate() {
 					if e == ie {
 						idx = i;
-						break
+						break;
 					}
 				}
 				evec.remove(idx);
@@ -106,9 +108,13 @@ impl Possy {
 				sv.push(e);
 				fmap.insert([pos[0], pos[1]], sv);
 				floor.insert(fmap);
-			},
+			}
 			Entry::Occupied(mut floor) => {
-				floor.get_mut().entry([pos[0],pos[1]]).or_insert_with(SmallVec::new).push(e);
+				floor
+					.get_mut()
+					.entry([pos[0], pos[1]])
+					.or_insert_with(SmallVec::new)
+					.push(e);
 			}
 		}
 	}
